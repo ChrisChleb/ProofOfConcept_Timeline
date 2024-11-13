@@ -34,8 +34,10 @@ export default defineComponent({
     let initalX: number = 0;
     let initialTactonWidth: number = 0;
     let initialTactonX: number = 0;
-    
+    let initialRightHandleX: number = 0;
+    let initialLeftHandleX: number = 0;    
     let tactons: Tacton[] = [];
+    
     onMounted(async () => {
       // Create app
       const pixiApp = new Pixi.Application();
@@ -137,6 +139,7 @@ export default defineComponent({
         initalX = event.data.global.x;
         initialTactonWidth = resizedTacton.width;
         initialTactonX = resizedTacton.x;
+        initialLeftHandleX = resizedTacton.parent.children[1].x
         
         window.addEventListener('pointermove', onResize);
         window.addEventListener('pointerup', onResizeEnd);
@@ -145,10 +148,12 @@ export default defineComponent({
       function onResizingStartRight(event: any) {
         resizedTacton = event.target.parent.children[0];
         if (resizedTacton == null) return;
-        
+                
         resizeDirection = Direction.RIGHT;
         initalX = event.data.global.x;
         initialTactonWidth = resizedTacton.width;
+        initialTactonX = resizedTacton.x;
+        initialRightHandleX = resizedTacton.parent.children[2].x
         
         window.addEventListener('pointermove', onResize);
         window.addEventListener('pointerup', onResizeEnd);
@@ -160,13 +165,14 @@ export default defineComponent({
         const deltaX = event.screenX - initalX;
         
         if (resizeDirection == Direction.RIGHT) {          
-          resizedTacton.width = initialTactonWidth + deltaX;
-          resizedTacton.parent.children[2].x = resizedTacton.width - initialTactonWidth;
+          resizedTacton.width = (initialTactonWidth + deltaX);
+          resizedTacton.parent.children[2].x = resizedTacton.width - initialTactonWidth + initialRightHandleX;
+          
         } else {
           resizedTacton.width = initialTactonWidth + (-deltaX);
           resizedTacton.x = initialTactonX + deltaX;
-          resizedTacton.parent.children[1].x = initialTactonWidth - resizedTacton.width;
-        } 
+          resizedTacton.parent.children[1].x = initialTactonWidth - resizedTacton.width + initialLeftHandleX;
+        }
       }
       
       function onResizeEnd(event: any) {
@@ -175,7 +181,9 @@ export default defineComponent({
         resizedTacton = null;
         initalX = 0;
         initialTactonWidth = 0;
-        window.removeEventListener('pointermove', () => {});
+        initialTactonX = 0;
+        window.removeEventListener('pointermove', onResize);
+        window.removeEventListener('pointerup', onResizeEnd);
       }
     });
   }

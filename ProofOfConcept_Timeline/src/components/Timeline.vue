@@ -12,7 +12,7 @@ export default defineComponent({
     const handleColor: string = 'rgb(236,102,12)';
     const handleWidth: number = 32;
     
-    const sliderMinWidth = 50;
+    const sliderMinWidth = 500;
     const sliderMaxWidth = window.innerWidth;
     const viewportWidth = window.innerWidth;
     
@@ -68,7 +68,6 @@ export default defineComponent({
       let initialSliderWidth = sliderRect.width;
       let initialSliderX = sliderRect.x;
 
-      // Linken Griff starten
       leftSliderHandle.on('pointerdown', (event) => {
         isResizingLeft = true;
         initialMouseX = event.data.global.x;
@@ -78,7 +77,6 @@ export default defineComponent({
         window.addEventListener('pointerup', onScaleEnd);
       });
 
-      // Rechten Griff starten
       rightSliderHandle.on('pointerdown', (event) => {
         isResizingRight = true;
         initialMouseX = event.data.global.x;
@@ -86,19 +84,16 @@ export default defineComponent({
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
       });
-
-      // Verschieben starten
+      
       sliderRect.on('pointerdown', (event) => {
         isDraggingSlider = true;
         initialMouseX = event.data.global.x;
         initialSliderX = sliderRect.x;
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
-      });
-            
+      });            
       function onScale(event: any) {
         const deltaX = event.screenX - initialMouseX;
-        // Linkes Resizing
         if (isResizingLeft) {
           const newWidth = initialSliderWidth - deltaX;
           if (newWidth >= sliderMinWidth && newWidth <= sliderMaxWidth) {
@@ -107,35 +102,34 @@ export default defineComponent({
             leftSliderHandle.x = sliderRect.x - leftSliderHandle.width;
           }
         }
-
-        // Rechtes Resizing
+        
         if (isResizingRight) {
           const newWidth = initialSliderWidth + deltaX;
           if (newWidth >= sliderMinWidth && newWidth <= sliderMaxWidth) {
             sliderRect.width = newWidth;
-            rightSliderHandle.x = sliderRect.width - window.innerWidth;
+            rightSliderHandle.x = sliderRect.width - window.innerWidth + sliderRect.x;
           }
         }
-
-        // Aktuelle Breite des Sliders verwenden
+        
         const currentZoomLevel = calculateZoom(sliderRect.width);
-
-        // Optional: Setze das Zoomlevel in deinem Store, um es in anderen Komponenten zu verwenden
         store.dispatch('updateZoomLevel', currentZoomLevel);
-
-        // Verschieben des gesamten Sliders
+        
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
+          if (newSliderX < handleWidth || newSliderX > window.innerWidth - handleWidth) return;
+          
           if (newSliderX >= 0 && newSliderX + sliderRect.width <= viewportWidth) {
             sliderRect.x = newSliderX;
             leftSliderHandle.x = sliderRect.x - leftSliderHandle.width;
-            rightSliderHandle.x = sliderRect.x + sliderRect.width;
+            rightSliderHandle.x = sliderRect.width - window.innerWidth + sliderRect.x;  
             calculateViewport(sliderRect.x);
           }
         }
-      }
-      
-      function onScaleEnd() {        
+      }      
+      function onScaleEnd() {
+        isResizingRight = false;
+        isResizingLeft = false;
+        isDraggingSlider = false;
         window.removeEventListener('pointermove', onScale);
         window.removeEventListener('pointerup', onScaleEnd);
       }

@@ -136,7 +136,7 @@ export default defineComponent({
         if (resizedTacton == null) return;
         
         resizeDirection = Direction.LEFT;
-        initalX = event.data.global.x;
+        initalX = event.data.global.x / window.devicePixelRatio;
         initialTactonWidth = resizedTacton.width;
         initialTactonX = resizedTacton.x;
         initialLeftHandleX = resizedTacton.parent.children[1].x
@@ -150,7 +150,7 @@ export default defineComponent({
         if (resizedTacton == null) return;
                 
         resizeDirection = Direction.RIGHT;
-        initalX = event.data.global.x;
+        initalX = event.data.global.x / window.devicePixelRatio;
         initialTactonWidth = resizedTacton.width;
         initialTactonX = resizedTacton.x;
         initialRightHandleX = resizedTacton.parent.children[2].x
@@ -162,7 +162,7 @@ export default defineComponent({
       function onResize(event: any) {
         if (resizeDirection == null || resizedTacton == null) return;
         
-        const deltaX = event.screenX - initalX;
+        const deltaX = (event.screenX / window.devicePixelRatio) - initalX;
         
         if (resizeDirection == Direction.RIGHT) {          
           resizedTacton.width = (initialTactonWidth + deltaX);

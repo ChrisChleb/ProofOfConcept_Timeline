@@ -1,0 +1,5151 @@
+[{
+  "_id": {
+    "$oid": "667422d719d726de5f1d4011"
+  },
+  "uuid": "70a67cca-f279-4508-bafd-bcb6277aa2a2",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 163.94326241134755
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 115.05673758865245
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 15.886524822695037
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 175.88652482269504
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 6.170212765957444
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 157.94326241134752
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 333.8865248226949
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1140.1914893617027
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 3.765957446808443
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 237.8865248226948
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 131.9219858156025
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 219.9574468085102
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 192.32624113475276
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 180.45390070921985
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 162.9290780141837
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 78.72340425531956
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 176.82978723404221
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "team_1",
+    "iteration": 1,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T12:38:47.931Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "667422d719d726de5f1d4012"
+    }
+  },
+  "__v": 26
+},
+{
+  "_id": {
+    "$oid": "6674234419d726de5f1d4062"
+  },
+  "uuid": "8db86b6b-fbb9-4b18-8a25-55a68122e69e",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 215.0992907801418
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1044.6808510638302
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 13.40425531914866
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 100.92907801418437
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 279
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 104.66666666666674
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 354.9503546099297
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 6.33333333333303
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 231.55319148936178
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1135.8156028368794
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 117.30496453900696
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1336.595744680851
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 775.5886524822708
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "team_1",
+    "iteration": 2,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T12:38:47.931Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "667422d719d726de5f1d4012"
+    }
+  },
+  "__v": 19
+},
+{
+  "_id": {
+    "$oid": "6674266f19d726de5f1d41e5"
+  },
+  "uuid": "ff4ca6dc-363a-4a9a-a33b-d011a42766aa",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 523
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 293
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 46
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 184
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0,
+        "channels": [
+          2,
+          3,
+          1
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "team_1",
+    "iteration": 3,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T12:54:07.597Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674266f19d726de5f1d41e6"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674269619d726de5f1d41f1"
+  },
+  "uuid": "d5325449-dc32-415d-95fa-0d8a9d873d23",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 110
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 195
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 95
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 30
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 121
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 31
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 41
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.8,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 10
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 158
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 48
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 11
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 7
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 33
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 51
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 109
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 15
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 10
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 29
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.8,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 11
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 35
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 32
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 88
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 61
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 3
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 76
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 26
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 27
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 13
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 40
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 78
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 24
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 126
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 3
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 47
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1,
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 86
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 23
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 19
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 7
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 25
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 85
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 131
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 44
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0,
+          1
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 24
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 40
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 8
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 16
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 31
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 53
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 62
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 37
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 16
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 26
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          0
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 20
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 107
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          1
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 2
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 2
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 8
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 67
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.4,
+        "channels": [
+          3
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 77
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 7
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0.6,
+        "channels": [
+          2
+        ]
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 8
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 26
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "promt2",
+    "iteration": 1,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T12:54:46.386Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674269619d726de5f1d41f2"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674282319d726de5f1d4213"
+  },
+  "uuid": "3a8b9128-489f-41af-bfd5-af52e4552b67",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 126
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 248
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 149
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 8.829787234042442
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 81
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 110.17021276595813
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 216.99999999999943
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 259
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 422
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 72
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 7
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 55
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 139
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 393.23404255319156
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 67
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 123.76595744680844
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 265
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 8
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 13
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 108
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 44
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "promt2",
+    "iteration": 2,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:01:23.059Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674282319d726de5f1d4214"
+    }
+  },
+  "__v": 15
+},
+{
+  "_id": {
+    "$oid": "6674292819d726de5f1d4288"
+  },
+  "uuid": "c2ad8e5b-e022-4d49-971c-ce516ade3fcf",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 169
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 394
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 457
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 147
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 463
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 2012
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 133
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 333
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 272
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 167
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 562
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 229
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 229
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 196
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 752
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 187
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 208
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 176
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 228
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 187
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 266
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 192
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 415
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 190
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 316
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 137
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0,
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 3,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:05:44.152Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674292819d726de5f1d4289"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674294719d726de5f1d4296"
+  },
+  "uuid": "31718d64-cbf3-400d-88a5-ff5660ddbffc",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 169
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 394
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 457
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 147
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 463
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 2012
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 133
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 333
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 272
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 167
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 562
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 229
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 229
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 196
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 752
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 187
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 208
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 176
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 228
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 187
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 266
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 192
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 415
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 190
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 316
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 137
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0,
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 4,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:05:44.152Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674292819d726de5f1d4289"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674295619d726de5f1d429d"
+  },
+  "uuid": "63a6e6ad-6649-4ec0-a3c1-841c31897668",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 136
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 492
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 188
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 257
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 469
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 322
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 214
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 167
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 183
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 234
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 132
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 156
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 678
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 335
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 208
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 35
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 90
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 191
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 179
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 164
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 198
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 210
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 156
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 178
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 174
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 165
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 671
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 628
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 188
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 340
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 189
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 478
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 276
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 164
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 226
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 306
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 169
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 226
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 159
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0,
+        "channels": [
+          1,
+          0
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 5,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:06:30.684Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674295619d726de5f1d429e"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674296a19d726de5f1d42a6"
+  },
+  "uuid": "a9f5cf9c-e41d-4554-9787-0cf5b3fcefc8",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 147
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 749
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 112
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 460
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 174
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 605
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 227
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 626
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 181
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 366
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 199
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 462
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 203
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 1202
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 203
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 381
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 217
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 484
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 186
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 596
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 253
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 319
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 199
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 312
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 133
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 301
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 177
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "setParameter": {
+        "intensity": 0,
+        "channels": [
+          0,
+          1
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 6,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:06:50.581Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674296a19d726de5f1d42a7"
+    }
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "6674298b19d726de5f1d42c9"
+  },
+  "uuid": "c914d6f2-dbd5-4f3f-8f4d-4ef0822b87fa",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 98
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 304
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 162
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 245
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 90
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 286
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 146
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 249
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 184
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 183
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 183
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 534
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 133
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 366
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 265
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 868
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 201
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 341
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 163
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 0
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 311
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 118
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 332
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 286
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 192
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 239
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 217
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 301
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 101
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 525
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 83
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 440
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 117
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 203
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 230
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 299
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 200
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 277
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 244
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 7,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:07:23.645Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "6674298b19d726de5f1d42ca"
+    }
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "66742a7e19d726de5f1d43a5"
+  },
+  "uuid": "040ea115-7e08-42eb-818e-8314a4c637a0",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 273.61702127659595
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 284.85815602836857
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 267.7872340425532
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 254.30496453900707
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 308.5319148936171
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 201.73049645390074
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 4.999999999999773
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 288.36170212765956
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5.000000000000227
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 325.30496453900696
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 419.5531914893618
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 8,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:11:26.684Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "66742a7e19d726de5f1d43a6"
+    }
+  },
+  "__v": 68
+},
+{
+  "_id": {
+    "$oid": "66742b3219d726de5f1d43f4"
+  },
+  "uuid": "bd57b707-b221-4701-94a9-0990f1c1ab78",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa12"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 332.99999999999994
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 159.00000000000006
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 160.794487952503
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 192.205512047497
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 63.25531914893611
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 337.7446808510639
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 47
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          2
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 572
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          3
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "eating",
+    "iteration": 1,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:14:26.148Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "66742b3219d726de5f1d43f5"
+    }
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "66742d2619d726de5f1d4508"
+  },
+  "uuid": "4958b3d0-41fe-4307-8656-5ddd8738df23",
+  "rooms": [
+    "4ec34f34-97f9-44b5-bc53-1a321aaaaa11"
+  ],
+  "instructions": [
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 273.61702127659595
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 284.85815602836857
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 267.7872340425532
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 5
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 254.30496453900707
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 808.5460992907801
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 182.6099290780137
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.4
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 16.446808510638675
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 185.28368794326207
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 102.51773049645453
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 288.36170212765956
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 27.46808510638266
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.6
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 277.70921985815585
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 18.97163120567393
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 325.30496453900696
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 36.921985815602966
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0.8
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 314.1702127659569
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 17.382978723404904
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 419.5531914893618
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          0
+        ],
+        "intensity": 0
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 29.05673758865214
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 1
+      }
+    },
+    {
+      "wait": {
+        "miliseconds": 397.4184397163126
+      }
+    },
+    {
+      "setParameter": {
+        "channels": [
+          1
+        ],
+        "intensity": 0
+      }
+    }
+  ],
+  "metadata": {
+    "name": "drinking",
+    "iteration": 9,
+    "favorite": false,
+    "recordDate": {
+      "$date": "2024-06-20T13:11:26.684Z"
+    },
+    "notes": "",
+    "prompt": "",
+    "intention": "",
+    "customTags": [],
+    "bodyTags": [],
+    "_id": {
+      "$oid": "66742a7e19d726de5f1d43a6"
+    }
+  },
+  "__v": 24
+}]

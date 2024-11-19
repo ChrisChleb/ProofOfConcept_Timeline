@@ -1,189 +1,190 @@
 <script lang="ts">
-import {defineComponent, onMounted, watch} from 'vue'
+import {defineComponent, onMounted, type PropType, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
-import type {ContainerChild, Graphics} from "pixi.js";
+import type {Graphics} from "pixi.js";
+import pixiApp from "@/pixi/pixiApp";
+import config from "@/config";
+import type {TactonRectangle} from "@/parser/instructionParser";
 enum Direction {
   LEFT = 'left',
   RIGHT = 'right',
 }
-
-class Tacton {
-  block: Graphics;
+class TactonDTO {
+  rect: Graphics;
   leftHandle: Graphics;
-  rightHandle: Graphics;
-  initialX: number;
-  
-  constructor(block: Graphics, leftHandle: Graphics, rightHandle: Graphics) {
-    this.block = block;
+  rightHandle: Graphics;  
+  constructor(rect: Graphics, leftHandle: Graphics, rightHandle: Graphics) {    
+    this.rect = rect;
     this.leftHandle = leftHandle;
     this.rightHandle = rightHandle;
-    this.initialX = block.x;
   }
 }
 export default defineComponent({
   name: "Track",
-  setup() {
-    const store: any = useStore();
-    const tactonSpacing: number = 128;       
-    const resizingHandleWidth: number = 20;
-    const handleColor: string = 'rgba(236,102,12,0.12)';
-    
+  props: {
+    trackId: {
+      type: Number,
+      required: true
+    },
+    tactons: {
+      type: Array as PropType<TactonRectangle[]>,
+      required: true
+    }
+  },
+  setup(props) {
+    console.log("Track ", props.trackId, " received: ", props.tactons);    
+  
+    const store: any = useStore();     
+   
     let resizeDirection: Direction | null = null;   
-    let resizedTacton: Graphics | null = null;
     let initalX: number = 0;
     let initialTactonWidth: number = 0;
     let initialTactonX: number = 0;
     let initialRightHandleX: number = 0;
     let initialLeftHandleX: number = 0;    
-    let tactons: Tacton[] = [];
+        
+    let pointerMoveHandler: any = null;
+    let pointerUpHandler: any = null;
     
     onMounted(async () => {
-      // Create app
-      const pixiApp = new Pixi.Application();
-
-      const trackHeight = 150;
-
-      // Init app
-      await pixiApp.init({
-        background: '#fffdfd',
-        height: trackHeight,
-        width: window.innerWidth
-      });
-
-      // Append to body
-      document.getElementById("trackContainer")?.appendChild(pixiApp.canvas);
-
+      const trackContainer = new Pixi.Container();
+      trackContainer.height = config.trackHeight;
+      trackContainer.width = pixiApp.canvas.width;      
+      
+      // todo get slider height --> 40px
+      // add 12px of padding to slider
+      trackContainer.y = 40 + 12 + props.trackId * config.trackHeight;    
+      
       const trackLine = new Pixi.Graphics();
-      trackLine.rect(0, 0, window.innerWidth, 2);
-      trackLine.fill('#777777');
+      trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
+      trackLine.fill(config.colors.trackLineColor);
+      trackContainer.addChild(trackLine);
       
-      trackLine.y = trackHeight / 2;
+      drawTrack();
+      pixiApp.stage.addChild(trackContainer);
       
-      const numTactons: number = 3;      
-      for (let i = 0; i < numTactons; i++) {
-        // rdm height between 10 and 100
-        const randomTactonHeight = Math.floor(Math.random() * (100 - 10 + 1) + 10);
-        const tactonContainer = new Pixi.Container();
-        const tacton = new Pixi.Graphics();
-        tacton.rect(0, 0, 70, randomTactonHeight);
-        tacton.fill('#848484');        
-        tacton.x = 50 + i * tactonSpacing;
-        tacton.y = - (randomTactonHeight / 2);
-        
-        // left handle
-        const leftHandle = new Pixi.Graphics();
-        
-        leftHandle.rect(
-            tacton.x - resizingHandleWidth,
-            tacton.y,
-            resizingHandleWidth,
-            randomTactonHeight
-        );
-        
-        leftHandle.fill(handleColor);
-        leftHandle.interactive = true;
-        leftHandle.cursor = 'ew-resize';
-        leftHandle.on('pointerdown', onResizingStartLeft);
-        
-        // right handle
-        const rightHandle =  new Pixi.Graphics();
-        
-        rightHandle.rect(
-            tacton.x + tacton.width,
-            tacton.y,
-            resizingHandleWidth,
-            randomTactonHeight
-        );
-        
-        rightHandle.fill(handleColor);
-        rightHandle.interactive = true;
-        rightHandle.cursor = 'ew-resize';
-        rightHandle.on('pointerdown', onResizingStartRight);
-        
-        tactons.push(new Tacton(tacton, leftHandle, rightHandle));
-        
-        tactonContainer.addChild(tacton);
-        tactonContainer.addChild(leftHandle);
-        tactonContainer.addChild(rightHandle);
-        
-        trackLine.addChild(tactonContainer);
+      // padding left
+      trackContainer.x = 48;
+      function drawTrack() {
+        const tactonContainer = new Pixi.Container();        
+        props.tactons.forEach((tacton: TactonRectangle) => {
+          const rect = new Pixi.Graphics();
+          rect.rect(0, 0, 1, 1);
+          rect.fill(config.colors.tactonColor);
+          
+          const position = calculatePosition(tacton);
+          rect.x = position.x;
+          rect.width = position.width;
+          rect.height = tacton.intensity * 100;
+          rect.y = (config.trackHeight / 2) - (rect.height / 2); 
+          
+          const leftHandle = new Pixi.Graphics();
+          const rightHandle = new Pixi.Graphics();
+          // left handle
+          leftHandle.rect(
+              rect.x - config.resizingHandleWidth,
+              rect.y,
+              config.resizingHandleWidth,
+              rect.height
+          );
+
+          leftHandle.fill(config.colors.handleColor);
+          leftHandle.interactive = true;
+          leftHandle.cursor = 'ew-resize';       
+          
+          // right handle
+          rightHandle.rect(
+              rect.x + rect.width,
+              rect.y,
+              config.resizingHandleWidth,
+              rect.height
+          );
+
+          rightHandle.fill(config.colors.handleColor);
+          rightHandle.interactive = true;
+          rightHandle.cursor = 'ew-resize';
+          
+          // assign methods
+          const dto = new TactonDTO(rect, leftHandle, rightHandle);          
+                  
+          leftHandle.on('pointerdown', (event) =>  onResizingStartLeft(event, dto));
+          rightHandle.on('pointerdown', (event) =>  onResizingStartRight(event, dto));
+          
+          tactonContainer.addChild(rect);
+          tactonContainer.addChild(leftHandle);
+          tactonContainer.addChild(rightHandle);
+          
+          trackContainer.addChild(tactonContainer);
+        })
+      }      
+      function calculatePosition(tacton: TactonRectangle) {
+        const timelineWidth = pixiApp.canvas.width;
+        const totalDuration = (timelineWidth / config.pixelsPerSecond) * 1000;              
+        return {
+          x: (tacton.startTime / totalDuration) * timelineWidth,
+          width: ((tacton.endTime - tacton.startTime) / totalDuration) * timelineWidth
+        };
       }
-      
-      const updateTactons = () => {        
-        pixiApp.stage.scale.set(store.state.zoomLevel, 1);        
-        pixiApp.renderer.render(pixiApp.stage);
-        
-        tactons.forEach((tacton: Tacton) => {
-          // TODO update Position
-        });
+      const updateTactons = () => {
+        trackContainer.scale.set(store.state.zoomLevel, 1);
       }     
       
       watch(() => store.state.zoomLevel, updateTactons);
-      watch(() => store.state.zoomLevel, updateTactons);
-      
-      updateTactons();
-      
-      pixiApp.stage.addChild(trackLine);
+      watch(() => store.state.zoomLevel, updateTactons);      
       
       window.addEventListener('resize', () => {
-        pixiApp.renderer.resize(window.innerWidth, pixiApp.renderer.height);
-        trackLine.width = window.innerWidth;
+        trackLine.width = pixiApp.canvas.width;
       });
       
-      function onResizingStartLeft(event: any) {
-        resizedTacton = event.target.parent.children[0];        
-        if (resizedTacton == null) return;
-        
-        resizeDirection = Direction.LEFT;
-        initalX = event.data.global.x / window.devicePixelRatio;
-        initialTactonWidth = resizedTacton.width;
-        initialTactonX = resizedTacton.x;
-        initialLeftHandleX = resizedTacton.parent.children[1].x
-        
-        window.addEventListener('pointermove', onResize);
-        window.addEventListener('pointerup', onResizeEnd);
-      }
+      // could use trackContainer.scale._x, if implementation uses scaling of container
       
-      function onResizingStartRight(event: any) {
-        resizedTacton = event.target.parent.children[0];
-        if (resizedTacton == null) return;
-                
+      function onResizingStartLeft(event: any, tactonDTO: TactonDTO) {                      
+        resizeDirection = Direction.LEFT;        
+        initalX = event.data.global.x / window.devicePixelRatio;
+        initialTactonWidth = tactonDTO.rect.width;
+        initialTactonX = tactonDTO.rect.x;
+        initialLeftHandleX = tactonDTO.leftHandle.x;
+        
+        pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
+        pointerUpHandler = () => onResizeEnd();
+        
+        window.addEventListener('pointermove', pointerMoveHandler);
+        window.addEventListener('pointerup', pointerUpHandler);
+      }
+      function onResizingStartRight(event: any, tactonDTO: TactonDTO) {
         resizeDirection = Direction.RIGHT;
-        initalX = event.data.global.x / window.devicePixelRatio;
-        initialTactonWidth = resizedTacton.width;
-        initialTactonX = resizedTacton.x;
-        initialRightHandleX = resizedTacton.parent.children[2].x
-        
-        window.addEventListener('pointermove', onResize);
-        window.addEventListener('pointerup', onResizeEnd);
+        initalX = event.data.global.x / window.devicePixelRatio;       
+        initialTactonWidth = tactonDTO.rect.width;
+        initialTactonX = tactonDTO.rect.x;
+        initialRightHandleX = tactonDTO.rightHandle.x;
+
+        pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
+        pointerUpHandler = () => onResizeEnd();
+
+        window.addEventListener('pointermove', pointerMoveHandler);
+        window.addEventListener('pointerup', pointerUpHandler);
       }
-      
-      function onResize(event: any) {
-        if (resizeDirection == null || resizedTacton == null) return;
-        
+      function onResize(event: any, tactonDTO: TactonDTO) {        
         const deltaX = (event.screenX / window.devicePixelRatio) - initalX;
         
-        if (resizeDirection == Direction.RIGHT) {          
-          resizedTacton.width = (initialTactonWidth + deltaX);
-          resizedTacton.parent.children[2].x = resizedTacton.width - initialTactonWidth + initialRightHandleX;
+        if (resizeDirection == Direction.RIGHT) {
+          tactonDTO.rect.width = (initialTactonWidth + deltaX);
+          tactonDTO.rightHandle.x = tactonDTO.rect.width - initialTactonWidth + initialRightHandleX;
           
         } else {
-          resizedTacton.width = initialTactonWidth + (-deltaX);
-          resizedTacton.x = initialTactonX + deltaX;
-          resizedTacton.parent.children[1].x = initialTactonWidth - resizedTacton.width + initialLeftHandleX;
+          tactonDTO.rect.width = initialTactonWidth + (-deltaX);
+          tactonDTO.rect.x = initialTactonX + deltaX;
+          tactonDTO.leftHandle.x = initialTactonWidth - tactonDTO.rect.width + initialLeftHandleX;
         }
       }
-      
-      function onResizeEnd(event: any) {
-        console.log('finished resizing');
-        resizeDirection = null;        
-        resizedTacton = null;
-        initalX = 0;
-        initialTactonWidth = 0;
-        initialTactonX = 0;
-        window.removeEventListener('pointermove', onResize);
-        window.removeEventListener('pointerup', onResizeEnd);
+      function onResizeEnd() {
+        resizeDirection = null;
+        window.removeEventListener('pointermove', pointerMoveHandler);
+        window.removeEventListener('pointerup', pointerUpHandler);
+        
+        pointerMoveHandler = null;
+        pointerUpHandler = null;
       }
     });
   }
@@ -191,7 +192,6 @@ export default defineComponent({
 </script>
 
 <template>
-  <div id="trackContainer"></div>
 </template>
 
 <style scoped>

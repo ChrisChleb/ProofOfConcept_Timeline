@@ -166,8 +166,8 @@ export default defineComponent({
         window.addEventListener('pointerup', pointerUpHandler);
       }
       function onResize(event: any, tactonDTO: TactonDTO) {        
+        //MAYBE clientX?
         const deltaX = (event.screenX / window.devicePixelRatio) - initalX;
-        
         if (resizeDirection == Direction.RIGHT) {
           tactonDTO.rect.width = (initialTactonWidth + deltaX);
           tactonDTO.rightHandle.x = tactonDTO.rect.width - initialTactonWidth + initialRightHandleX;

@@ -16,7 +16,7 @@ export default defineComponent({
   data() {
     return {
       tactons: {} as { [trackId: number]: TactonRectangle[] },
-      maxTrackId: 0
+      maxTrackNum: 0
     };
   },
   setup() {
@@ -161,15 +161,15 @@ export default defineComponent({
     // TODO select file in ui
     const parser = new InstructionParser(JsonData[0]);
     this.tactons = parser.parseInstructionsToRectangles();
-    this.maxTrackId  = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
+    this.maxTrackNum  = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
   },
   components: {Grid, Track}
 })
 </script>
 
 <template>
-  <Grid :track-count="maxTrackId"></Grid> 
-  <div v-for="trackId in Array.from({ length: maxTrackId }, (_, i) => i)" :key="trackId">
+  <Grid :track-count="maxTrackNum"></Grid> 
+  <div v-for="trackId in Array.from({ length: maxTrackNum }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId" :tactons="tactons[trackId] || []"/>
   </div> 
 </template>

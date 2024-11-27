@@ -26,6 +26,7 @@ export default defineComponent({
       totalDuration: 0,
       isPlaying: false,
       playbackTimer: null as Pixi.Ticker | null,
+      loadedJson: null as any,
       selectedJson: null as any,
       jsonData: JsonData,
     };
@@ -155,18 +156,17 @@ export default defineComponent({
   },
   created() {
     this.selectedJson = JsonData[0];
-    this.loadJson();
+    this.loadFile()   
   },
   methods: {
     loadJson() {
-      
-      console.log("loading: ", this.selectedJson);      
-      const parser = new InstructionParser(this.selectedJson);      
+      console.log("loading: ", this.loadedJson);      
+      const parser = new InstructionParser(this.loadedJson);      
       this.tactons = parser.parseInstructionsToRectangles();
       this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
       
       let accumulatedTime = 0;
-      this.instructions = this.selectedJson.instructions.map((instruction: any) => {
+      this.instructions = this.loadedJson.instructions.map((instruction: any) => {
         if (instruction.wait) {
           accumulatedTime += instruction.wait.miliseconds;
         }
@@ -176,12 +176,12 @@ export default defineComponent({
         return new Instruction(instruction);
       });
       
-      this.totalDuration = accumulatedTime;     
+      this.totalDuration = accumulatedTime;
       
       console.log("totalDuration: ", this.totalDuration)
       console.log("maxTrackNum: ", this.maxTrackNum);
       console.log("Instructions: ", this.instructions);
-      console.log("tactons: ", this.tactons);
+      console.log("tactons: ", this.tactons);      
     },    
     startPlayback() {
       if (this.isPlaying) return;
@@ -220,7 +220,10 @@ export default defineComponent({
       }
     },
     loadFile() {
-      console.clear();      
+      if (this.loadedJson == this.selectedJson) return;
+      this.loadedJson = this.selectedJson;
+      
+      console.clear();     
       this.loadJson();
     }
   },
@@ -237,7 +240,7 @@ export default defineComponent({
   <div class="playbackContainer">
     <button :disabled="isPlaying" @click="startPlayback">Play</button>
     <button @click="stopPlayback">Stop</button>
-    <button @click="loadFile">Load File</button>
+    <button :disabled="selectedJson == loadedJson" @click="loadFile">Load File</button>
     <select id="fileSelect" v-model="selectedJson">      
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>

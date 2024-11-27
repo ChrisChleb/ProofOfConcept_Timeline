@@ -3,7 +3,7 @@ import {createStore} from 'vuex';
 const store = createStore({
     state: {
         zoomLevel: 1,
-        viewportOffset: 0
+        viewportOffset: 0,
     },
     mutations: {
         setZoomLevel(state: any, zoomLevel: number): void {

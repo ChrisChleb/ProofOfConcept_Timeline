@@ -12,42 +12,69 @@ export default defineComponent({
       required: true
     }
   },
-  setup(props) {
+  setup(props: any) {
     const store: any = useStore();    
-    const gridContainer: Pixi.Container = new Pixi.Container();
-    gridContainer.height = props.trackCount * 150;    
+    let gridContainer: Pixi.Container | null;
     const gridGraphics = new Pixi.Graphics();  
     
-    for (let second = 0; second < pixiApp.canvas.width / config.pixelsPerSecond; second++) {
-      const x = second * config.pixelsPerSecond;
-      // todo get slider height --> 40px
-      // add 12px padding to slider
-      gridGraphics.moveTo(x, 52);
-      gridGraphics.lineTo(x, props.trackCount * config.trackHeight);
-      gridGraphics.stroke({width: 1, color: config.colors.gridColor})      
-      
-      const label = new Pixi.Text();
-      label.text = second;
-      label.style.fontSize = 12;
-      label.x = x - (label.width / 2);
-      label.y = props.trackCount * config.trackHeight + 12;        
-      gridContainer.addChild(label);      
-    }
-    
-    const sliderRect = new Pixi.Graphics();
-    sliderRect.rect(50, 500, 540, 28);
-    sliderRect.fill('#0073e3');
-    
-    gridContainer.addChild(gridGraphics);
-    pixiApp.stage.addChild(gridContainer);
-    
-    gridContainer.x = 48;
+    renderGrid();
+    function renderGrid() {
+      gridContainer = new Pixi.Container();
+      for (let second = 0; second < pixiApp.canvas.width / config.pixelsPerSecond; second++) {
+        const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
+        const x = second * config.pixelsPerSecond;
+        
+        gridGraphics.moveTo(x, config.sliderHeight + config.componentPadding);
+        gridGraphics.lineTo(x, y);
+        gridGraphics.stroke({width: 1, color: config.colors.gridColor})
 
-    function updateGrid() {
+        const label = new Pixi.Text();
+        label.text = second;
+        label.style.fontSize = 12;
+        label.x = x - (label.width / 2);  
+        label.y = y;
+        
+        gridContainer.addChild(label);
+      }
+
+      const sliderRect = new Pixi.Graphics();
+      sliderRect.rect(50, 500, 540, 28);
+      sliderRect.fill('#0073e3');
+
+      gridContainer.addChild(gridGraphics);
+      pixiApp.stage.addChild(gridContainer);
+
+      gridContainer.x = 48;
+    }
+    function updateGridScale() {
+      if (gridContainer == null) return;
       gridContainer.scale.set(store.state.zoomLevel, 1);
+    }    
+    function rerenderGrid() {
+      if (gridContainer == null) return;
+      
+      gridGraphics.clear();
+      gridContainer.children.forEach(child => {        
+        pixiApp.stage.removeChild(child);        
+        child.removeAllListeners();
+        child.destroy({children: true});
+      });     
+      
+      pixiApp.stage.removeChild(gridContainer);
+      gridContainer.destroy();
+      gridContainer = null;
+      
+      renderGrid();
     }
     
-    watch(() => store.state.zoomLevel, updateGrid);
+    watch(() => store.state.zoomLevel, updateGridScale);
+    
+    return {
+      rerenderGrid
+    }
+  },
+  watch: {
+    trackCount: 'rerenderGrid'
   }
 })
 </script>

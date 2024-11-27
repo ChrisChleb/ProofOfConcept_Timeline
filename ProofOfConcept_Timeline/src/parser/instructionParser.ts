@@ -1,4 +1,4 @@
-class Instruction {
+export class Instruction {
     setParameter?: SetParameter;
     wait?: Wait;
 
@@ -7,16 +7,17 @@ class Instruction {
         if (data.wait) this.wait = new Wait(data.wait);
     }
 }
-class SetParameter {
+export class SetParameter {
     channels: number[];
     intensity: number;
-
+    startTime: number;
     constructor(data: any) {
         this.channels = data.channels;
         this.intensity = data.intensity;
+        this.startTime = data.startTime;
     }
 }
-class Wait {
+export class Wait {
     miliseconds: number;
 
     constructor(data: any) {
@@ -69,7 +70,7 @@ export class InstructionParser {
 
         const trackData: { [key: number]: TactonRectangle[] } = {};
 
-        rectangles.forEach(tacton => {
+        rectangles.forEach((tacton: TactonRectangle): void => {
             if (!trackData[tacton.channel]) {
                 trackData[tacton.channel] = [];
             }

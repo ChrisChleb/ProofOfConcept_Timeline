@@ -1,59 +1,61 @@
 <script lang="ts">
-import {defineComponent, onMounted} from 'vue'
+import {defineComponent, h, onMounted, ref} from 'vue'
 import * as Pixi from "pixi.js";
-import Track from "@/components/Track.vue";
 import {useStore} from "vuex";
-import Grid from "@/components/Grid.vue";
 import pixiApp from "@/pixi/pixiApp";
+import store from '@/store';
+import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
+import Track from "@/components/Track.vue";
+import Grid from "@/components/Grid.vue";
+import PlaybackIndicator from "@/components/PlaybackIndicator.vue";
 
-import {InstructionParser, type TactonRectangle} from "@/parser/instructionParser";
 import config from "@/config";
-
 import JsonData from '../json/2024-06-20_Team1_session1.json';
+import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 
 export default defineComponent({
   name: "Timeline",
   data() {
     return {
+      instructions: [] as Instruction[],
+      currentInstructionIndex: 0,
+      currentInstruction: ref<Instruction | null>(null),
       tactons: {} as { [trackId: number]: TactonRectangle[] },
-      maxTrackNum: 0
+      maxTrackNum: 0,
+      currentTime: 0,
+      totalDuration: 0,
+      isPlaying: false,
+      playbackTimer: null as Pixi.Ticker | null,
+      selectedJson: null as any,
+      jsonData: JsonData,
     };
   },
   setup() {
-    const store: any = useStore();
-    
-    const handleWidth: number = 32;    
-    const sliderHeight = 28;
-    const sliderMinWidth = 500;
-    
-    const sliderMaxWidth = pixiApp.canvas.width;
+    const store: any = useStore();    
+    const sliderMaxWidth = pixiApp.canvas.width - (2 * config.sliderHandleWidth);
     const viewportWidth = pixiApp.canvas.width;
-    
-    const maxZoom: number = 10;
-    const minZoom: number = 1;
         
     onMounted(async () => {
-      const width = pixiApp.canvas.width;
-      const sliderWidth = width;      
-      const sliderContainer = new Pixi.Container();     
+      const sliderWidth = sliderMaxWidth;      
+      const sliderContainer = new Pixi.Container();   
       
       // slider      
       const sliderRect = new Pixi.Graphics();
-      sliderRect.rect((width - sliderWidth)/2, 12, sliderWidth, sliderHeight);
+      sliderRect.rect((viewportWidth - sliderWidth)/2, 0, sliderWidth, config.sliderHeight);
       sliderRect.fill('#121518');
       sliderRect.interactive = true;
       sliderRect.cursor = 'pointer';
       
       // left handle
       const leftSliderHandle = new Pixi.Graphics();
-      leftSliderHandle.rect(0, 12, handleWidth, sliderHeight);
+      leftSliderHandle.rect(0, 0, config.sliderHandleWidth, config.sliderHeight);
       leftSliderHandle.fill(config.colors.sliderHandleColor);
       leftSliderHandle.interactive = true;
       leftSliderHandle.cursor = 'ew-resize';
       
       // right handle
       const rightSliderHandle = new Pixi.Graphics();
-      rightSliderHandle.rect(sliderRect.width - handleWidth, 12, handleWidth, sliderHeight);
+      rightSliderHandle.rect(sliderRect.width + config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
       rightSliderHandle.fill(config.colors.sliderHandleColor);
       rightSliderHandle.interactive = true;
       rightSliderHandle.cursor = 'ew-resize';
@@ -90,22 +92,22 @@ export default defineComponent({
         window.addEventListener('pointerup', onScaleEnd);
       });            
       function onScale(event: any) {
-        const deltaX = event.screenX - initialMouseX;
+        const deltaX = (event.clientX - initialMouseX) / window.devicePixelRatio;
         if (isResizingLeft) {
           const newWidth = initialSliderWidth - deltaX;
           
-          if (newWidth >= sliderMinWidth && newWidth <= sliderMaxWidth) {
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
             sliderRect.width = newWidth;
             sliderRect.x = initialSliderX + deltaX;
-            leftSliderHandle.x = sliderRect.x - leftSliderHandle.width;
+            leftSliderHandle.x = sliderRect.x;
           }
         }
         
         if (isResizingRight) {
           const newWidth = initialSliderWidth + deltaX;
-          if (newWidth >= sliderMinWidth && newWidth <= sliderMaxWidth) {
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
             sliderRect.width = newWidth;
-            rightSliderHandle.x = sliderRect.width - pixiApp.canvas.width + sliderRect.x;
+            rightSliderHandle.x = sliderRect.width - viewportWidth + sliderRect.x + (2 * config.sliderHandleWidth);
           }
         }
         
@@ -114,7 +116,7 @@ export default defineComponent({
         
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
-          if (newSliderX < handleWidth || newSliderX > window.innerWidth - handleWidth) return;
+          if (newSliderX < config.sliderHandleWidth || newSliderX > window.innerWidth - config.sliderHandleWidth) return;
           
           if (newSliderX >= 0 && newSliderX + sliderRect.width <= viewportWidth) {
             sliderRect.x = newSliderX;
@@ -133,47 +135,195 @@ export default defineComponent({
       }
             
       function calculateZoom(sliderWidth: number): number {
-        const zoomLevel = minZoom + ((sliderMaxWidth - sliderWidth) / (sliderMaxWidth - sliderMinWidth)) * (maxZoom - minZoom);
-        return Math.min(Math.max(zoomLevel, minZoom), maxZoom);
+        const zoomLevel = config.minZoom + ((sliderMaxWidth - sliderWidth) / (sliderMaxWidth - config.sliderMinWidth)) * (config.maxZoom - config.minZoom);
+        return Math.min(Math.max(zoomLevel, config.minZoom), config.maxZoom);
       }
       
       function calculateViewport(sliderX: number) {        
-        // TODO calculate Offset
-        
-/*        const visibleWidth = window.innerWidth / store.state.zoomLevel;
-        const maxOffset = window.innerWidth - visibleWidth;
-        
-        store.dispatch('updateViewportOffset', );*/ 
+        // TODO calculate Offset        
       }
       
       window.addEventListener('resize', () => {
         // TODO stop resizing of handles
         sliderContainer.width = pixiApp.canvas.width;
       });
-      
-      sliderContainer.addChild(sliderRect);
       sliderContainer.addChild(leftSliderHandle);
+      sliderContainer.addChild(sliderRect);      
       sliderContainer.addChild(rightSliderHandle);
       pixiApp.stage.addChild(sliderContainer); 
     });
   },
   created() {
-    // TODO select file in ui
-    const parser = new InstructionParser(JsonData[0]);
-    this.tactons = parser.parseInstructionsToRectangles();
-    this.maxTrackNum  = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
+    this.selectedJson = JsonData[0];
+    this.loadJson();
   },
-  components: {Grid, Track}
+  methods: {
+    loadJson() {
+      
+      console.log("loading: ", this.selectedJson);      
+      const parser = new InstructionParser(this.selectedJson);      
+      this.tactons = parser.parseInstructionsToRectangles();
+      this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
+      
+      let accumulatedTime = 0;
+      this.instructions = this.selectedJson.instructions.map((instruction: any) => {
+        if (instruction.wait) {
+          accumulatedTime += instruction.wait.miliseconds;
+        }
+        if (instruction.setParameter) {
+          instruction.setParameter.startTime = accumulatedTime;
+        }
+        return new Instruction(instruction);
+      });
+      
+      this.totalDuration = accumulatedTime;     
+      
+      console.log("totalDuration: ", this.totalDuration)
+      console.log("maxTrackNum: ", this.maxTrackNum);
+      console.log("Instructions: ", this.instructions);
+      console.log("tactons: ", this.tactons);
+    },    
+    startPlayback() {
+      if (this.isPlaying) return;
+      
+      this.isPlaying = true;
+      this.currentTime = 0;
+      this.currentInstructionIndex = 0;
+      this.playbackTimer = pixiApp.ticker.add(this.updatePlayback)
+    },
+    stopPlayback() {
+      if (!this.isPlaying) return;
+
+      this.isPlaying = false;
+      pixiApp.ticker.remove(this.updatePlayback);
+      this.currentTime = 0;
+      this.currentInstructionIndex = 0;
+      this.currentInstruction = null;
+    },
+    updatePlayback(ticker: any) {
+      if (!this.isPlaying) return;
+      this.currentTime += ticker.deltaTime * config.millisecondsPerTick;
+      
+      const instruction = this.instructions[this.currentInstructionIndex];
+
+      if (instruction && instruction.wait && this.currentTime >= instruction.wait.miliseconds) {
+        this.currentInstructionIndex++;
+      }
+
+      if (instruction && instruction.setParameter && this.currentTime >= instruction.setParameter.startTime) {
+        this.currentInstruction = instruction;
+        this.currentInstructionIndex++;
+      }
+
+      if (this.currentTime >= this.totalDuration) {
+        this.stopPlayback();
+      }
+    },
+    loadFile() {
+      console.clear();      
+      this.loadJson();
+    }
+  },
+  components: {
+    PlaybackVisualization,
+    PlaybackIndicator,
+    Grid,
+    Track
+  }
 })
 </script>
 
 <template>
-  <Grid :track-count="maxTrackNum"></Grid> 
+  <div class="playbackContainer">
+    <button :disabled="isPlaying" @click="startPlayback">Play</button>
+    <button @click="stopPlayback">Stop</button>
+    <button @click="loadFile">Load File</button>
+    <select id="fileSelect" v-model="selectedJson">      
+        <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
+    </select>
+    <div id="timeline"></div>
+  </div>
+  <Grid :track-count="maxTrackNum"></Grid>
   <div v-for="trackId in Array.from({ length: maxTrackNum }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId" :tactons="tactons[trackId] || []"/>
-  </div> 
+  </div>
+  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="maxTrackNum"></PlaybackIndicator>
+  <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
 </template>
 
 <style scoped>
+   .playbackContainer {
+     padding: 12px;
+     display: flex;
+     justify-content: center;
+     align-content: center;
+     gap: 12px;
+   }
+    
+   .playbackContainer button {
+     width: 124px;
+     height: 32px;
+     font-weight: 600;
+     font-size: 16px;
+     letter-spacing: 0.1rem;
+     color: white;
+     background-color: #EC660C;
+     border-radius: 6px;
+     border-style: none;
+     cursor: pointer;
+     text-transform: uppercase;
+   }
 
+   .playbackContainer button:hover {
+     color: #EC660C;
+     background-color: rgba(236, 102, 12, 0.12);
+     border-style: solid;
+     border-color: #EC660C;
+   }
+   
+   .playbackContainer button:active {
+     color: #EC660C;
+     background-color: white;
+     border-style: solid;
+     border-color: #EC660C;
+   }
+
+   .playbackContainer button:disabled {
+     color: white;
+     background-color: rgba(75, 75, 75, 0.49);
+   }
+
+   .playbackContainer button:disabled:hover {
+     border-style: none;
+     cursor: default;
+   }
+   
+   .playbackContainer select {
+     width: 164px;
+     font-weight: 600;
+     font-size: 16px;
+     letter-spacing: 0.1rem;
+     border-radius: 6px;
+     border-style: none;
+     color: white;
+     background-color: #EC660C;
+     text-transform: uppercase;
+     padding-left: 8px;
+   }
+
+   .playbackContainer select option {
+     width: 148px;
+     font-weight: 600;
+     font-size: 16px;
+     letter-spacing: 0.1rem;
+     border-radius: 6px;
+     border-style: none;
+     color: #EC660C;
+     background-color: white;
+   }
+
+   .playbackContainer select option:checked {
+     color: white;
+     background: #EC660C;
+   }
 </style>

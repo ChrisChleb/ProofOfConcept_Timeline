@@ -57,13 +57,6 @@ export default defineComponent({
     trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
     trackLine.fill(config.colors.trackLineColor);
     
-    // testing
-    trackLine.rect(0, 0, pixiApp.canvas.width, 1);
-    trackLine.fill('rgba(236,102,12,0.2)');
-    trackLine.rect(0, config.trackHeight, pixiApp.canvas.width, 1);
-    trackLine.fill('rgba(236,102,12,0.2)');
-    //
-    
     trackContainer.addChild(trackLine);
     
     renderTrack();

@@ -5,6 +5,7 @@ import * as Pixi from "pixi.js";
 import pixiApp from "@/pixi/pixiApp";
 import config from "@/config";
 import {Instruction} from "@/parser/instructionParser";
+import {useStore} from "vuex";
 export default defineComponent({
   name: "PlaybackIndicator",
   props: {
@@ -22,12 +23,13 @@ export default defineComponent({
     }
   },
   setup(props: any) {    
-    const playbackIndicator = new Pixi.Graphics();  
+    const store = useStore();
+    const playbackIndicator = new Pixi.Graphics();
     renderIndicator();
     watch(
         () => props.currentTime,
         (time) => {
-          playbackIndicator.x = (((time/props.totalDuration) * props.totalDuration) / 1000) * config.pixelsPerSecond;     
+          playbackIndicator.x = ((((time/props.totalDuration) * props.totalDuration) / 1000) * config.pixelsPerSecond) * store.state.zoomLevel;     
         }
     );    
     function renderIndicator() {

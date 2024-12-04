@@ -15,14 +15,20 @@ export default defineComponent({
   setup(props: any) {
     const store: any = useStore();    
     let gridContainer: Pixi.Container | null;
-    const gridGraphics = new Pixi.Graphics();  
+    const gridGraphics = new Pixi.Graphics();    
     
     renderGrid();
+
+    watch(() => store.state.zoomLevel, updateGridScale);
+
+    window.addEventListener('resize', () => {
+      updateGridScale();
+    });
     function renderGrid() {
       gridContainer = new Pixi.Container();
-      for (let second = 0; second < pixiApp.canvas.width / config.pixelsPerSecond; second++) {
+      for (let second = 0; second < pixiApp.canvas.width / (config.pixelsPerSecond * store.state.zoomLevel); second++) {
         const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
-        const x = second * config.pixelsPerSecond;
+        const x = second * config.pixelsPerSecond * store.state.zoomLevel;
         
         gridGraphics.moveTo(x, config.sliderHeight + config.componentPadding);
         gridGraphics.lineTo(x, y);
@@ -34,21 +40,22 @@ export default defineComponent({
         label.x = x - (label.width / 2);  
         label.y = y;
         
-        gridContainer.addChild(label);
+        gridContainer.addChild(label);     
       }
-
-      const sliderRect = new Pixi.Graphics();
-      sliderRect.rect(50, 500, 540, 28);
-      sliderRect.fill('#0073e3');
 
       gridContainer.addChild(gridGraphics);
       pixiApp.stage.addChild(gridContainer);
-
       gridContainer.x = 48;
     }
     function updateGridScale() {
-      if (gridContainer == null) return;
-      gridContainer.scale.set(store.state.zoomLevel, 1);
+      if (gridContainer == null) return;      
+          
+      pixiApp.stage.removeChild(gridContainer);           
+      gridContainer.destroy();      
+      gridContainer = null;
+      gridGraphics.clear();
+
+      renderGrid();
     }    
     function rerenderGrid() {
       if (gridContainer == null) return;
@@ -66,8 +73,6 @@ export default defineComponent({
       
       renderGrid();
     }
-    
-    watch(() => store.state.zoomLevel, updateGridScale);
     
     return {
       rerenderGrid

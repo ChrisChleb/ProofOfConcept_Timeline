@@ -32,20 +32,35 @@ export default defineComponent({
     };
   },
   setup() {
-    const store: any = useStore();    
-    const sliderMaxWidth = pixiApp.canvas.width - (2 * config.sliderHandleWidth);
-    const viewportWidth = pixiApp.canvas.width;
+    const store: any = useStore();
+    let viewportWidth = pixiApp.canvas.width;
+    let sliderMaxWidth = viewportWidth - (2 * config.sliderHandleWidth);    
         
     onMounted(async () => {
-      const sliderWidth = sliderMaxWidth;      
+      let sliderWidth = sliderMaxWidth;
+      let initialSliderWidth = sliderWidth;
+      let isResizingLeft = false;
+      let isResizingRight = false;
+      let isDraggingSlider = false;
+      let initialMouseX = 0;      
+      let initialSliderX = config.sliderHandleWidth;
+      let sliderX = initialSliderX;
       const sliderContainer = new Pixi.Container();   
       
       // slider      
       const sliderRect = new Pixi.Graphics();
       sliderRect.rect((viewportWidth - sliderWidth)/2, 0, sliderWidth, config.sliderHeight);
-      sliderRect.fill('#121518');
+      sliderRect.fill('rgba(18,21,24,0.46)');
       sliderRect.interactive = true;
       sliderRect.cursor = 'pointer';
+
+      sliderRect.on('pointerdown', (event) => {
+        isDraggingSlider = true;
+        initialMouseX = event.data.global.x;
+        initialSliderX = sliderX;
+        window.addEventListener('pointermove', onScale);
+        window.addEventListener('pointerup', onScaleEnd);
+      });
       
       // left handle
       const leftSliderHandle = new Pixi.Graphics();
@@ -54,77 +69,93 @@ export default defineComponent({
       leftSliderHandle.interactive = true;
       leftSliderHandle.cursor = 'ew-resize';
       
+      leftSliderHandle.on('pointerdown', (event) => {
+        isResizingLeft = true;
+        initialMouseX = event.data.global.x;
+        initialSliderWidth = sliderWidth;
+        initialSliderX = sliderX;
+        window.addEventListener('pointermove', onScale);
+        window.addEventListener('pointerup', onScaleEnd);
+      });
+      
       // right handle
       const rightSliderHandle = new Pixi.Graphics();
       rightSliderHandle.rect(sliderRect.width + config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
       rightSliderHandle.fill(config.colors.sliderHandleColor);
       rightSliderHandle.interactive = true;
       rightSliderHandle.cursor = 'ew-resize';
-      
-      let isResizingLeft = false;
-      let isResizingRight = false;
-      let isDraggingSlider = false;
-      let initialMouseX = 0;
-      let initialSliderWidth = sliderRect.width;
-      let initialSliderX = sliderRect.x;
-
-      leftSliderHandle.on('pointerdown', (event) => {
-        isResizingLeft = true;
-        initialMouseX = event.data.global.x;
-        initialSliderWidth = sliderRect.width;
-        initialSliderX = sliderRect.x;
-        window.addEventListener('pointermove', onScale);
-        window.addEventListener('pointerup', onScaleEnd);
-      });
 
       rightSliderHandle.on('pointerdown', (event) => {
         isResizingRight = true;
         initialMouseX = event.data.global.x;
-        initialSliderWidth = sliderRect.width;
+        initialSliderWidth = sliderWidth;
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
       });
       
-      sliderRect.on('pointerdown', (event) => {
-        isDraggingSlider = true;
-        initialMouseX = event.data.global.x;
-        initialSliderX = sliderRect.x;
-        window.addEventListener('pointermove', onScale);
-        window.addEventListener('pointerup', onScaleEnd);
-      });            
+      sliderContainer.addChild(leftSliderHandle);
+      sliderContainer.addChild(sliderRect);
+      sliderContainer.addChild(rightSliderHandle);
+      pixiApp.stage.addChild(sliderContainer);
+      
+      window.addEventListener('resize', () => {
+        viewportWidth = pixiApp.canvas.width;
+        sliderMaxWidth = viewportWidth - (2 * config.sliderHandleWidth);
+        sliderWidth = sliderMaxWidth
+        
+        // update slider        
+        sliderRect.clear();
+        sliderRect.rect(sliderX, 0, sliderMaxWidth  , config.sliderHeight);
+        sliderRect.fill('rgba(18,21,24,0.46)');        
+        
+        rightSliderHandle.clear();
+        rightSliderHandle.rect(sliderX + sliderMaxWidth, 0, config.sliderHandleWidth, config.sliderHeight);
+        rightSliderHandle.fill(config.colors.sliderHandleColor);
+
+        const currentZoomLevel = calculateZoom();
+        store.dispatch('updateZoomLevel', currentZoomLevel);
+      });
       function onScale(event: any) {
         const deltaX = (event.clientX - initialMouseX) / window.devicePixelRatio;
+        
         if (isResizingLeft) {
-          const newWidth = initialSliderWidth - deltaX;
-          
+          const newWidth = initialSliderWidth - deltaX;          
           if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
-            sliderRect.width = newWidth;
-            sliderRect.x = initialSliderX + deltaX;
-            leftSliderHandle.x = sliderRect.x;
+            sliderX = initialSliderX + deltaX;
+            sliderWidth = newWidth;
           }
         }
         
         if (isResizingRight) {
           const newWidth = initialSliderWidth + deltaX;
           if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
-            sliderRect.width = newWidth;
-            rightSliderHandle.x = sliderRect.width - viewportWidth + sliderRect.x + (2 * config.sliderHandleWidth);
+            sliderWidth = newWidth;
           }
         }
         
-        const currentZoomLevel = calculateZoom(sliderRect.width);
+        const currentZoomLevel = calculateZoom();
         store.dispatch('updateZoomLevel', currentZoomLevel);
         
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
-          if (newSliderX < config.sliderHandleWidth || newSliderX > window.innerWidth - config.sliderHandleWidth) return;
-          
-          if (newSliderX >= 0 && newSliderX + sliderRect.width <= viewportWidth) {
-            sliderRect.x = newSliderX;
-            leftSliderHandle.x = sliderRect.x - leftSliderHandle.width;
-            rightSliderHandle.x = sliderRect.width - window.innerWidth + sliderRect.x;  
-            calculateViewport(sliderRect.x);
-          }
+          if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;          
+          sliderX = newSliderX; 
+          calculateViewport();          
+        }
+        
+        // update slider        
+        sliderRect.clear();
+        sliderRect.rect(sliderX, 0, sliderWidth  , config.sliderHeight);
+        sliderRect.fill('rgba(18,21,24,0.46)');
+
+        leftSliderHandle.clear();
+        leftSliderHandle.rect(sliderX - config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
+        leftSliderHandle.fill(config.colors.sliderHandleColor);
+
+        if (isResizingRight || isDraggingSlider) {
+          rightSliderHandle.clear();
+          rightSliderHandle.rect(sliderX + sliderWidth, 0, config.sliderHandleWidth, config.sliderHeight);
+          rightSliderHandle.fill(config.colors.sliderHandleColor);
         }
       }      
       function onScaleEnd() {
@@ -134,24 +165,13 @@ export default defineComponent({
         window.removeEventListener('pointermove', onScale);
         window.removeEventListener('pointerup', onScaleEnd);
       }
-            
-      function calculateZoom(sliderWidth: number): number {
+      function calculateZoom(): number {
         const zoomLevel = config.minZoom + ((sliderMaxWidth - sliderWidth) / (sliderMaxWidth - config.sliderMinWidth)) * (config.maxZoom - config.minZoom);
         return Math.min(Math.max(zoomLevel, config.minZoom), config.maxZoom);
       }
-      
-      function calculateViewport(sliderX: number) {        
+      function calculateViewport() {        
         // TODO calculate Offset        
       }
-      
-      window.addEventListener('resize', () => {
-        // TODO stop resizing of handles
-        sliderContainer.width = pixiApp.canvas.width;
-      });
-      sliderContainer.addChild(leftSliderHandle);
-      sliderContainer.addChild(sliderRect);      
-      sliderContainer.addChild(rightSliderHandle);
-      pixiApp.stage.addChild(sliderContainer); 
     });
   },
   created() {

@@ -41,12 +41,12 @@ export class InstructionParser {
         let currentTime: number = 0;
         const activeChannels: Map<number, { startTime: number; intensity: number }> = new Map<number, { startTime: number; intensity: number }>();
 
-        this.instructions.forEach((instruction) => {
+        this.instructions.forEach((instruction: Instruction): void => {
             if (instruction.setParameter) {
                 const channels: number[] = instruction.setParameter.channels;
                 const intensity: number = instruction.setParameter.intensity;
 
-                channels.forEach((channel: number) => {
+                channels.forEach((channel: number): void => {
                     if (intensity > 0) {
                         // start of tacton
                         activeChannels.set(channel, { startTime: currentTime, intensity });

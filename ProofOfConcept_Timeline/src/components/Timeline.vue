@@ -171,24 +171,13 @@ export default defineComponent({
       }
       function calculateViewport() {
         const zoomLevel = store.state.zoomLevel;
-        const maxVisibleArea = (viewportWidth - 48);
+        const maxVisibleArea = (viewportWidth - 48) * zoomLevel;
         const visibleArea = maxVisibleArea / zoomLevel;
         const maxOffset = maxVisibleArea - visibleArea;
         const sliderPositionRatio = (sliderX - config.sliderHandleWidth) / (viewportWidth - sliderWidth - (2 * config.sliderHandleWidth));      
         const offsetValue = sliderPositionRatio * maxOffset;        
-        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset))
-        
-        console.clear();
-        console.log("SliderX ", sliderX);
-        console.log("sliderWitdh ", sliderWidth);
-        console.log("viewport: ", viewportWidth);
-        console.log("maxOffset ", maxOffset);
-        console.log("visibleDuration ", visibleArea);
-        console.log("maxVisibleDuration ", maxVisibleArea);
-        console.log("sliderPositionRatio ", sliderPositionRatio);       
-        
+        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset));       
         store.dispatch('updateViewportOffset', viewportOffset);
-        console.log("viewportOffset: ", viewportOffset);
       }
     });
   },

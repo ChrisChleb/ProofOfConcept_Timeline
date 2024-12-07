@@ -13,7 +13,7 @@ const config = {
     minTactonWidth: 1,
     resizingHandleWidth: 20,
     // grid
-    pixelsPerSecond: 550,
+    pixelsPerSecond: 100,
     moveSnappingRadius: 20,
     resizingSnappingRadius: 5,
     colors: {

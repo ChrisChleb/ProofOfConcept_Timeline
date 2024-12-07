@@ -30,13 +30,13 @@ export default defineComponent({
       gridGraphics = new Pixi.Graphics();
       
       const pixelPerSeconds = config.pixelsPerSecond * store.state.zoomLevel;
-      const steps = (pixiApp.canvas.width / pixelPerSeconds);
+      const steps = (pixiApp.canvas.width / config.pixelsPerSecond);
       const gridLines: number[] = [];
       
       let intervals = [1]; // standard: 1-second-spacing
       if (store.state.zoomLevel >= config.maxZoom / 3) intervals.push(0.5); // half
       if (store.state.zoomLevel >= config.maxZoom / 2) intervals.push(0.25); // quarter
-      
+            
       intervals.forEach((interval) => {
         const isMajor = interval == 1;
         const lineWidth = isMajor ? 2 : 1;
@@ -45,7 +45,7 @@ export default defineComponent({
           const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
           const x = step * pixelPerSeconds * interval;
           
-          gridLines.push(x);          
+          gridLines.push(x - store.state.viewportOffset);          
           gridGraphics!.moveTo(x, config.sliderHeight + config.componentPadding);
           gridGraphics!.lineTo(x, y);
           gridGraphics!.stroke({width: lineWidth, color: config.colors.gridColor})

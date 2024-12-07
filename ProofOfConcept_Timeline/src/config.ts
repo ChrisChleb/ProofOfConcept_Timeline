@@ -13,13 +13,15 @@ const config = {
     minTactonWidth: 1,
     resizingHandleWidth: 20,
     // grid
-    pixelsPerSecond: 100,
+    pixelsPerSecond: 550,
+    moveSnappingRadius: 20,
+    resizingSnappingRadius: 5,
     colors: {
         gridColor: 'rgba(75, 75, 75, 0.2)',
         handleColor: 'rgba(236,102,12,0)',
         tactonColor: '#848484',
         trackLineColor: '#777777',
-        sliderHandleColor: 'rgba(236,102,12,1)'
+        sliderHandleColor: 'rgba(236,102,12, 1)'
     },
     // playback
     millisecondsPerTick: 30 //quasi bpm

@@ -42,12 +42,10 @@ export default defineComponent({
   },
   setup(props: any) {
     const store: any = useStore();     
-   
     let resizeDirection: Direction | null = null;   
     let initalX: number = 0;
     let initialTactonWidth: number = 0;
     let initialTactonX: number = 0;
-    let initialHandleX: number = 0; 
         
     let pointerMoveHandler: any = null;
     let pointerUpHandler: any = null;
@@ -81,6 +79,8 @@ export default defineComponent({
         const rect = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.tactonColor);
+        rect.interactive = true;
+        rect.cursor = 'pointer';
 
         const position = calculatePosition(tacton);
         rect.x = position.x;
@@ -121,8 +121,9 @@ export default defineComponent({
         // assign methods
         const dto = new TactonDTO(rect, leftHandle, rightHandle, tactonContainer);
         leftHandle.on('pointerdown', (event) =>  onResizingStartLeft(event, dto));
-        rightHandle.on('pointerdown', (event) =>  onResizingStartRight(event, dto));   
-                
+        rightHandle.on('pointerdown', (event) =>  onResizingStartRight(event, dto));
+        rect.on('pointerdown', (event) => onMoveTacton(event, dto));
+        
         tactonContainerList.push(dto);
         trackContainer.addChild(tactonContainer);   
       });
@@ -139,7 +140,7 @@ export default defineComponent({
       // rerender handles
       tactonContainerList.forEach((dto: TactonDTO) => {        
         dto.rect.width = dto.initWidth * store.state.zoomLevel;
-        dto.rect.x = dto.initX * store.state.zoomLevel;
+        dto.rect.x = (dto.initX * store.state.zoomLevel) - store.state.viewportOffset;
         updateHandles(dto);
       });
     }
@@ -158,7 +159,7 @@ export default defineComponent({
     }
     
     watch(() => store.state.zoomLevel, updateTactons);
-
+    watch(() => store.state.viewportOffset, updateTactons);
     window.addEventListener('resize', () => {
       trackLine.width = pixiApp.canvas.width;
     });
@@ -167,13 +168,72 @@ export default defineComponent({
       deleteRenderdTactons();
       trackContainer.destroy({children: true});
     });
-    
+    function onMoveTacton(event: any, tactonDTO: TactonDTO) {
+      initalX = event.data.global.x / window.devicePixelRatio;
+      initialTactonX = tactonDTO.rect.x;
+      
+      pointerMoveHandler = (event: any) => moveTacton(event, tactonDTO);
+      pointerUpHandler = () => onMoveTactonEnd();
+      
+      window.addEventListener('pointermove', pointerMoveHandler);
+      window.addEventListener('pointerup', pointerUpHandler);
+    }
+    function moveTacton(event: any, tactonDTO: TactonDTO) {
+      const deltaX = (event.clientX / window.devicePixelRatio) - initalX;
+      
+      // calculate x coordinates of left and right border
+      const newLeftX = initialTactonX + deltaX;
+      const newRightX = initialTactonX + tactonDTO.rect.width + deltaX;
+      
+      // init vars
+      const snappingRadius = config.moveSnappingRadius;
+      let snappedLeftX = newLeftX;
+      let snappedRightX = newRightX;
+      let snappedLeft = false;
+      let snappedRight = false;
+      
+      // check for snapping
+      for (const lineX of store.state.gridLines) {
+        // left
+        if (Math.abs(snappedLeftX - lineX) < snappingRadius) {
+          snappedLeftX = lineX;
+          snappedLeft = true;
+          break;
+        }   
+        // right
+        if (Math.abs(snappedRightX - lineX) < snappingRadius) {
+          snappedRightX = lineX - tactonDTO.rect.width;
+          snappedRight = true;
+          break;
+        }
+      }
+      
+      // apply transformation
+      if (snappedLeft) {
+        tactonDTO.rect.x = snappedLeftX;
+      } else if (snappedRight) {
+        tactonDTO.rect.x = snappedRightX;
+      } else {
+        tactonDTO.rect.x = newLeftX;
+      }      
+      
+      // update dto
+      tactonDTO.initX = tactonDTO.rect.x / store.state.zoomLevel;
+      
+      updateHandles(tactonDTO);
+    }
+    function onMoveTactonEnd() {
+      window.removeEventListener('pointermove', pointerMoveHandler);
+      window.removeEventListener('pointerup', pointerUpHandler);
+
+      pointerMoveHandler = null;
+      pointerUpHandler = null;
+    }
     function onResizingStartLeft(event: any, tactonDTO: TactonDTO) {
       resizeDirection = Direction.LEFT;
       initalX = event.data.global.x / window.devicePixelRatio;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
-      initialHandleX = tactonDTO.leftHandle.x;
 
       pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
       pointerUpHandler = () => onResizeEnd();
@@ -186,7 +246,6 @@ export default defineComponent({
       initalX = event.data.global.x / window.devicePixelRatio;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
-      initialHandleX = tactonDTO.rightHandle.x;
 
       pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
       pointerUpHandler = () => onResizeEnd();
@@ -194,21 +253,61 @@ export default defineComponent({
       window.addEventListener('pointermove', pointerMoveHandler);
       window.addEventListener('pointerup', pointerUpHandler);
     }
-    function onResize(event: any, dto: TactonDTO) {
-      const deltaX = (event.clientX / window.devicePixelRatio) - initalX;
-      if (resizeDirection == Direction.RIGHT) {
-        if (initialTactonWidth + deltaX <= config.minTactonWidth) return;
-        dto.rect.width = (initialTactonWidth + deltaX);
+    function onResize(event: any, tactonDTO: TactonDTO) {
+      const deltaX = (event.clientX / window.devicePixelRatio) - initalX;      
+      let newWidth;
+      let newX;
+
+      if (resizeDirection === Direction.RIGHT) {
+        // calculate new tacton width
+        newWidth = initialTactonWidth + deltaX;    
+        
+        // check for minTactonWidth
+        if (newWidth <= config.minTactonWidth) return;
+        
+        // calculate x coordinate of right border
+        const newRightX = initialTactonX + newWidth;
+        
+        // test for snapping
+        const snappedRightX = snapToGrid(newRightX);  
+        newWidth = snappedRightX - initialTactonX;
       } else {
-        if (initialTactonWidth + (-deltaX) <= config.minTactonWidth) return;
-        dto.rect.width = initialTactonWidth + (-deltaX);
-        dto.rect.x = initialTactonX + deltaX;
+        // calculate new tacton width
+        newWidth = initialTactonWidth - deltaX;
+        
+        // check for minTactonWidth
+        if (newWidth <= config.minTactonWidth) return;
+        
+        // calculate new x coordinate of tacton
+        newX = initialTactonX + deltaX;
+        
+        // test for snapping
+        const snappedLeftX = snapToGrid(newX);       
+        newX = snappedLeftX;
+        newWidth = initialTactonWidth + (initialTactonX - snappedLeftX);
       }
       
-      // update vars in dto
-      dto.initWidth = dto.rect.width / store.state.zoomLevel;
-      dto.initX = dto.rect.x / store.state.zoomLevel;      
-      updateHandles(dto);
+      // apply resizing
+      tactonDTO.rect.width = newWidth;
+      tactonDTO.rect.x = newX || initialTactonX;
+      
+      // update dto values
+      tactonDTO.initWidth = tactonDTO.rect.width / store.state.zoomLevel;
+      tactonDTO.initX = tactonDTO.rect.x / store.state.zoomLevel;
+
+      updateHandles(tactonDTO);
+    }
+    function snapToGrid(positionToCheck: number) {
+      const snapRadius = config.resizingSnappingRadius;
+      const gridLines = store.state.gridLines;
+
+      for (const gridX of gridLines) {
+        if (Math.abs(positionToCheck - gridX) <= snapRadius) {
+          return gridX;
+        }
+      }
+
+      return positionToCheck;
     }
     function onResizeEnd() {
       resizeDirection = null;

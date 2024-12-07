@@ -15,19 +15,23 @@ export default defineComponent({
   setup(props: any) {
     const store: any = useStore();    
     let gridContainer: Pixi.Container | null;
-    const gridGraphics = new Pixi.Graphics();    
+    let gridGraphics: Pixi.Graphics | null;   
     
     renderGrid();
 
-    watch(() => store.state.zoomLevel, updateGridScale);
-
+    watch(() => store.state.zoomLevel, rerenderGrid);
+    watch(() => store.state.viewportOffset, rerenderGrid);
+    
     window.addEventListener('resize', () => {
-      updateGridScale();
+      rerenderGrid();
     });
     function renderGrid() {
       gridContainer = new Pixi.Container();
+      gridGraphics = new Pixi.Graphics();
+      
       const pixelPerSeconds = config.pixelsPerSecond * store.state.zoomLevel;
       const steps = (pixiApp.canvas.width / pixelPerSeconds);
+      const gridLines: number[] = [];
       
       let intervals = [1]; // standard: 1-second-spacing
       if (store.state.zoomLevel >= config.maxZoom / 3) intervals.push(0.5); // half
@@ -40,10 +44,11 @@ export default defineComponent({
         for (let step = 0; step < steps/interval; step++) {
           const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
           const x = step * pixelPerSeconds * interval;
-
-          gridGraphics.moveTo(x, config.sliderHeight + config.componentPadding);
-          gridGraphics.lineTo(x, y);
-          gridGraphics.stroke({width: lineWidth, color: config.colors.gridColor})
+          
+          gridLines.push(x);          
+          gridGraphics!.moveTo(x, config.sliderHeight + config.componentPadding);
+          gridGraphics!.lineTo(x, y);
+          gridGraphics!.stroke({width: lineWidth, color: config.colors.gridColor})
     
           if (isMajor) {
             const label = new Pixi.Text();
@@ -59,33 +64,26 @@ export default defineComponent({
       
       gridContainer.addChild(gridGraphics);
       pixiApp.stage.addChild(gridContainer);
-      gridContainer.x = 48;
+      gridContainer.x = 48 - store.state.viewportOffset;
+      store.commit('setGridLines', gridLines);
     }
-    function updateGridScale() {
-      if (gridContainer == null) return;      
-          
-      pixiApp.stage.removeChild(gridContainer);           
-      gridContainer.destroy();      
-      gridContainer = null;
-      gridGraphics.clear();
-
-      renderGrid();
-    }    
     function rerenderGrid() {
-      if (gridContainer == null) return;
-      
+      clearGrid();
+      renderGrid();
+    }
+    function clearGrid() {
+      if (gridContainer == null || gridGraphics == null) return;
+
       gridGraphics.clear();
-      gridContainer.children.forEach(child => {        
-        pixiApp.stage.removeChild(child);        
+      gridContainer.children.forEach(child => {
+        pixiApp.stage.removeChild(child);
         child.removeAllListeners();
         child.destroy({children: true});
-      });     
-      
+      });
+
       pixiApp.stage.removeChild(gridContainer);
       gridContainer.destroy();
       gridContainer = null;
-      
-      renderGrid();
     }
     
     return {

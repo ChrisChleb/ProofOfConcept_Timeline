@@ -3,7 +3,6 @@ import {defineComponent, h, onMounted, ref} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp from "@/pixi/pixiApp";
-import store from '@/store';
 import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
 import Track from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
@@ -35,7 +34,7 @@ export default defineComponent({
     const store: any = useStore();
     let viewportWidth = pixiApp.canvas.width;
     let sliderMaxWidth = viewportWidth - (2 * config.sliderHandleWidth);    
-        
+    
     onMounted(async () => {
       let sliderWidth = sliderMaxWidth;
       let initialSliderWidth = sliderWidth;
@@ -121,7 +120,7 @@ export default defineComponent({
         if (isResizingLeft) {
           const newWidth = initialSliderWidth - deltaX;
           const newSliderX = initialSliderX + deltaX;
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && newSliderX > config.sliderHandleWidth) {
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && newSliderX >= config.sliderHandleWidth) {
             sliderX = newSliderX;
             sliderWidth = newWidth;            
           }
@@ -129,7 +128,7 @@ export default defineComponent({
         
         if (isResizingRight) {
           const newWidth = initialSliderWidth + deltaX;
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && (sliderX + newWidth + config.sliderHandleWidth) < viewportWidth) {
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && (sliderX + newWidth + config.sliderHandleWidth) <= viewportWidth) {
             sliderWidth = newWidth;
           }
         }
@@ -140,8 +139,8 @@ export default defineComponent({
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
           if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;
-          sliderX = newSliderX; 
-          calculateViewport();          
+          sliderX = newSliderX;
+          calculateViewport();
         }
         
         // update slider        
@@ -170,18 +169,36 @@ export default defineComponent({
         const zoomLevel = config.minZoom + ((sliderMaxWidth - sliderWidth) / (sliderMaxWidth - config.sliderMinWidth)) * (config.maxZoom - config.minZoom);
         return Math.min(Math.max(zoomLevel, config.minZoom), config.maxZoom);
       }
-      function calculateViewport() {        
-        // TODO calculate Offset        
+      function calculateViewport() {
+        const zoomLevel = store.state.zoomLevel;
+        const maxVisibleArea = (viewportWidth - 48);
+        const visibleArea = maxVisibleArea / zoomLevel;
+        const maxOffset = maxVisibleArea - visibleArea;
+        const sliderPositionRatio = (sliderX - config.sliderHandleWidth) / (viewportWidth - sliderWidth - (2 * config.sliderHandleWidth));      
+        const offsetValue = sliderPositionRatio * maxOffset;        
+        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset))
+        
+        console.clear();
+        console.log("SliderX ", sliderX);
+        console.log("sliderWitdh ", sliderWidth);
+        console.log("viewport: ", viewportWidth);
+        console.log("maxOffset ", maxOffset);
+        console.log("visibleDuration ", visibleArea);
+        console.log("maxVisibleDuration ", maxVisibleArea);
+        console.log("sliderPositionRatio ", sliderPositionRatio);       
+        
+        store.dispatch('updateViewportOffset', viewportOffset);
+        console.log("viewportOffset: ", viewportOffset);
       }
     });
   },
   created() {
     this.selectedJson = JsonData[0];
-    this.loadFile()   
+    this.loadFile();
   },
   methods: {
     loadJson() {
-      console.log("loading: ", this.loadedJson);      
+      console.log("loading: ", this.loadedJson);
       const parser = new InstructionParser(this.loadedJson);      
       this.tactons = parser.parseInstructionsToRectangles();
       this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
@@ -266,7 +283,7 @@ export default defineComponent({
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>
     <div id="timeline"></div>
-  </div>
+  </div> 
   <Grid :track-count="maxTrackNum"></Grid>
   <div v-for="trackId in Array.from({ length: maxTrackNum }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId" :tactons="tactons[trackId] || []"/>

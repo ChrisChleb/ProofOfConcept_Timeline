@@ -119,16 +119,17 @@ export default defineComponent({
         const deltaX = (event.clientX - initialMouseX) / window.devicePixelRatio;
         
         if (isResizingLeft) {
-          const newWidth = initialSliderWidth - deltaX;          
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
-            sliderX = initialSliderX + deltaX;
-            sliderWidth = newWidth;
+          const newWidth = initialSliderWidth - deltaX;
+          const newSliderX = initialSliderX + deltaX;
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && newSliderX > config.sliderHandleWidth) {
+            sliderX = newSliderX;
+            sliderWidth = newWidth;            
           }
         }
         
         if (isResizingRight) {
           const newWidth = initialSliderWidth + deltaX;
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth) {
+          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && (sliderX + newWidth + config.sliderHandleWidth) < viewportWidth) {
             sliderWidth = newWidth;
           }
         }
@@ -138,7 +139,7 @@ export default defineComponent({
         
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
-          if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;          
+          if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;
           sliderX = newSliderX; 
           calculateViewport();          
         }
@@ -183,7 +184,7 @@ export default defineComponent({
       console.log("loading: ", this.loadedJson);      
       const parser = new InstructionParser(this.loadedJson);      
       this.tactons = parser.parseInstructionsToRectangles();
-      this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(Number(a), Number(b)), -Infinity) + 1;
+      this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
       
       let accumulatedTime = 0;
       this.instructions = this.loadedJson.instructions.map((instruction: any) => {

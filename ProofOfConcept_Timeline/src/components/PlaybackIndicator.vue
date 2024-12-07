@@ -4,7 +4,6 @@ import * as Pixi from "pixi.js";
 
 import pixiApp from "@/pixi/pixiApp";
 import config from "@/config";
-import {Instruction} from "@/parser/instructionParser";
 import {useStore} from "vuex";
 export default defineComponent({
   name: "PlaybackIndicator",

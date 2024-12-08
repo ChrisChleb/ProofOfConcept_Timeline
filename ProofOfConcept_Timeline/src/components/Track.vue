@@ -218,7 +218,7 @@ export default defineComponent({
       }      
       
       // update dto
-      tactonDTO.initX = tactonDTO.rect.x / store.state.zoomLevel;
+      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset) / store.state.zoomLevel;
       
       updateHandles(tactonDTO);
     }
@@ -293,7 +293,7 @@ export default defineComponent({
       
       // update dto values
       tactonDTO.initWidth = tactonDTO.rect.width / store.state.zoomLevel;
-      tactonDTO.initX = tactonDTO.rect.x / store.state.zoomLevel;
+      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset) / store.state.zoomLevel;
 
       updateHandles(tactonDTO);
     }

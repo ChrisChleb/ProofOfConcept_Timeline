@@ -115,7 +115,7 @@ export default defineComponent({
         store.dispatch('updateZoomLevel', currentZoomLevel);
       });
       function onScale(event: any) {
-        const deltaX = (event.clientX - initialMouseX) / window.devicePixelRatio;
+        const deltaX = event.clientX - initialMouseX;
         
         if (isResizingLeft) {
           const newWidth = initialSliderWidth - deltaX;

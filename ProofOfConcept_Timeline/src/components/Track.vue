@@ -169,7 +169,7 @@ export default defineComponent({
       trackContainer.destroy({children: true});
     });
     function onMoveTacton(event: any, tactonDTO: TactonDTO) {
-      initalX = event.data.global.x / window.devicePixelRatio;
+      initalX = event.data.global.x;
       initialTactonX = tactonDTO.rect.x;
       
       pointerMoveHandler = (event: any) => moveTacton(event, tactonDTO);
@@ -179,7 +179,7 @@ export default defineComponent({
       window.addEventListener('pointerup', pointerUpHandler);
     }
     function moveTacton(event: any, tactonDTO: TactonDTO) {
-      const deltaX = (event.clientX / window.devicePixelRatio) - initalX;
+      const deltaX = event.clientX - initalX;
       
       // calculate x coordinates of left and right border
       const newLeftX = initialTactonX + deltaX;
@@ -231,7 +231,7 @@ export default defineComponent({
     }
     function onResizingStartLeft(event: any, tactonDTO: TactonDTO) {
       resizeDirection = Direction.LEFT;
-      initalX = event.data.global.x / window.devicePixelRatio;
+      initalX = event.data.global.x;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
 
@@ -243,7 +243,7 @@ export default defineComponent({
     }
     function onResizingStartRight(event: any, tactonDTO: TactonDTO) {
       resizeDirection = Direction.RIGHT;
-      initalX = event.data.global.x / window.devicePixelRatio;
+      initalX = event.data.global.x;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
 
@@ -254,7 +254,7 @@ export default defineComponent({
       window.addEventListener('pointerup', pointerUpHandler);
     }
     function onResize(event: any, tactonDTO: TactonDTO) {
-      const deltaX = (event.clientX / window.devicePixelRatio) - initalX;      
+      const deltaX = event.clientX - initalX; 
       let newWidth;
       let newX;
 

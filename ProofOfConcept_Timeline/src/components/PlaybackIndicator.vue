@@ -24,11 +24,13 @@ export default defineComponent({
   setup(props: any) {    
     const store = useStore();
     const playbackIndicator = new Pixi.Graphics();
+    
     renderIndicator();
     watch(
-        () => props.currentTime,
-        (time) => {
-          playbackIndicator.x = ((((time/props.totalDuration) * props.totalDuration) / 1000) * config.pixelsPerSecond) * store.state.zoomLevel;     
+        [() => props.currentTime, () => store.state.viewportOffset],
+        ([time, viewportOffset]) => {
+          const x = ((time / 1000) * (config.pixelsPerSecond * store.state.zoomLevel));
+          playbackIndicator.x = x - viewportOffset;
         }
     );    
     function renderIndicator() {

@@ -99,21 +99,42 @@ export default defineComponent({
       
       window.addEventListener('resize', () => {
         viewportWidth = pixiApp.canvas.width;
-        sliderMaxWidth = viewportWidth - (2 * config.sliderHandleWidth);
-        sliderWidth = sliderMaxWidth
+        const newSliderMaxWith = viewportWidth - (2 * config.sliderHandleWidth);
         
-        // update slider        
-        sliderRect.clear();
-        sliderRect.rect(sliderX, 0, sliderMaxWidth  , config.sliderHeight);
-        sliderRect.fill('rgba(18,21,24,0.46)');        
-        
-        rightSliderHandle.clear();
-        rightSliderHandle.rect(sliderX + sliderMaxWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-        rightSliderHandle.fill(config.colors.sliderHandleColor);
+        if (sliderWidth >= sliderMaxWidth) {
+          sliderMaxWidth = newSliderMaxWith;
+          sliderWidth = sliderMaxWidth;
+        } else {
+          const overflowRight = (sliderX + sliderWidth + config.sliderHandleWidth) - viewportWidth;
 
-        const currentZoomLevel = calculateZoom();
-        store.dispatch('updateZoomLevel', currentZoomLevel);
-      });
+          if (overflowRight > 0) {
+            sliderX -= overflowRight;
+          }
+          
+          if (sliderX < config.sliderHandleWidth) {
+            sliderX = config.sliderHandleWidth;
+          }
+        }
+
+        updateSlider();
+        sliderMaxWidth = newSliderMaxWith;        
+        store.dispatch('updateZoomLevel', calculateZoom());
+        calculateViewport();
+        return;
+      });      
+      function updateSlider() {
+        sliderRect.clear();
+        sliderRect.rect(sliderX, 0, sliderWidth  , config.sliderHeight);
+        sliderRect.fill('rgba(18,21,24,0.46)');
+
+        leftSliderHandle.clear();
+        leftSliderHandle.rect(sliderX - config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
+        leftSliderHandle.fill(config.colors.sliderHandleColor);
+
+        rightSliderHandle.clear();
+        rightSliderHandle.rect(sliderX + sliderWidth, 0, config.sliderHandleWidth, config.sliderHeight);
+        rightSliderHandle.fill(config.colors.sliderHandleColor);
+      }
       function onScale(event: any) {
         const deltaX = event.clientX - initialMouseX;
         
@@ -146,20 +167,7 @@ export default defineComponent({
           calculateViewport();
         }
         
-        // update slider        
-        sliderRect.clear();
-        sliderRect.rect(sliderX, 0, sliderWidth  , config.sliderHeight);
-        sliderRect.fill('rgba(18,21,24,0.46)');
-
-        leftSliderHandle.clear();
-        leftSliderHandle.rect(sliderX - config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-        leftSliderHandle.fill(config.colors.sliderHandleColor);
-
-        if (isResizingRight || isDraggingSlider) {
-          rightSliderHandle.clear();
-          rightSliderHandle.rect(sliderX + sliderWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-          rightSliderHandle.fill(config.colors.sliderHandleColor);
-        }
+        updateSlider();       
       }      
       function onScaleEnd() {
         isResizingRight = false;

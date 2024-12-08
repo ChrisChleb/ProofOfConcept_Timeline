@@ -65,6 +65,7 @@ export default defineComponent({
       gridContainer.addChild(gridGraphics);
       pixiApp.stage.addChild(gridContainer);
       gridContainer.x = 48 - store.state.viewportOffset;
+      gridContainer.zIndex = -1;
       store.commit('setGridLines', gridLines);
     }
     function rerenderGrid() {

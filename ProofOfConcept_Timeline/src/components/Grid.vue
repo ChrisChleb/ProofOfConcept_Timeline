@@ -15,7 +15,7 @@ export default defineComponent({
   setup(props: any) {
     const store: any = useStore();    
     let gridContainer: Pixi.Container | null;
-    let gridGraphics: Pixi.Graphics | null;   
+    let gridGraphics: Pixi.Graphics | null;
     
     renderGrid();
 
@@ -32,12 +32,8 @@ export default defineComponent({
       const pixelPerSeconds = config.pixelsPerSecond * store.state.zoomLevel;
       const steps = (pixiApp.canvas.width / config.pixelsPerSecond);
       const gridLines: number[] = [];
-      
-      let intervals = [1]; // standard: 1-second-spacing
-      if (store.state.zoomLevel >= config.maxZoom / 3) intervals.push(0.5); // half
-      if (store.state.zoomLevel >= config.maxZoom / 2) intervals.push(0.25); // quarter
-            
-      intervals.forEach((interval) => {
+
+      getIntervals().forEach((interval) => {
         const isMajor = interval == 1;
         const lineWidth = isMajor ? 2 : 1;
         
@@ -85,6 +81,14 @@ export default defineComponent({
       pixiApp.stage.removeChild(gridContainer);
       gridContainer.destroy();
       gridContainer = null;
+    }
+    function getIntervals(): number[] {
+      let intervals = [1]; // standard: 1-second-spacing
+      if (store.state.zoomLevel >= config.maxZoom * 0.25) intervals.push(1/2); // half
+      if (store.state.zoomLevel >= config.maxZoom * 0.5) intervals.push(1/4); // quarter
+      if (store.state.zoomLevel >= config.maxZoom * 0.75) intervals.push(1/8); // eighth
+      if (store.state.zoomLevel >= config.maxZoom * 0.95) intervals.push(1/16); // sixteenth      
+      return intervals;
     }
     
     return {

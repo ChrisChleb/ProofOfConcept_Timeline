@@ -136,6 +136,9 @@ export default defineComponent({
         const currentZoomLevel = calculateZoom();
         store.dispatch('updateZoomLevel', currentZoomLevel);
         
+        // if resized from left also calculate offset
+        if (isResizingLeft) calculateViewport();
+        
         if (isDraggingSlider) {
           const newSliderX = initialSliderX + deltaX;
           if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;
@@ -176,7 +179,13 @@ export default defineComponent({
         const maxOffset = maxVisibleArea - visibleArea;
         const sliderPositionRatio = (sliderX - config.sliderHandleWidth) / (viewportWidth - sliderWidth - (2 * config.sliderHandleWidth));      
         const offsetValue = sliderPositionRatio * maxOffset;        
-        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset));       
+        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset));
+        
+        if(isNaN(viewportOffset)) {
+          store.dispatch('updateViewportOffset', 0);
+          return;
+        }
+        
         store.dispatch('updateViewportOffset', viewportOffset);
       }
     });

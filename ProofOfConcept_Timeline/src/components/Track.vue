@@ -10,21 +10,24 @@ enum Direction {
   LEFT = 'left',
   RIGHT = 'right',
 }
-class TactonDTO {
+export class TactonDTO {
   rect: Graphics;
   initX: number;
-  initWidth: number
+  initY: number;
+  initWidth: number;
   leftHandle: Graphics;
   rightHandle: Graphics;
   container: Pixi.Container;
-  
-  constructor(rect: Graphics, leftHandle: Graphics, rightHandle: Graphics, container: Pixi.Container) {    
+  trackId: number;
+  constructor(rect: Graphics, leftHandle: Graphics, rightHandle: Graphics, container: Pixi.Container, trackId: number) {       
     this.rect = rect;
     this.initWidth = rect.width;
-    this.initX = rect.x;    
+    this.initX = rect.x;
+    this.initY = rect.y;
     this.leftHandle = leftHandle;
     this.rightHandle = rightHandle;
     this.container = container;
+    this.trackId = trackId;
   }
 }
 
@@ -38,14 +41,20 @@ export default defineComponent({
     tactons: {
       type: Array as PropType<TactonRectangle[]>,
       required: true
+    },
+    trackCount: {
+      type: Number,
+      required: true
     }
   },
   setup(props: any) {
     const store: any = useStore();     
     let resizeDirection: Direction | null = null;   
-    let initalX: number = 0;
+    let initialX: number = 0;
+    let initialY: number = 0;
     let initialTactonWidth: number = 0;
     let initialTactonX: number = 0;
+    let currentYTrackId: number = props.trackId;
         
     let pointerMoveHandler: any = null;
     let pointerUpHandler: any = null;
@@ -54,11 +63,18 @@ export default defineComponent({
     trackContainer.height = config.trackHeight;
     trackContainer.width = pixiApp.canvas.width;
 
-    let tactonContainerList: TactonDTO[] = [];
+    // viewport-scrolling
+    let isScrolling = false;
+    let currentDirection: 'left' | 'right' | null = null;
+    let currentFactor = 0;
+    let currentTacton: TactonDTO | null = null;
+    
+    // thresholds for viewport-scrolling --> TODO update on resize
+    const rightThreshold = pixiApp.canvas.width - config.scrollThreshold;
+    const leftThreshold = config.scrollThreshold;
     
     // add 12px of padding to slider
     trackContainer.y = config.sliderHeight + config.componentPadding + props.trackId * config.trackHeight;
-
     const trackLine = new Pixi.Graphics();
     trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
     trackLine.fill(config.colors.trackLineColor);
@@ -71,8 +87,8 @@ export default defineComponent({
     // padding left
     trackContainer.x = 48;
     function renderTrack() {
-      deleteRenderdTactons();
-      console.log("Track ", props.trackId, " received: ", props.tactons);
+      store.dispatch('deleteTactons', props.trackId);
+      console.debug("Track ", props.trackId, " received: ", props.tactons);
       
       const tactonContainer = new Pixi.Container();
       props.tactons.forEach((tacton: TactonRectangle) => {
@@ -119,14 +135,15 @@ export default defineComponent({
         tactonContainer.addChild(rightHandle);
 
         // assign methods
-        const dto = new TactonDTO(rect, leftHandle, rightHandle, tactonContainer);
+        const dto = new TactonDTO(rect, leftHandle, rightHandle, tactonContainer, props.trackId);
         leftHandle.on('pointerdown', (event) =>  onResizingStartLeft(event, dto));
         rightHandle.on('pointerdown', (event) =>  onResizingStartRight(event, dto));
         rect.on('pointerdown', (event) => onMoveTacton(event, dto));
         
-        tactonContainerList.push(dto);
-        trackContainer.addChild(tactonContainer);   
+        store.dispatch('addTacton', {trackId: props.trackId, newTacton: dto});
+        trackContainer.addChild(tactonContainer); 
       });
+      updateTactons();
     }
     function calculatePosition(tacton: TactonRectangle) {
       const timelineWidth = pixiApp.canvas.width;
@@ -137,54 +154,117 @@ export default defineComponent({
       };
     }
     function updateTactons() {
-      // rerender handles
-      tactonContainerList.forEach((dto: TactonDTO) => {        
-        dto.rect.width = dto.initWidth * store.state.zoomLevel;
-        dto.rect.x = (dto.initX * store.state.zoomLevel) - store.state.viewportOffset;
-        updateHandles(dto);
+      store.state.tactons[props.trackId]?.forEach((dto: TactonDTO) => {        
+        if (currentTacton?.rect.uid != dto.rect.uid) {    
+          dto.rect.width = dto.initWidth * store.state.zoomLevel;
+          dto.rect.x = (dto.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          updateHandles(dto);
+        }
       });
-    }
-    function deleteRenderdTactons() {
-      tactonContainerList.forEach((dto: TactonDTO) => {
-        pixiApp.stage.removeChild(dto.container);
-        trackContainer.removeChild(dto.container);
-        dto.container.children.forEach(child => {
-          child.removeAllListeners();
-        });
-        dto.container.removeAllListeners();
-        dto.container.destroy({children: true});
-      });
-
-      tactonContainerList = [];
     }
     
     watch(() => store.state.zoomLevel, updateTactons);
     watch(() => store.state.viewportOffset, updateTactons);
+    watch(() => store.state.sliderOffset, updateTactons);
     window.addEventListener('resize', () => {
       trackLine.width = pixiApp.canvas.width;
     });
 
     onBeforeUnmount(() => {
-      deleteRenderdTactons();
+      store.dispatch('deleteTactons', props.trackId);
       trackContainer.destroy({children: true});
     });
     function onMoveTacton(event: any, tactonDTO: TactonDTO) {
-      initalX = event.data.global.x;
+      initialX = event.data.global.x;
+      initialY = event.data.global.y;
       initialTactonX = tactonDTO.rect.x;
+      currentTacton = tactonDTO;
       
-      pointerMoveHandler = (event: any) => moveTacton(event, tactonDTO);
+      pointerMoveHandler = (event: any) => moveTacton(event);
       pointerUpHandler = () => onMoveTactonEnd();
       
       window.addEventListener('pointermove', pointerMoveHandler);
       window.addEventListener('pointerup', pointerUpHandler);
     }
-    function moveTacton(event: any, tactonDTO: TactonDTO) {
-      const deltaX = event.clientX - initalX;
+    function startAutoScroll(direction: 'left' | 'right') {
+      if (!isScrolling) {
+        isScrolling = true;
+        currentDirection = direction;
+        autoScroll();
+      }
+    }
+    function stopAutoScroll() {
+      isScrolling = false;
+      currentDirection = null;
+      currentFactor = 0;
+    }
+    function autoScroll() {
+      if (!isScrolling || !currentDirection || currentTacton == null) return;
+    
+      const scrollSpeed = currentFactor * config.scrollSpeed;
+      
+      if (currentDirection === 'right') {
+        const newOffset = store.state.viewportOffset + scrollSpeed;
+        store.dispatch('updateViewportOffset', newOffset);        
+      } else if (currentDirection === 'left') {
+        const newOffset = Math.max(store.state.viewportOffset - scrollSpeed, 0);
+        store.dispatch('updateViewportOffset', newOffset);
+      }
+      
+      requestAnimationFrame(() => autoScroll());
+    }
+    
+    function calculateVirtualViewportLength() {
+      store.dispatch('sortTactons');
+      
+      let maxPosition = 0;
+      
+      Object.values(store.state.tactons).forEach((channelData: any) => {
+        if (channelData.length > 0) {
+          const trackLastTacton = channelData[channelData.length - 1];
+          const trackLastPosition = trackLastTacton.rect.x + trackLastTacton.rect.width;
+
+          if (trackLastPosition > maxPosition) {
+            maxPosition = trackLastPosition;
+          }
+        }
+      });
+  
+      if (maxPosition > 0) {
+        maxPosition += store.state.viewportOffset;
+        maxPosition /= store.state.zoomLevel;
+        // need a better solution, because this leads to weird behavior of offset
+        // --> when tacton is not exactly at border of window, as the sequencelenght is then less then what is currently shown on screen
+        //maxPosition += config.pixelsPerSecond
+        store.dispatch('updateCurrentVirtualViewportWidth', maxPosition);
+        console.log("virtualViewportWidth: ", maxPosition);
+        console.log("SequenzLength: ", (maxPosition / config.pixelsPerSecond).toFixed(2), "sec");
+      }
+    }
+    function moveTacton(event: any) {
+      if (currentTacton == null) return;
+      
+      const deltaX = event.clientX - initialX;
+      const deltaY = event.clientY - initialY;
+      
+      // detect switching tracks
+      currentYTrackId = currentTacton.trackId + Math.floor(deltaY / config.trackHeight);
+      currentYTrackId = Math.max(0, Math.min(currentYTrackId, props.trackCount ));
+      const trackContainerY = config.sliderHeight + config.componentPadding + (currentYTrackId * config.trackHeight);
+      currentTacton.rect.y = trackContainerY - trackContainer.y + currentTacton.initY;
       
       // calculate x coordinates of left and right border
       const newLeftX = initialTactonX + deltaX;
-      const newRightX = initialTactonX + tactonDTO.rect.width + deltaX;
-      
+      const newRightX = initialTactonX + currentTacton.rect.width + deltaX;
+
+      scrollViewport(event.clientX);
+            
+      // early exit -> x is past start of sequence
+      if (newLeftX < 0 && store.state.viewportOffset == 0) {
+        currentTacton.rect.x = 0;
+        return;
+      }
+            
       // init vars
       const snappingRadius = config.moveSnappingRadius;
       let snappedLeftX = newLeftX;
@@ -202,7 +282,7 @@ export default defineComponent({
         }   
         // right
         if (Math.abs(snappedRightX - lineX) < snappingRadius) {
-          snappedRightX = lineX - tactonDTO.rect.width;
+          snappedRightX = lineX - currentTacton.rect.width;
           snappedRight = true;
           break;
         }
@@ -210,28 +290,61 @@ export default defineComponent({
       
       // apply transformation
       if (snappedLeft) {
-        tactonDTO.rect.x = snappedLeftX;
+        currentTacton.rect.x = snappedLeftX;
       } else if (snappedRight) {
-        tactonDTO.rect.x = snappedRightX;
+        currentTacton.rect.x = snappedRightX;
       } else {
-        tactonDTO.rect.x = newLeftX;
-      }      
+        currentTacton.rect.x = newLeftX;
+      }
       
-      // update dto
-      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset) / store.state.zoomLevel;
+      // check for overflow
+      const overflowRight = Math.min(((pixiApp.canvas.width - 48) - (currentTacton.rect.x + currentTacton.rect.width)), 0);
+      const overflowLeft = - currentTacton.rect.x;
+            
+      if (overflowRight < 0) {
+        currentTacton.rect.x += overflowRight;
+      }
       
-      updateHandles(tactonDTO);
+      if (overflowLeft > 0) {
+        currentTacton.rect.x += overflowLeft;
+      }
     }
+    function scrollViewport(cursorX: number) {
+      if (cursorX >= rightThreshold) {
+        currentFactor = Math.min((cursorX - rightThreshold) / config.scrollThreshold, 1);
+        startAutoScroll('right');
+      } else if (cursorX <= leftThreshold) {
+        currentFactor= Math.min((leftThreshold - cursorX) / config.scrollThreshold, 1);        
+        startAutoScroll('left');
+      } else if (isScrolling){
+        stopAutoScroll();
+      }
+    } 
     function onMoveTactonEnd() {
+      stopAutoScroll();
       window.removeEventListener('pointermove', pointerMoveHandler);
       window.removeEventListener('pointerup', pointerUpHandler);
 
       pointerMoveHandler = null;
       pointerUpHandler = null;
+      
+      if (currentTacton == null) return;
+      currentTacton.trackId = currentYTrackId;
+      // update dto
+      currentTacton.initX = (currentTacton.rect.x + store.state.viewportOffset + store.state.sliderOffset) / store.state.zoomLevel;
+      updateHandles(currentTacton);
+      
+      // mark track(s) as unsorted
+      store.state.sorted[currentTacton.trackId] = false;
+      store.state.sorted[props.trackId] = false;
+      
+      calculateVirtualViewportLength();
+      
+      currentTacton = null;
     }
     function onResizingStartLeft(event: any, tactonDTO: TactonDTO) {
       resizeDirection = Direction.LEFT;
-      initalX = event.data.global.x;
+      initialX = event.data.global.x;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
 
@@ -243,7 +356,7 @@ export default defineComponent({
     }
     function onResizingStartRight(event: any, tactonDTO: TactonDTO) {
       resizeDirection = Direction.RIGHT;
-      initalX = event.data.global.x;
+      initialX = event.data.global.x;
       initialTactonWidth = tactonDTO.rect.width;
       initialTactonX = tactonDTO.rect.x;
 
@@ -254,10 +367,9 @@ export default defineComponent({
       window.addEventListener('pointerup', pointerUpHandler);
     }
     function onResize(event: any, tactonDTO: TactonDTO) {
-      const deltaX = event.clientX - initalX; 
+      const deltaX = event.clientX - initialX; 
       let newWidth;
       let newX;
-
       if (resizeDirection === Direction.RIGHT) {
         // calculate new tacton width
         newWidth = initialTactonWidth + deltaX;    
@@ -282,18 +394,25 @@ export default defineComponent({
         newX = initialTactonX + deltaX;
         
         // test for snapping
-        const snappedLeftX = snapToGrid(newX);       
+        const snappedLeftX = snapToGrid(newX);
         newX = snappedLeftX;
         newWidth = initialTactonWidth + (initialTactonX - snappedLeftX);
       }
+
+      // early exit -> x is past start of sequence
+      if (newX < 0) return;
       
       // apply resizing
+      if (newX != undefined) {
+        tactonDTO.rect.x = newX;
+      } else {
+        tactonDTO.rect.x = initialTactonX;
+      }
       tactonDTO.rect.width = newWidth;
-      tactonDTO.rect.x = newX || initialTactonX;
-      
+            
       // update dto values
       tactonDTO.initWidth = tactonDTO.rect.width / store.state.zoomLevel;
-      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset) / store.state.zoomLevel;
+      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset + store.state.sliderOffset) / store.state.zoomLevel;
 
       updateHandles(tactonDTO);
     }
@@ -306,7 +425,6 @@ export default defineComponent({
           return gridX;
         }
       }
-
       return positionToCheck;
     }
     function onResizeEnd() {
@@ -317,7 +435,6 @@ export default defineComponent({
       pointerMoveHandler = null;
       pointerUpHandler = null;
     }
-    
     function updateHandles(dto: TactonDTO) {
       // update left handle
       dto.leftHandle.clear();

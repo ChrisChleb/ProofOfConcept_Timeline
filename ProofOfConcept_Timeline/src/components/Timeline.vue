@@ -11,6 +11,7 @@ import PlaybackIndicator from "@/components/PlaybackIndicator.vue";
 import config from "@/config";
 import JsonData from '../json/2024-06-20_Team1_session1.json';
 import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
+import Slider from "@/components/Slider.vue";
 
 export default defineComponent({
   name: "Timeline",
@@ -29,174 +30,6 @@ export default defineComponent({
       selectedJson: null as any,
       jsonData: JsonData,
     };
-  },
-  setup() {
-    const store: any = useStore();
-    let viewportWidth = pixiApp.canvas.width;
-    let sliderMaxWidth = viewportWidth - (2 * config.sliderHandleWidth);    
-    
-    onMounted(async () => {
-      let sliderWidth = sliderMaxWidth;
-      let initialSliderWidth = sliderWidth;
-      let isResizingLeft = false;
-      let isResizingRight = false;
-      let isDraggingSlider = false;
-      let initialMouseX = 0;      
-      let initialSliderX = config.sliderHandleWidth;
-      let sliderX = initialSliderX;
-      const sliderContainer = new Pixi.Container();   
-      
-      // slider      
-      const sliderRect = new Pixi.Graphics();
-      sliderRect.rect((viewportWidth - sliderWidth)/2, 0, sliderWidth, config.sliderHeight);
-      sliderRect.fill('rgba(18,21,24,0.46)');
-      sliderRect.interactive = true;
-      sliderRect.cursor = 'pointer';
-
-      sliderRect.on('pointerdown', (event) => {
-        isDraggingSlider = true;
-        initialMouseX = event.data.global.x;
-        initialSliderX = sliderX;
-        window.addEventListener('pointermove', onScale);
-        window.addEventListener('pointerup', onScaleEnd);
-      });
-      
-      // left handle
-      const leftSliderHandle = new Pixi.Graphics();
-      leftSliderHandle.rect(0, 0, config.sliderHandleWidth, config.sliderHeight);
-      leftSliderHandle.fill(config.colors.sliderHandleColor);
-      leftSliderHandle.interactive = true;
-      leftSliderHandle.cursor = 'ew-resize';
-      
-      leftSliderHandle.on('pointerdown', (event) => {
-        isResizingLeft = true;
-        initialMouseX = event.data.global.x;
-        initialSliderWidth = sliderWidth;
-        initialSliderX = sliderX;
-        window.addEventListener('pointermove', onScale);
-        window.addEventListener('pointerup', onScaleEnd);
-      });
-      
-      // right handle
-      const rightSliderHandle = new Pixi.Graphics();
-      rightSliderHandle.rect(sliderRect.width + config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-      rightSliderHandle.fill(config.colors.sliderHandleColor);
-      rightSliderHandle.interactive = true;
-      rightSliderHandle.cursor = 'ew-resize';
-
-      rightSliderHandle.on('pointerdown', (event) => {
-        isResizingRight = true;
-        initialMouseX = event.data.global.x;
-        initialSliderWidth = sliderWidth;
-        window.addEventListener('pointermove', onScale);
-        window.addEventListener('pointerup', onScaleEnd);
-      });
-      
-      sliderContainer.addChild(leftSliderHandle);
-      sliderContainer.addChild(sliderRect);
-      sliderContainer.addChild(rightSliderHandle);
-      pixiApp.stage.addChild(sliderContainer);
-      
-      window.addEventListener('resize', () => {
-        viewportWidth = pixiApp.canvas.width;
-        const newSliderMaxWith = viewportWidth - (2 * config.sliderHandleWidth);
-        
-        if (sliderWidth >= sliderMaxWidth) {
-          sliderMaxWidth = newSliderMaxWith;
-          sliderWidth = sliderMaxWidth;
-        } else {
-          const overflowRight = (sliderX + sliderWidth + config.sliderHandleWidth) - viewportWidth;
-
-          if (overflowRight > 0) {
-            sliderX -= overflowRight;
-          }
-          
-          if (sliderX < config.sliderHandleWidth) {
-            sliderX = config.sliderHandleWidth;
-          }
-        }
-
-        updateSlider();
-        sliderMaxWidth = newSliderMaxWith;        
-        store.dispatch('updateZoomLevel', calculateZoom());
-        calculateViewport();
-        return;
-      });      
-      function updateSlider() {
-        sliderRect.clear();
-        sliderRect.rect(sliderX, 0, sliderWidth  , config.sliderHeight);
-        sliderRect.fill('rgba(18,21,24,0.46)');
-
-        leftSliderHandle.clear();
-        leftSliderHandle.rect(sliderX - config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-        leftSliderHandle.fill(config.colors.sliderHandleColor);
-
-        rightSliderHandle.clear();
-        rightSliderHandle.rect(sliderX + sliderWidth, 0, config.sliderHandleWidth, config.sliderHeight);
-        rightSliderHandle.fill(config.colors.sliderHandleColor);
-      }
-      function onScale(event: any) {
-        const deltaX = event.clientX - initialMouseX;
-        
-        if (isResizingLeft) {
-          const newWidth = initialSliderWidth - deltaX;
-          const newSliderX = initialSliderX + deltaX;
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && newSliderX >= config.sliderHandleWidth) {
-            sliderX = newSliderX;
-            sliderWidth = newWidth;            
-          }
-        }
-        
-        if (isResizingRight) {
-          const newWidth = initialSliderWidth + deltaX;
-          if (newWidth >= config.sliderMinWidth && newWidth <= sliderMaxWidth && (sliderX + newWidth + config.sliderHandleWidth) <= viewportWidth) {
-            sliderWidth = newWidth;
-          }
-        }
-        
-        const currentZoomLevel = calculateZoom();
-        store.dispatch('updateZoomLevel', currentZoomLevel);
-        
-        // if resized from left also calculate offset
-        if (isResizingLeft) calculateViewport();
-        
-        if (isDraggingSlider) {
-          const newSliderX = initialSliderX + deltaX;
-          if (newSliderX < config.sliderHandleWidth || (newSliderX + sliderWidth + config.sliderHandleWidth) > window.innerWidth) return;
-          sliderX = newSliderX;
-          calculateViewport();
-        }
-        
-        updateSlider();       
-      }      
-      function onScaleEnd() {
-        isResizingRight = false;
-        isResizingLeft = false;
-        isDraggingSlider = false;
-        window.removeEventListener('pointermove', onScale);
-        window.removeEventListener('pointerup', onScaleEnd);
-      }
-      function calculateZoom(): number {
-        const zoomLevel = config.minZoom + ((sliderMaxWidth - sliderWidth) / (sliderMaxWidth - config.sliderMinWidth)) * (config.maxZoom - config.minZoom);
-        return Math.min(Math.max(zoomLevel, config.minZoom), config.maxZoom);
-      }
-      function calculateViewport() {
-        const zoomLevel = store.state.zoomLevel;
-        const maxVisibleArea = (viewportWidth - 48) * zoomLevel;
-        const visibleArea = maxVisibleArea / zoomLevel;
-        const maxOffset = maxVisibleArea - visibleArea;
-        const sliderPositionRatio = (sliderX - config.sliderHandleWidth) / (viewportWidth - sliderWidth - (2 * config.sliderHandleWidth));      
-        const offsetValue = sliderPositionRatio * maxOffset;        
-        const viewportOffset = Math.max(0, Math.min(offsetValue, maxOffset));
-        
-        if(isNaN(viewportOffset)) {
-          store.dispatch('updateViewportOffset', 0);
-          return;
-        }
-        
-        store.dispatch('updateViewportOffset', viewportOffset);
-      }
-    });
   },
   created() {
     this.selectedJson = JsonData[0];
@@ -272,6 +105,7 @@ export default defineComponent({
     }
   },
   components: {
+    Slider,
     PlaybackVisualization,
     PlaybackIndicator,
     Grid,
@@ -288,14 +122,9 @@ export default defineComponent({
     <select id="fileSelect" v-model="selectedJson">      
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>
-    <div id="timeline"></div>
-  </div> 
-  <Grid :track-count="maxTrackNum"></Grid>
-  <div v-for="trackId in Array.from({ length: maxTrackNum }, (_, i) => i)" :key="trackId">
-    <Track :track-id="trackId" :tactons="tactons[trackId] || []"/>
   </div>
-  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="maxTrackNum"></PlaybackIndicator>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
+  <Slider></Slider>
 </template>
 
 <style scoped>

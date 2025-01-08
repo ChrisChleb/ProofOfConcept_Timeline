@@ -21,7 +21,7 @@ export default defineComponent({
       currentInstructionIndex: 0,
       currentInstruction: ref<Instruction | null>(null),
       tactons: {} as { [trackId: number]: TactonRectangle[] },
-      maxTrackNum: 0,
+      trackCount: 0,
       currentTime: 0,
       totalDuration: 0,
       isPlaying: false,
@@ -29,6 +29,7 @@ export default defineComponent({
       loadedJson: null as any,
       selectedJson: null as any,
       jsonData: JsonData,
+      store: useStore()
     };
   },
   created() {
@@ -37,10 +38,10 @@ export default defineComponent({
   },
   methods: {
     loadJson() {
-      console.log("loading: ", this.loadedJson);
+      console.debug("loading: ", this.loadedJson);
       const parser = new InstructionParser(this.loadedJson);      
       this.tactons = parser.parseInstructionsToRectangles();
-      this.maxTrackNum = Object.keys(this.tactons).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
+      this.trackCount = Object.keys(this.tactons).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
       
       let accumulatedTime = 0;
       this.instructions = this.loadedJson.instructions.map((instruction: any) => {
@@ -54,12 +55,29 @@ export default defineComponent({
       });
       
       this.totalDuration = accumulatedTime;
+      this.calculateInitialZoom();
       
-      console.log("totalDuration: ", this.totalDuration)
-      console.log("maxTrackNum: ", this.maxTrackNum);
-      console.log("Instructions: ", this.instructions);
-      console.log("tactons: ", this.tactons);      
-    },    
+      console.debug("totalDuration: ", this.totalDuration, " ms");
+      console.debug("maxTrackNum: ", this.trackCount);
+      console.debug("Instructions: ", this.instructions);
+      console.debug("tactons: ", this.tactons);      
+    },
+    calculateInitialZoom() {
+      const viewportWidth = pixiApp.canvas.width - 48;
+      const padding = config.pixelsPerSecond;
+      const durationInSeconds = this.totalDuration/1000;
+      const durationInPixels = (durationInSeconds * config.pixelsPerSecond) + padding;
+      const zoom = viewportWidth / (durationInPixels);
+
+      console.debug("viewportWidth", viewportWidth);
+      console.debug("totalDuration:", durationInSeconds.toFixed(2),"s");
+      console.debug("durationInPixels", durationInPixels);
+      console.debug("zoom: ", zoom);
+      
+      this.store.dispatch('updateInitialVirtualViewportWidth', durationInPixels);
+      this.store.dispatch('updateCurrentVirtualViewportWidth', durationInPixels);
+      this.store.dispatch('updateZoomLevel', zoom);
+    },
     startPlayback() {
       if (this.isPlaying) return;
       
@@ -125,6 +143,12 @@ export default defineComponent({
   </div>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
+  <Grid :track-count="trackCount"></Grid>
+  <div v-for="trackId in Array.from({ length: trackCount }, (_, i) => i)" :key="trackId">
+    <Track :track-id="trackId" :tactons="tactons[trackId] || []" :track-count="trackCount - 1"/>
+  </div>
+  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount"></PlaybackIndicator>
+  
 </template>
 
 <style scoped>

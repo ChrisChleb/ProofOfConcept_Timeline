@@ -1,9 +1,11 @@
 const config = {
     // general
     componentPadding: 12,
+    scrollSpeed: 25,
+    scrollThreshold: 100,
     // slider
     sliderHeight: 28,
-    sliderMinWidth: 50,
+    sliderMinWidth: 5,
     sliderHandleWidth: 32,
     maxZoom: 20,
     minZoom: 1,

@@ -21,6 +21,7 @@ export default defineComponent({
 
     watch(() => store.state.zoomLevel, rerenderGrid);
     watch(() => store.state.viewportOffset, rerenderGrid);
+    watch(() => store.state.sliderOffset, rerenderGrid);
     
     window.addEventListener('resize', () => {
       rerenderGrid();
@@ -30,7 +31,8 @@ export default defineComponent({
       gridGraphics = new Pixi.Graphics();
       
       const pixelPerSeconds = config.pixelsPerSecond * store.state.zoomLevel;
-      const steps = (pixiApp.canvas.width / config.pixelsPerSecond);
+      const totalWidth = pixiApp.canvas.width + Math.abs(store.state.viewportOffset + store.state.sliderOffset);  
+      const steps = (totalWidth / config.pixelsPerSecond);
       const gridLines: number[] = [];
 
       getIntervals().forEach((interval) => {
@@ -41,7 +43,7 @@ export default defineComponent({
           const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
           const x = step * pixelPerSeconds * interval;
           
-          gridLines.push(x - store.state.viewportOffset);          
+          gridLines.push(x - store.state.viewportOffset - store.state.sliderOffset);          
           gridGraphics!.moveTo(x, config.sliderHeight + config.componentPadding);
           gridGraphics!.lineTo(x, y);
           gridGraphics!.stroke({width: lineWidth, color: config.colors.gridColor})
@@ -60,7 +62,7 @@ export default defineComponent({
       
       gridContainer.addChild(gridGraphics);
       pixiApp.stage.addChild(gridContainer);
-      gridContainer.x = 48 - store.state.viewportOffset;
+      gridContainer.x = 48 - store.state.viewportOffset - store.state.sliderOffset;
       gridContainer.zIndex = -1;
       store.commit('setGridLines', gridLines);
     }

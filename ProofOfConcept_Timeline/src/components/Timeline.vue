@@ -140,6 +140,8 @@ export default defineComponent({
     <select id="fileSelect" v-model="selectedJson">      
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>
+    <button @click="trackCount += 1">Add Track</button>
+    <button @click="trackCount -= 1">Remove Track</button>
   </div>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
@@ -158,10 +160,11 @@ export default defineComponent({
      justify-content: center;
      align-content: center;
      gap: 12px;
+     user-select: none;
    }
     
    .playbackContainer button {
-     width: 124px;
+     min-width: 128px;
      height: 32px;
      font-weight: 600;
      font-size: 16px;

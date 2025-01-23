@@ -14,7 +14,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <p>{{currentInstruction ? currentInstruction : "No Instruction"}}</p>
+  <p style="user-select: none">{{currentInstruction ? currentInstruction : "No Instruction"}}</p>
 </template>
 
 <style scoped>

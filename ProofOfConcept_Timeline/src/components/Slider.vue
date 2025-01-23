@@ -35,6 +35,7 @@ export default defineComponent({
         isDraggingSlider = true;
         initialMouseX = event.data.global.x;
         initialSliderX = sliderX;
+        store.dispatch('setInteractionState', true);
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
       });
@@ -51,6 +52,7 @@ export default defineComponent({
         initialMouseX = event.data.global.x;
         initialSliderWidth = sliderWidth;
         initialSliderX = sliderX;
+        store.dispatch('setInteractionState', true);
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
       });
@@ -66,6 +68,7 @@ export default defineComponent({
         isResizingRight = true;
         initialMouseX = event.data.global.x;
         initialSliderWidth = sliderWidth;
+        store.dispatch('setInteractionState', true);
         window.addEventListener('pointermove', onScale);
         window.addEventListener('pointerup', onScaleEnd);
       });
@@ -150,6 +153,7 @@ export default defineComponent({
         isResizingRight = false;
         isResizingLeft = false;
         isDraggingSlider = false;
+        store.dispatch('setInteractionState', false);
         window.removeEventListener('pointermove', onScale);
         window.removeEventListener('pointerup', onScaleEnd);
       }

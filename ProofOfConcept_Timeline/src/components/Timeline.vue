@@ -4,7 +4,7 @@ import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp from "@/pixi/pixiApp";
 import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
-import Track from "@/components/Track.vue";
+import Track, {type TactonDTO} from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
 import PlaybackIndicator from "@/components/PlaybackIndicator.vue";
 
@@ -35,6 +35,90 @@ export default defineComponent({
   created() {
     this.selectedJson = JsonData[0];
     this.loadFile();
+    const store = useStore();
+           
+    let isDragging = false;
+    let selectionStart = { x: 0, y: 0 };
+    let selectionEnd = { x: 0, y: 0 };
+    const selectedRectangles: { trackNum: number; index: number }[] = [];
+    
+    pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
+      if (event.button === 0 && !store.state.isInteracting) {
+        isDragging = true;
+        selectionStart = { x: event.clientX, y: event.clientY };
+        selectionEnd = { ...selectionStart };
+        drawSelectionBox();
+      }
+    });
+    
+    pixiApp.canvas.addEventListener('mousemove', (event: MouseEvent) => {
+      if (!isDragging) return;
+      selectionEnd = { x: event.clientX, y: event.clientY };
+      drawSelectionBox();
+    });
+
+    pixiApp.canvas.addEventListener('mouseup', (event: MouseEvent) => {
+      if (event.button !== 0 || !isDragging) return;
+      isDragging = false;
+      removeSelectionBox();
+      selectRectanglesWithin();
+    });
+    function drawSelectionBox(): void {
+      const selectionBox = document.getElementById('selection-box') || createSelectionBox();
+      const { x, y, width, height } = getBoundingBox();
+      selectionBox.style.left = `${x}px`;
+      selectionBox.style.top = `${y}px`;
+      selectionBox.style.width = `${width}px`;
+      selectionBox.style.height = `${height}px`;
+    }
+    function createSelectionBox(): HTMLElement {
+      const box = document.createElement('div');
+      box.id = 'selection-box';
+      box.style.position = 'absolute';
+      box.style.border = '1px solid';
+      box.style.borderColor = config.colors.boundingBoxBorderColor;
+      box.style.background = config.colors.boundingBoxColor;
+      box.style.pointerEvents = 'none';
+      box.style.userSelect = 'none';
+      document.body.appendChild(box);
+      return box;
+    }
+    function removeSelectionBox(): void {
+      const box = document.getElementById('selection-box');
+      if (box) box.remove();
+    }    
+    function selectRectanglesWithin(): void {
+      let { x, y, width, height } = getBoundingBox();
+      
+      // need to adjust coordinates
+      x -= 48;
+      y -= (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight + config.componentPadding);
+      
+      selectedRectangles.length = 0;
+      
+      // calculate tracks to check --> only check tracks that could contain selection
+      const startTrack = Math.floor(y / config.trackHeight);
+      const endTrack = Math.floor((y+height)/config.trackHeight);
+      for (let trackNum = startTrack; trackNum <= endTrack; trackNum++) {
+        const blocks = store.state.tactons[trackNum];        
+        if (!blocks) continue;        
+        blocks.forEach((block: TactonDTO, index: number) => {
+          // TODO save some of these in dto
+          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && (block.rect.y + (trackNum * config.trackHeight)) <= (y + height) && (block.rect.y + (trackNum * config.trackHeight) +  block.rect.height) >= y) {
+            selectedRectangles.push({ trackNum: trackNum, index: index });
+          }
+        });
+      }
+
+      store.dispatch('onSelectBlocks', selectedRectangles);
+    }
+    function getBoundingBox() {
+      const x = Math.min(selectionStart.x, selectionEnd.x);
+      const y = Math.min(selectionStart.y, selectionEnd.y);
+      const width = Math.abs(selectionStart.x - selectionEnd.x);
+      const height = Math.abs(selectionStart.y - selectionEnd.y);
+      return { x, y, width, height };
+    }
   },
   methods: {
     loadJson() {
@@ -58,7 +142,7 @@ export default defineComponent({
       this.calculateInitialZoom();
       
       console.debug("totalDuration: ", this.totalDuration, " ms");
-      console.debug("maxTrackNum: ", this.trackCount);
+      console.debug("trackCount: ", this.trackCount);
       console.debug("Instructions: ", this.instructions);
       console.debug("tactons: ", this.tactons);      
     },

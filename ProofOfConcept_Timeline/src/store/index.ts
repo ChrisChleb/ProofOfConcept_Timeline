@@ -10,9 +10,11 @@ const store = createStore({
         viewportOffset: 0,
         gridLines: [] as number[],  
         sorted: {} as Record<number, boolean>,
-        tactons: {} as Record<number, TactonDTO[]>,        
+        tactons: {} as Record<number, TactonDTO[]>,
+        selectedBlocks: [] as {trackNum: number, index: number}[], 
         initialVirtualViewportWidth: 0,
         currentVirtualViewportWidth: 0,
+        isInteracting: false
     },
     mutations: {
         setZoomLevel(state: any, zoomLevel: number): void {
@@ -67,11 +69,20 @@ const store = createStore({
 
             delete state.tactons[trackId];
         },
+        selectBlock(state: any, {trackNum, index}: {trackNum: number, index: number}): void {
+            state.selectedBlocks.push({trackNum, index})
+        },
+        clearSelection(state: any): void {
+          state.selectedBlocks = [];  
+        },
         setInitialVirtualViewportWidth(state: any, newWidth: number): void {
             state.initialVirtualViewportWidth = newWidth;
         },
         setCurrentVirtualViewportWidth(state: any, newWidth: number): void {
             state.currentVirtualViewportWidth = newWidth;
+        },
+        setInteractionState(state: any, newState: boolean): void {
+            state.isInteracting = newState;
         }
     },
     actions: {
@@ -88,7 +99,7 @@ const store = createStore({
             commit('setGridLines', newGridLines);
         },
         addTacton({ commit }: any, {trackId, newTacton}: {trackId: number, newTacton: TactonDTO}): void {
-            commit('addTacton', {trackId, newTacton});
+            commit('addTacton', {trackId, newTacton});         
         },
         sortTactons({ commit }: any): void {
             commit('sortTactons');
@@ -102,6 +113,15 @@ const store = createStore({
         updateCurrentVirtualViewportWidth({ commit }: any, newWidth: number): void {
             commit('setCurrentVirtualViewportWidth', newWidth);
         },
+        onSelectBlocks({ commit }: any, selectedBlocks: {trackNum: number, index: number}[]): void {
+            commit('clearSelection');
+            selectedBlocks.forEach((block: {trackNum: number, index: number}): void => {                
+                commit('selectBlock', {trackNum: block.trackNum, index: block.index});
+            });
+        },
+        setInteractionState({ commit }: any, newState: boolean): void {
+            commit('setInteractionState', newState);
+        }
     },
     getters: {
         zoomLevel: (state: any) => state.zoomLevel,
@@ -111,7 +131,14 @@ const store = createStore({
         tactons: (state: any) => state.tactons,
         initialVirtualViewportWidth: (state: any) => state.initialVirtualViewportWidth,
         currentVirtualViewportWidth: (state: any) => state.currentVirtualViewportWidth,
-        sorted: (state: any) => state.sorted
+        sorted: (state: any) => state.sorted,
+        selectedBlocks: (state: any) => state.selectedBlocks,
+        isInteracting: (state: any) => state.isInteracting
     }
 });
 export default store;
+
+// TODO
+/*
+* change tacton track, when moving between tracks
+* */

@@ -10,7 +10,7 @@ const config = {
     maxZoom: 20,
     minZoom: 1,
     // track
-    trackHeight: 150,
+    trackHeight: 200,
     // tactons
     minTactonWidth: 1,
     resizingHandleWidth: 20,
@@ -22,8 +22,11 @@ const config = {
         gridColor: 'rgba(75, 75, 75, 0.2)',
         handleColor: 'rgba(236,102,12,0)',
         tactonColor: '#848484',
+        selectedBlockColor: 'rgba(236,102,12, 0.3)',
         trackLineColor: '#777777',
-        sliderHandleColor: 'rgba(236,102,12, 1)'
+        sliderHandleColor: 'rgba(236,102,12, 1)',
+        boundingBoxBorderColor: 'rgba(236,102,12, 1)',
+        boundingBoxColor: 'rgba(236,102,12, 0.1)'
     },
     // playback
     millisecondsPerTick: 30 //quasi bpm

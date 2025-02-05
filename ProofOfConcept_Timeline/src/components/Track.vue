@@ -1,18 +1,20 @@
 <script lang="ts">
-import {defineComponent, onBeforeUnmount, type PropType, watch} from 'vue'
+import { defineComponent, onBeforeUnmount, type PropType, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import type {Graphics} from "pixi.js";
 import pixiApp from "@/pixi/pixiApp";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
+import {BlockChanges} from "@/store";
+
 enum Direction {
   LEFT = 'left',
   RIGHT = 'right',
   TOP = 'top',
   BOTTOM = 'bottom'
 }
-export class TactonDTO {
+export class BlockDTO {
   rect: Graphics;
   strokedRect: Graphics;
   initX: number;
@@ -24,7 +26,17 @@ export class TactonDTO {
   bottomHandle: Graphics;
   container: Pixi.Container;
   trackId: number;
-  constructor(rect: Graphics, strokedRect: Graphics, leftHandle: Graphics, rightHandle: Graphics, topHandle: Graphics, bottomHandle: Graphics, container: Pixi.Container, trackId: number) {       
+  initTrackId: number;
+  constructor(
+      rect: Graphics,
+      strokedRect: Graphics,
+      leftHandle: Graphics,
+      rightHandle: Graphics,
+      topHandle: Graphics,
+      bottomHandle: Graphics,
+      container: Pixi.Container,
+      trackId: number
+  ) {       
     this.rect = rect;
     this.strokedRect = strokedRect;
     this.initWidth = rect.width;
@@ -36,6 +48,7 @@ export class TactonDTO {
     this.bottomHandle = bottomHandle;
     this.container = container;
     this.trackId = trackId;
+    this.initTrackId = trackId;
   }
 }
 
@@ -46,12 +59,8 @@ export default defineComponent({
       type: Number,
       required: true
     },
-    tactons: {
+    blocks: {
       type: Array as PropType<TactonRectangle[]>,
-      required: true
-    },
-    trackCount: {
-      type: Number,
       required: true
     }
   },
@@ -60,9 +69,9 @@ export default defineComponent({
     let resizeDirection: Direction | null = null;   
     let initialX: number = 0;
     let initialY: number = 0;
-    let initialTactonWidth: number = 0;
+    let initialBlockWidth: number = 0;
     let initialBlockHeight: number = 0;
-    let initialTactonX: number = 0;
+    let initialBlockX: number = 0;
     let currentYTrackId: number = props.trackId;
         
     let pointerMoveHandler: any = null;
@@ -76,7 +85,7 @@ export default defineComponent({
     let isScrolling = false;
     let currentDirection: 'left' | 'right' | null = null;
     let currentFactor = 0;
-    let currentTacton: TactonDTO | null = null;
+    let currentTacton: BlockDTO | null = null;
     
     // thresholds for viewport-scrolling --> TODO update on resize
     const rightThreshold = pixiApp.canvas.width - config.scrollThreshold;
@@ -96,34 +105,35 @@ export default defineComponent({
     // padding left
     trackContainer.x = 48;
 
+    // TODO move updateTactons to store
     watch(() => store.state.zoomLevel, updateTactons);
     watch(() => store.state.viewportOffset, updateTactons);
     watch(() => store.state.sliderOffset, updateTactons);
-    watch( () => store.state.selectedBlocks, renderSelectionBorder);
     window.addEventListener('resize', () => {
       trackLine.width = pixiApp.canvas.width;
     });
 
     onBeforeUnmount(() => {
+      console.log("deleting track: ", props.trackId);
       store.dispatch('deleteTactons', props.trackId);
       trackContainer.destroy({children: true});
     });
     function renderTrack() {
       store.dispatch('deleteTactons', props.trackId);
-      console.debug("Track ", props.trackId, " received: ", props.tactons);
+      console.debug("Track ", props.trackId, " received: ", props.blocks);
       
       const tactonContainer = new Pixi.Container();
-      props.tactons.forEach((tacton: TactonRectangle) => {
+      props.blocks.forEach((block: TactonRectangle) => {
         const rect = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.tactonColor);
         rect.interactive = true;
         rect.cursor = 'pointer';
                 
-        const position = calculatePosition(tacton);
+        const position = calculatePosition(block);
         rect.x = position.x;
         rect.width = position.width;
-        rect.height = tacton.intensity * 100;
+        rect.height = block.intensity * 100;
         rect.y = (config.trackHeight / 2) - (rect.height / 2);
         
         const strokedRect = new Pixi.Graphics();
@@ -132,7 +142,7 @@ export default defineComponent({
 
         strokedRect.x = position.x;
         strokedRect.width = position.width;
-        strokedRect.height = tacton.intensity * 100;
+        strokedRect.height = block.intensity * 100;
         strokedRect.y = (config.trackHeight / 2) - (rect.height / 2);
         strokedRect.visible = false;
         
@@ -197,7 +207,7 @@ export default defineComponent({
         tactonContainer.addChild(bottomHandle);
 
         // assign methods
-        const dto = new TactonDTO(
+        const dto = new BlockDTO(
             rect,
             strokedRect,
             leftHandle,
@@ -212,9 +222,9 @@ export default defineComponent({
         rightHandle.on('pointerdown', (event) =>  onResizingStartRight(event, dto));
         topHandle.on('pointerdown', (event) => onChangeAmplitude(event, dto, Direction.TOP));
         bottomHandle.on('pointerdown', (event) => onChangeAmplitude(event, dto, Direction.BOTTOM));
-        rect.on('pointerdown', (event) => onMoveTacton(event, dto));
+        rect.on('pointerdown', (event) => onMoveBlock(event, dto));
         
-        store.dispatch('addTacton', {trackId: props.trackId, newTacton: dto});
+        store.dispatch('addBlock', {trackId: props.trackId, block: dto});
         trackContainer.addChild(tactonContainer); 
       });      
       updateTactons();
@@ -228,43 +238,15 @@ export default defineComponent({
       };
     }
     function updateTactons() {
-      store.state.tactons[props.trackId]?.forEach((dto: TactonDTO) => {
+      store.state.blocks[props.trackId]?.forEach((block: BlockDTO) => {
         // when moving tacton, dont update --> is updated onMouseUp
-        if (currentTacton?.rect.uid != dto.rect.uid) {          
-          dto.rect.width = dto.initWidth * store.state.zoomLevel;
-          dto.rect.x = (dto.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
-          updateHandles(dto);
+        if (currentTacton?.rect.uid != block.rect.uid) {
+          block.rect.width = block.initWidth * store.state.zoomLevel;
+          block.rect.x = (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          updateHandles(block);
+          updateStrokedRect(block);
         }
-        updateStrokedRect(dto);
       });
-    }
-    function renderSelectionBorder() {
-      store.state.tactons[props.trackId]?.forEach((dto: TactonDTO, index: number) => {
-        let selected = false;
-        
-        store.state.selectedBlocks.forEach((block: {trackNum: number, index: number}) => {
-          if (block.trackNum == dto.trackId && block.index == index) {
-            selected = true;
-          }
-        });
-        
-        dto.strokedRect.visible = selected;
-      });
-    }
-    function onMoveTacton(event: any, tactonDTO: TactonDTO) {
-      // TODO multi selection via shift + click
-      //store.dispatch('onSelectBlocks', {trackNum: tactonDTO.trackId, });
-      
-      initialX = event.data.global.x;
-      initialY = event.data.global.y;
-      initialTactonX = tactonDTO.rect.x;
-      currentTacton = tactonDTO;
-      store.dispatch('setInteractionState', true);
-      pointerMoveHandler = (event: any) => moveTacton(event);
-      pointerUpHandler = () => onMoveTactonEnd();
-      
-      window.addEventListener('pointermove', pointerMoveHandler);
-      window.addEventListener('pointerup', pointerUpHandler);
     }
     function startAutoScroll(direction: 'left' | 'right') {
       if (!isScrolling) {
@@ -293,64 +275,67 @@ export default defineComponent({
       
       requestAnimationFrame(() => autoScroll());
     }
-    
-    function calculateVirtualViewportLength() {
-      store.dispatch('sortTactons');
-      
-      let maxPosition = 0;
-      
-      Object.values(store.state.tactons).forEach((channelData: any) => {
-        if (channelData.length > 0) {
-          const trackLastTacton = channelData[channelData.length - 1];
-          const trackLastPosition = trackLastTacton.rect.x + trackLastTacton.rect.width;
-
-          if (trackLastPosition > maxPosition) {
-            maxPosition = trackLastPosition;
-          }
-        }
-      });
-  
-      if (maxPosition > 0) {
-        maxPosition += store.state.viewportOffset;
-        maxPosition /= store.state.zoomLevel;
-        // need a better solution, because this leads to weird behavior of offset
-        // --> when tacton is not exactly at border of window, as the sequencelenght is then less then what is currently shown on screen
-        //maxPosition += config.pixelsPerSecond
-        store.dispatch('updateCurrentVirtualViewportWidth', maxPosition);
-        console.log("virtualViewportWidth: ", maxPosition);
-        console.log("SequenzLength: ", (maxPosition / config.pixelsPerSecond).toFixed(2), "sec");
+    function scrollViewport(cursorX: number) {
+      if (cursorX >= rightThreshold) {
+        currentFactor = Math.min((cursorX - rightThreshold) / config.scrollThreshold, 1);
+        startAutoScroll('right');
+      } else if (cursorX <= leftThreshold) {
+        currentFactor= Math.min((leftThreshold - cursorX) / config.scrollThreshold, 1);
+        startAutoScroll('left');
+      } else if (isScrolling){
+        stopAutoScroll();
       }
     }
-    function moveTacton(event: any) {
+    function calculateVirtualViewportLength() {
+      store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {
+        lastBlockPosition += store.state.viewportOffset;
+        lastBlockPosition /= store.state.zoomLevel;
+        // need a better solution, because this leads to weird behavior of offset
+        // --> when tacton is not exactly at border of window, as the sequenceLength is then less then what is currently shown on screen
+        store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
+        console.log("virtualViewportWidth: ", lastBlockPosition);
+        console.log("SequenzLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
+      });
+    }
+    function onMoveBlock(event: any, block: BlockDTO) {
+      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+
+      initialX = event.data.global.x;
+      initialY = event.data.global.y;
+      initialBlockX = block.rect.x;
+      currentTacton = block;
+      store.dispatch('setInteractionState', true);
+      pointerMoveHandler = (event: any) => moveBlock(event);
+      pointerUpHandler = () => onMoveBlockEnd();
+
+      window.addEventListener('pointermove', pointerMoveHandler);
+      window.addEventListener('pointerup', pointerUpHandler);
+    }
+    function moveBlock(event: any) {
       if (currentTacton == null) return;
-      
+      const changes = new BlockChanges();      
       const deltaX = event.clientX - initialX;
       const deltaY = event.clientY - initialY;
       
       // detect switching tracks
       currentYTrackId = currentTacton.trackId + Math.floor(deltaY / config.trackHeight);
-      currentYTrackId = Math.max(0, Math.min(currentYTrackId, props.trackCount ));
-      const trackContainerY = config.sliderHeight + config.componentPadding + (currentYTrackId * config.trackHeight);
-      currentTacton.rect.y = trackContainerY - trackContainer.y + currentTacton.initY;
+      currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
+      changes.track = currentYTrackId - currentTacton.trackId;
       
       // calculate x coordinates of left and right border
-      const newLeftX = initialTactonX + deltaX;
-      const newRightX = initialTactonX + currentTacton.rect.width + deltaX;
-
-      scrollViewport(event.clientX);
-            
-      // early exit -> x is past start of sequence
-      if (newLeftX < 0 && store.state.viewportOffset == 0) {
-        currentTacton.rect.x = 0;
-        return;
-      }
-            
+      const newLeftX = initialBlockX + deltaX;
+      const newRightX = initialBlockX + currentTacton.rect.width + deltaX;
+      
+      scrollViewport(event.clientX);      
+      
       // init vars
       const snappingRadius = config.moveSnappingRadius;
+      const prevX = currentTacton.rect.x;
       let snappedLeftX = newLeftX;
       let snappedRightX = newRightX;
       let snappedLeft = false;
-      let snappedRight = false;
+      let snappedRight = false;     
+      let newX;
       
       // check for snapping
       for (const lineX of store.state.gridLines) {
@@ -359,7 +344,7 @@ export default defineComponent({
           snappedLeftX = lineX;
           snappedLeft = true;
           break;
-        }   
+        }
         // right
         if (Math.abs(snappedRightX - lineX) < snappingRadius) {
           snappedRightX = lineX - currentTacton.rect.width;
@@ -368,41 +353,30 @@ export default defineComponent({
         }
       }
       
-      // apply transformation
+      // finish calculation
       if (snappedLeft) {
-        currentTacton.rect.x = snappedLeftX;
+        newX = snappedLeftX;
       } else if (snappedRight) {
-        currentTacton.rect.x = snappedRightX;
+        newX = snappedRightX;
       } else {
-        currentTacton.rect.x = newLeftX;
-      }
-      
-      // check for overflow
-      const overflowRight = Math.min(((pixiApp.canvas.width - 48) - (currentTacton.rect.x + currentTacton.rect.width)), 0);
-      const overflowLeft = - currentTacton.rect.x;
+        newX = newLeftX;
+      }      
             
+      // check for overflow
+      const overflowRight = Math.min(((pixiApp.canvas.width - 48) - (newX + currentTacton.rect.width)), 0);
+      
       if (overflowRight < 0) {
-        currentTacton.rect.x += overflowRight;
+        newX += overflowRight;
       }
       
-      if (overflowLeft > 0) {
-        currentTacton.rect.x += overflowLeft;
+      if (-newX > 0) {
+        newX = 0;
       }
-
-      updateStrokedRect(currentTacton);
+      
+      changes.x = newX - prevX;
+      store.dispatch('applyChangesToSelectedBlocks', changes);
     }
-    function scrollViewport(cursorX: number) {
-      if (cursorX >= rightThreshold) {
-        currentFactor = Math.min((cursorX - rightThreshold) / config.scrollThreshold, 1);
-        startAutoScroll('right');
-      } else if (cursorX <= leftThreshold) {
-        currentFactor= Math.min((leftThreshold - cursorX) / config.scrollThreshold, 1);        
-        startAutoScroll('left');
-      } else if (isScrolling){
-        stopAutoScroll();
-      }
-    } 
-    function onMoveTactonEnd() {
+    function onMoveBlockEnd() {
       stopAutoScroll();
       window.removeEventListener('pointermove', pointerMoveHandler);
       window.removeEventListener('pointerup', pointerUpHandler);
@@ -410,95 +384,94 @@ export default defineComponent({
       pointerMoveHandler = null;
       pointerUpHandler = null;
       
-      if (currentTacton == null) return;
-      // change trackId
-      currentTacton.trackId = currentYTrackId;
-      // update dto
-      currentTacton.initX = (currentTacton.rect.x + store.state.viewportOffset + store.state.sliderOffset) / store.state.zoomLevel;
-      updateHandles(currentTacton);
-      
-      // mark track(s) as unsorted
-      store.state.sorted[currentTacton.trackId] = false;
-      store.state.sorted[props.trackId] = false;
-      
-      calculateVirtualViewportLength();
-      
+      if (currentTacton == null) return;         
+      store.dispatch('changeBlockTrack', (currentYTrackId - currentTacton.trackId));
+      store.dispatch('updateSelectedBlockHandles');
+      calculateVirtualViewportLength();      
       currentTacton = null;
     }
-    function onResizingStartLeft(event: any, tactonDTO: TactonDTO) {
+    function onResizingStartLeft(event: any, block: BlockDTO) {
       resizeDirection = Direction.LEFT;
       initialX = event.data.global.x;
-      initialTactonWidth = tactonDTO.rect.width;
-      initialTactonX = tactonDTO.rect.x;
+      initialBlockWidth = block.rect.width;
+      initialBlockX = block.rect.x;
       store.dispatch('setInteractionState', true);
-      pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
-      pointerUpHandler = () => onResizeEnd();
+      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
       
+      pointerMoveHandler = (event: any) => onResize(event, block);
+      pointerUpHandler = () => onResizeEnd();
       window.addEventListener('pointermove', pointerMoveHandler);
-      window.addEventListener('pointerup', pointerUpHandler);
+      window.addEventListener('pointerup', pointerUpHandler);      
     }
-    function onResizingStartRight(event: any, tactonDTO: TactonDTO) {
+    function onResizingStartRight(event: any, block: BlockDTO) {
       resizeDirection = Direction.RIGHT;
       initialX = event.data.global.x;
-      initialTactonWidth = tactonDTO.rect.width;
-      initialTactonX = tactonDTO.rect.x;
+      initialBlockWidth = block.rect.width;
+      initialBlockX = block.rect.x;
       store.dispatch('setInteractionState', true);
-      pointerMoveHandler = (event: any) => onResize(event, tactonDTO);
+      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+      
+      pointerMoveHandler = (event: any) => onResize(event, block);
       pointerUpHandler = () => onResizeEnd();
-
       window.addEventListener('pointermove', pointerMoveHandler);
       window.addEventListener('pointerup', pointerUpHandler);
     }
-    function onResize(event: any, tactonDTO: TactonDTO) {
+    function onResize(event: any, block: BlockDTO) {
       const deltaX = event.clientX - initialX; 
       let newWidth;
       let newX;
+      const prevX = block.rect.x;
+      const prevWidth = block.rect.width;
+      
       if (resizeDirection === Direction.RIGHT) {
         // calculate new tacton width
-        newWidth = initialTactonWidth + deltaX;    
+        newWidth = Math.max((initialBlockWidth + deltaX), config.minTactonWidth);    
         
         // check for minTactonWidth
-        if (newWidth <= config.minTactonWidth) return;
+        if (newWidth == config.minTactonWidth) return;
         
         // calculate x coordinate of right border
-        const newRightX = initialTactonX + newWidth;
+        const newRightX = initialBlockX + newWidth;
         
         // test for snapping
         const snappedRightX = snapToGrid(newRightX);  
-        newWidth = snappedRightX - initialTactonX;
+        newWidth = snappedRightX - initialBlockX;
       } else {
         // calculate new tacton width
-        newWidth = initialTactonWidth - deltaX;
+        newWidth = Math.max((initialBlockWidth - deltaX), config.minTactonWidth);
         
         // check for minTactonWidth
-        if (newWidth <= config.minTactonWidth) return;
+        if (newWidth == config.minTactonWidth) return;
         
         // calculate new x coordinate of tacton
-        newX = initialTactonX + deltaX;
+        newX = initialBlockX + deltaX;
         
         // test for snapping
         const snappedLeftX = snapToGrid(newX);
         newX = snappedLeftX;
-        newWidth = initialTactonWidth + (initialTactonX - snappedLeftX);
+        newWidth = initialBlockWidth + (initialBlockX - snappedLeftX);
       }
 
       // early exit -> x is past start of sequence
       if (newX < 0) return;
       
-      // apply resizing
-      if (newX != undefined) {
-        tactonDTO.rect.x = newX;
-      } else {
-        tactonDTO.rect.x = initialTactonX;
-      }
-      tactonDTO.rect.width = newWidth;
-            
-      // update dto values
-      tactonDTO.initWidth = tactonDTO.rect.width / store.state.zoomLevel;
-      tactonDTO.initX = (tactonDTO.rect.x + store.state.viewportOffset + store.state.sliderOffset) / store.state.zoomLevel;
+      const changes = new BlockChanges();
 
-      updateHandles(tactonDTO);
-      updateStrokedRect(tactonDTO);
+      if (newX != undefined) {
+        changes.x = newX - prevX;
+      }
+      changes.width = newWidth - prevWidth;
+      
+      store.dispatch("applyChangesToSelectedBlocks", changes);
+    }
+    function onResizeEnd() {
+      resizeDirection = null;
+      window.removeEventListener('pointermove', pointerMoveHandler);
+      window.removeEventListener('pointerup', pointerUpHandler);
+      store.dispatch('setInteractionState', false);
+      store.dispatch('updateSelectedBlockHandles');
+      pointerMoveHandler = null;
+      pointerUpHandler = null;
     }
     function snapToGrid(positionToCheck: number) {
       const snapRadius = config.resizingSnappingRadius;
@@ -511,59 +484,49 @@ export default defineComponent({
       }
       return positionToCheck;
     }
-    function onResizeEnd() {
-      resizeDirection = null;
-      window.removeEventListener('pointermove', pointerMoveHandler);
-      window.removeEventListener('pointerup', pointerUpHandler);
-      store.dispatch('setInteractionState', false);
-      pointerMoveHandler = null;
-      pointerUpHandler = null;
-    }
-    function onChangeAmplitude(event: any, dto: TactonDTO, direction: Direction) {
+    function onChangeAmplitude(event: any, block: BlockDTO, direction: Direction) {
       console.debug("initialY: ", event);
+      console.log("initY of block: ", block.rect.y);
       initialY = event.data.global.y;
-      initialBlockHeight = dto.rect.height;
-      currentTacton = dto;
+      initialBlockHeight = block.rect.height;
+      currentTacton = block;
       store.dispatch('setInteractionState', true);
-      pointerMoveHandler = (event: any) => changeAmplitude(event, dto, direction);
+      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+      
+      pointerMoveHandler = (event: any) => changeAmplitude(event, block, direction);
       pointerUpHandler = () => onChangeAmplitudeEnd();
-
       window.addEventListener('pointermove', pointerMoveHandler);
       window.addEventListener('pointerup', pointerUpHandler);
     }
-    function changeAmplitude(event: any, dto: TactonDTO, direction: Direction) {
+    function changeAmplitude(event: any, block: BlockDTO, direction: Direction) {
       let deltaY = 0;
-      console.debug("whileMovingY: ", event);
-      // there is a difference of appr. 106 between event.clientY and initialY?
+      // there is a difference of appr. 106 between event.clientY and initialY? --> is the exact height-value of buttons and playbackVisualization
       if (direction == Direction.TOP) {
         deltaY = (initialY - event.clientY);
         deltaY += 106;
       } else if (direction == Direction.BOTTOM) {
         deltaY = event.clientY - initialY;
         deltaY -= 106;
-      }      
-      
-      // TODO add vars for config
-      const newHeight = Math.min(Math.max((initialBlockHeight + deltaY), 10), 150);
-      dto.rect.height = newHeight;
-      dto.rect.y = (config.trackHeight / 2) - (newHeight / 2);
+      }
 
-      updateStrokedRect(dto);
+      // TODO add vars for min and maxHeight for config
+      
+      const prevHeight = block.rect.height;      
+      const newHeight = Math.min(Math.max((initialBlockHeight + deltaY), 10), 150); 
+      const heightChange = newHeight - prevHeight;      
+      const changes = new BlockChanges();
+      changes.height = heightChange;
+      store.dispatch('applyChangesToSelectedBlocks', changes);
     }
-    
     function onChangeAmplitudeEnd() {
       window.removeEventListener('pointermove', pointerMoveHandler);
       window.removeEventListener('pointerup', pointerUpHandler);
       store.dispatch('setInteractionState', false);
+      store.dispatch('updateSelectedBlockHandles');
       pointerMoveHandler = null;
       pointerUpHandler = null;
-      
-      if (currentTacton == null) return;
-      currentTacton.initY = currentTacton.rect.y;
-      updateHandles(currentTacton);
-      currentTacton = null;
     }
-    function updateHandles(dto: TactonDTO) {
+    function updateHandles(dto: BlockDTO) {
       // update left handle
       dto.leftHandle.clear();
       dto.leftHandle.rect(
@@ -606,7 +569,7 @@ export default defineComponent({
 
       dto.bottomHandle.fill(config.colors.handleColor);
     }    
-    function updateStrokedRect(dto: TactonDTO) {
+    function updateStrokedRect(dto: BlockDTO) {
       dto.strokedRect.x = dto.rect.x;
       dto.strokedRect.width = dto.rect.width;
       dto.strokedRect.y = dto.rect.y;
@@ -618,7 +581,7 @@ export default defineComponent({
     }
   },
   watch: {
-    tactons: 'renderTrack'
+    blocks: 'renderTrack'
   }
 })
 </script>

@@ -1,10 +1,10 @@
 <script lang="ts">
-import {defineComponent, h, onMounted, ref} from 'vue'
+import {defineComponent, ref} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp from "@/pixi/pixiApp";
 import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
-import Track, {type TactonDTO} from "@/components/Track.vue";
+import Track, {type BlockDTO} from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
 import PlaybackIndicator from "@/components/PlaybackIndicator.vue";
 
@@ -12,6 +12,7 @@ import config from "@/config";
 import JsonData from '../json/2024-06-20_Team1_session1.json';
 import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 import Slider from "@/components/Slider.vue";
+import store, {type BlockSelection} from "@/store";
 
 export default defineComponent({
   name: "Timeline",
@@ -20,10 +21,10 @@ export default defineComponent({
       instructions: [] as Instruction[],
       currentInstructionIndex: 0,
       currentInstruction: ref<Instruction | null>(null),
-      tactons: {} as { [trackId: number]: TactonRectangle[] },
-      trackCount: 0,
+      blocks: {} as { [trackId: number]: TactonRectangle[] },
       currentTime: 0,
       totalDuration: 0,
+      trackCount: 0,
       isPlaying: false,
       playbackTimer: null as Pixi.Ticker | null,
       loadedJson: null as any,
@@ -32,16 +33,30 @@ export default defineComponent({
       store: useStore()
     };
   },
+  // TODO manage track COunt in store
   created() {
     this.selectedJson = JsonData[0];
     this.loadFile();
     const store = useStore();
-           
+    
     let isDragging = false;
     let selectionStart = { x: 0, y: 0 };
     let selectionEnd = { x: 0, y: 0 };
-    const selectedRectangles: { trackNum: number; index: number }[] = [];
+    const selectedBlocks: BlockSelection[] = [];
     
+    document.addEventListener('keydown', (event: KeyboardEvent) => {      
+      if (event.shiftKey && !store.state.isPressingShift) {
+        store.dispatch('toggleShiftValue');
+      }
+    });
+    
+    document.addEventListener('keyup', (event: KeyboardEvent) => {    
+      if (event.key == "Shift" && store.state.isPressingShift) {
+        store.dispatch('toggleShiftValue');
+      }
+    });
+    
+    // multiselection by dragging
     pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
       if (event.button === 0 && !store.state.isInteracting) {
         isDragging = true;
@@ -93,24 +108,24 @@ export default defineComponent({
       // need to adjust coordinates
       x -= 48;
       y -= (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight + config.componentPadding);
-      
-      selectedRectangles.length = 0;
+
+      selectedBlocks.length = 0;
       
       // calculate tracks to check --> only check tracks that could contain selection
       const startTrack = Math.floor(y / config.trackHeight);
       const endTrack = Math.floor((y+height)/config.trackHeight);
-      for (let trackNum = startTrack; trackNum <= endTrack; trackNum++) {
-        const blocks = store.state.tactons[trackNum];        
+      for (let trackId = startTrack; trackId <= endTrack; trackId++) {
+        const blocks = store.state.blocks[trackId];
         if (!blocks) continue;        
-        blocks.forEach((block: TactonDTO, index: number) => {
+        blocks.forEach((block: BlockDTO, index: number) => {
           // TODO save some of these in dto
-          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && (block.rect.y + (trackNum * config.trackHeight)) <= (y + height) && (block.rect.y + (trackNum * config.trackHeight) +  block.rect.height) >= y) {
-            selectedRectangles.push({ trackNum: trackNum, index: index });
+          const adjustedY = block.rect.y + (block.initTrackId * config.trackHeight);
+          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && adjustedY <= (y + height) && adjustedY + block.rect.height >= y) {
+            selectedBlocks.push({ trackId: trackId, index: index });
           }
         });
       }
-
-      store.dispatch('onSelectBlocks', selectedRectangles);
+      store.dispatch('onSelectBlocks', selectedBlocks);
     }
     function getBoundingBox() {
       const x = Math.min(selectionStart.x, selectionEnd.x);
@@ -124,8 +139,9 @@ export default defineComponent({
     loadJson() {
       console.debug("loading: ", this.loadedJson);
       const parser = new InstructionParser(this.loadedJson);      
-      this.tactons = parser.parseInstructionsToRectangles();
-      this.trackCount = Object.keys(this.tactons).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
+      this.blocks = parser.parseInstructionsToRectangles();
+      this.trackCount = Object.keys(this.blocks).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
+      store.dispatch('setTrackCount', this.trackCount - 1);
       
       let accumulatedTime = 0;
       this.instructions = this.loadedJson.instructions.map((instruction: any) => {
@@ -144,7 +160,7 @@ export default defineComponent({
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);
       console.debug("Instructions: ", this.instructions);
-      console.debug("tactons: ", this.tactons);      
+      console.debug("tactons: ", this.blocks);
     },
     calculateInitialZoom() {
       const viewportWidth = pixiApp.canvas.width - 48;
@@ -204,6 +220,10 @@ export default defineComponent({
       
       console.clear();     
       this.loadJson();
+    },
+    changeTrackCount(changeBy: number) {
+      this.trackCount += changeBy;
+      store.dispatch('setTrackCount', this.trackCount - 1);
     }
   },
   components: {
@@ -224,14 +244,14 @@ export default defineComponent({
     <select id="fileSelect" v-model="selectedJson">      
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>
-    <button @click="trackCount += 1">Add Track</button>
-    <button @click="trackCount -= 1">Remove Track</button>
+    <button @click="changeTrackCount(1)">Add Track</button>
+    <button @click="changeTrackCount(-1)">Remove Track</button>
   </div>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
   <Grid :track-count="trackCount"></Grid>
   <div v-for="trackId in Array.from({ length: trackCount }, (_, i) => i)" :key="trackId">
-    <Track :track-id="trackId" :tactons="tactons[trackId] || []" :track-count="trackCount - 1"/>
+    <Track :track-id="trackId" :blocks="blocks[trackId] || []"/>
   </div>
   <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount"></PlaybackIndicator>
   

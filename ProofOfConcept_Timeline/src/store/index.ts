@@ -1,6 +1,6 @@
 import {createStore} from 'vuex';
 import {BlockDTO} from "@/components/Track.vue";
-import pixiApp from "@/pixi/pixiApp";
+import {dynamicContainer} from "@/pixi/pixiApp";
 import * as Pixi from "pixi.js";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
@@ -89,7 +89,7 @@ const store = createStore({
         deleteTactons(state: any, trackId: number): void {
             if (state.blocks[trackId] == undefined) return;
             state.blocks[trackId].forEach((block: BlockDTO): void => {
-                pixiApp.stage.removeChild(block.container);
+                dynamicContainer.removeChild(block.container);
                 block.container.children.forEach((child: Pixi.ContainerChild): void => {
                     child.removeAllListeners();
                 });

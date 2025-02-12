@@ -1,7 +1,7 @@
 <script lang="ts">
 import {defineComponent, onMounted, watch} from 'vue'
 import {useStore} from "vuex";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {staticContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import * as Pixi from "pixi.js";
 
@@ -76,7 +76,7 @@ export default defineComponent({
       sliderContainer.addChild(leftSliderHandle);
       sliderContainer.addChild(sliderRect);
       sliderContainer.addChild(rightSliderHandle);
-      pixiApp.stage.addChild(sliderContainer);
+      staticContainer.addChild(sliderContainer);
             
       window.addEventListener('resize', () => {
         // TODO

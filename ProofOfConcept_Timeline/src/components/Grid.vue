@@ -1,7 +1,7 @@
 <script lang="ts">
 import {defineComponent, watch} from 'vue'
 import * as Pixi from "pixi.js";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import {useStore} from "vuex";
 import config from "@/config";
 export default defineComponent({
@@ -62,7 +62,7 @@ export default defineComponent({
       }); 
       
       gridContainer.addChild(gridGraphics);
-      pixiApp.stage.addChild(gridContainer);
+      dynamicContainer.addChild(gridContainer);
       gridContainer.x = gridOffset;
       gridContainer.zIndex = -1;
       store.commit('setGridLines', gridLines);
@@ -76,12 +76,12 @@ export default defineComponent({
 
       gridGraphics.clear();
       gridContainer.children.forEach(child => {
-        pixiApp.stage.removeChild(child);
+        dynamicContainer.removeChild(child);
         child.removeAllListeners();
         child.destroy({children: true});
       });
 
-      pixiApp.stage.removeChild(gridContainer);
+      dynamicContainer.removeChild(gridContainer);
       gridContainer.destroy();
       gridContainer = null;
     }

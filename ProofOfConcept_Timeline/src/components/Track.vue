@@ -3,7 +3,7 @@ import { defineComponent, onBeforeUnmount, type PropType, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import type {Graphics} from "pixi.js";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
 import {BlockChanges} from "@/store";
@@ -97,8 +97,15 @@ export default defineComponent({
     trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
     trackLine.fill(config.colors.trackLineColor);
     trackContainer.addChild(trackLine);
-    
-    pixiApp.stage.addChild(trackContainer);    
+
+    const trackLabel = new Pixi.Text();
+    trackLabel.text = props.trackId;
+    trackLabel.style.fontSize = 18;
+    trackLabel.x = - (config.leftPadding / 2);
+    trackLabel.y = (config.trackHeight / 2) - (trackLabel.height/2);
+    trackContainer.addChild(trackLabel);
+
+    dynamicContainer.addChild(trackContainer);    
     renderTrack();    
 
     // TODO move updateTactons to store
@@ -227,8 +234,8 @@ export default defineComponent({
         bottomHandle.on('pointerdown', (event) => onChangeAmplitude(event, dto, Direction.BOTTOM));
         rect.on('pointerdown', (event) => onMoveBlock(event, dto));
         
-        store.dispatch('addBlock', {trackId: props.trackId, block: dto});        
-        pixiApp.stage.addChild(tactonContainer);
+        store.dispatch('addBlock', {trackId: props.trackId, block: dto});
+        dynamicContainer.addChild(tactonContainer);
       });
       updateTactons();
     }

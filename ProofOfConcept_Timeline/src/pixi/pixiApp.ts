@@ -9,6 +9,11 @@ await pixiApp.init({
     width: window.innerWidth,
 });
 
+export const staticContainer: PIXI.Container = new PIXI.Container();
+export const dynamicContainer: PIXI.Container = new PIXI.Container();
+pixiApp.stage.addChild(staticContainer);
+pixiApp.stage.addChild(dynamicContainer);
+
 document.body.appendChild(pixiApp.canvas);
 
 window.addEventListener('resize', (): void => {

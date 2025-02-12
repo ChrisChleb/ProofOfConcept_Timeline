@@ -84,8 +84,8 @@ export default defineComponent({
     let currentTacton: BlockDTO | null = null;
     
     // thresholds for viewport-scrolling --> TODO update on resize
-    const rightThreshold = pixiApp.canvas.width - config.scrollThreshold;
-    const leftThreshold = config.scrollThreshold;
+    const rightThreshold = pixiApp.canvas.width - config.horizontalScrollThreshold;
+    const leftThreshold = config.horizontalScrollThreshold;
     
     let trackContainer: Pixi.Container = new Pixi.Container();
     trackContainer.height = config.trackHeight;
@@ -275,7 +275,7 @@ export default defineComponent({
     function autoScroll() {
       if (!isScrolling || !currentDirection || currentTacton == null) return;
     
-      const scrollSpeed = currentFactor * config.scrollSpeed;
+      const scrollSpeed = currentFactor * config.horizontalScrollSpeed;
       
       if (currentDirection === 'right') {
         const newOffset = store.state.viewportOffset + scrollSpeed;
@@ -289,10 +289,10 @@ export default defineComponent({
     }
     function scrollViewport(cursorX: number) {
       if (cursorX >= rightThreshold) {
-        currentFactor = Math.min((cursorX - rightThreshold) / config.scrollThreshold, 1);
+        currentFactor = Math.min((cursorX - rightThreshold) / config.horizontalScrollThreshold, 1);
         startAutoScroll('right');
       } else if (cursorX <= leftThreshold) {
-        currentFactor= Math.min((leftThreshold - cursorX) / config.scrollThreshold, 1);
+        currentFactor= Math.min((leftThreshold - cursorX) / config.horizontalScrollThreshold, 1);
         startAutoScroll('left');
       } else if (isScrolling){
         stopAutoScroll();

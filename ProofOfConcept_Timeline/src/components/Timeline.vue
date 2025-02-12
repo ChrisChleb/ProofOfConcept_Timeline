@@ -107,7 +107,7 @@ export default defineComponent({
       let { x, y, width, height } = getBoundingBox();
       
       // need to adjust coordinates, to be in canvas
-      y -= pixiApp.canvas.getBoundingClientRect().top;
+      y -= pixiApp.canvas.getBoundingClientRect().top - verticalScrollOffset;
       
       // calculate tracks to check --> only check tracks that could contain selection
       const startTrack = Math.floor(y / config.trackHeight);

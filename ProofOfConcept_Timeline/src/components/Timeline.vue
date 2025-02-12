@@ -1,8 +1,8 @@
 <script lang="ts">
-import {defineComponent, h, ref} from 'vue'
+import {defineComponent, ref, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
 import Track, {type BlockDTO} from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
@@ -77,6 +77,7 @@ export default defineComponent({
       removeSelectionBox();
       selectRectanglesWithin();
     });
+    
     function drawSelectionBox(): void {
       const selectionBox = document.getElementById('selection-box') || createSelectionBox();
       const { x, y, width, height } = getBoundingBox();
@@ -129,6 +130,28 @@ export default defineComponent({
       const height = Math.abs(selectionStart.y - selectionEnd.y);
       return { x, y, width, height };
     }
+
+    let scrollStep = 0;
+    let verticalScrollOffset = 0;
+    const initY =  dynamicContainer.y;
+    // 106 is from pixiApp.canvas.getBoundingClientRect().top, TODO needs to be calculated after mount
+    const displayableTracks = Math.floor((window.innerHeight - 106 - config.sliderHeight) / config.trackHeight);
+    let maxScrollStep = this.trackCount - displayableTracks;
+    
+    watch(() => this.trackCount, () => {
+      maxScrollStep = this.trackCount - displayableTracks;
+      console.log("maxScrollStep", maxScrollStep);
+    });
+    
+    pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
+      if (this.trackCount > displayableTracks) {
+        const normalizedDelta = Math.sign(event.deltaY);
+        scrollStep += normalizedDelta;
+        scrollStep = Math.max(0, Math.min(scrollStep, maxScrollStep));
+        verticalScrollOffset = scrollStep * config.trackHeight;
+        dynamicContainer.y = initY - verticalScrollOffset;
+      }
+    });
   },
   methods: {
     loadJson() {

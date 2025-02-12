@@ -10,7 +10,7 @@ export default defineComponent({
   setup() {
     const store: any = useStore();
     let windowWidth = pixiApp.canvas.width
-    let viewportWidth = windowWidth - 48;
+    let viewportWidth = windowWidth - config.leftPadding;
     let sliderMaxWidth = windowWidth - (2 * config.sliderHandleWidth);
         
     onMounted(async () => {
@@ -169,7 +169,6 @@ export default defineComponent({
       
       let zoomOffset = 0;
       let dragOffset = 0;
-      let lastDebug = {};
       function calculateViewport(): number {
         const zoom = store.state.zoomLevel;
         const visibleArea = viewportWidth/zoom;
@@ -193,20 +192,6 @@ export default defineComponent({
         
         if (isNaN(sliderPositionRatio)) sliderPositionRatio = 0;
         dragOffset = sliderPositionRatio * maxOffset;
-        
-        // debugging
-        let debug = {
-          zoom: zoom,
-          dragOffset: dragOffset,
-          zoomOffset: zoomOffset,
-          visibleArea: visibleArea,
-          currentViewport: store.state.currentVirtualViewportWidth
-        }
-        
-        if (JSON.stringify(lastDebug) !== JSON.stringify(debug)) {
-          console.debug(debug);
-          lastDebug = debug;
-        }
         
         return -(dragOffset + zoomOffset);
       }

@@ -1,5 +1,6 @@
 const config = {
     // general
+    leftPadding: 48,
     componentPadding: 12,
     scrollSpeed: 25,
     scrollThreshold: 100,

@@ -57,12 +57,14 @@ const store = createStore({
         setTrackCount(state: any, newTrackCount: number): void {
             state.trackCount = newTrackCount;
         },
+        initTrack(state: any, trackId: number): void {
+          if (!state.blocks[trackId]) {
+              state.blocks[trackId] = [];
+          }
+        },
         addBlock(state: any, {trackId, block}: {trackId: number, block: BlockDTO}): void {
-            if (!state.blocks[trackId]) {
-                state.blocks[trackId] = [];
-                state.sorted[trackId] = false;
-            }
             state.blocks[trackId].push(block);
+            state.sorted[trackId] = false;
         },
         sortTactons(state: any): void {
             const sortedTactons: Record<number, BlockDTO[]> = {};                   
@@ -86,13 +88,13 @@ const store = createStore({
         },
         deleteTactons(state: any, trackId: number): void {
             if (state.blocks[trackId] == undefined) return;
-            state.blocks[trackId].forEach((dto: BlockDTO): void => {
-                pixiApp.stage.removeChild(dto.container);
-                dto.container.children.forEach((child: Pixi.ContainerChild): void => {
+            state.blocks[trackId].forEach((block: BlockDTO): void => {
+                pixiApp.stage.removeChild(block.container);
+                block.container.children.forEach((child: Pixi.ContainerChild): void => {
                     child.removeAllListeners();
                 });
-                dto.container.removeAllListeners();
-                dto.container.destroy({children: true});
+                block.container.removeAllListeners();
+                block.container.destroy({children: true});
             });
 
             delete state.blocks[trackId];
@@ -152,12 +154,9 @@ const store = createStore({
                 if (changes.height) {
                     const newHeight: number = Math.min(Math.max((dto.rect.height + changes.height), 10), 150);
                     dto.rect.height = newHeight;
-                    const trackOffset: number = ((dto.initTrackId - dto.trackId) * config.trackHeight);
+                    const trackOffset: number = config.sliderHeight + config.componentPadding + (dto.trackId * config.trackHeight);
                     const newY: number = (config.trackHeight / 2) - (newHeight / 2);
-                    dto.rect.y = newY - trackOffset;
-
-                    // this could happen only once after resizing
-                    dto.initY = dto.rect.y;
+                    dto.rect.y = newY + trackOffset;
                 }
 
                 if (changes.track != null) {
@@ -177,7 +176,6 @@ const store = createStore({
                 if (changes.x !) {
                     if (isWidthClipped && changes.width) return;
                     dto.rect.x += changes.x;
-                    dto.initX = (dto.rect.x + state.viewportOffset + state.sliderOffset) / state.zoomLevel;
                     
                     // mark track as unsorted
                     state.sorted[dto.trackId] = false;
@@ -193,6 +191,10 @@ const store = createStore({
         updateSelectedBlockHandles(state: any): void {
             state.selectedBlocks.forEach((block: BlockSelection): void => {
                 const dto = state.blocks[block.trackId][block.index];
+                
+                // update data
+                dto.initY = dto.rect.y;
+                dto.initX = (dto.rect.x + state.viewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
                 
                 // update left handle
                 dto.leftHandle.clear();
@@ -242,13 +244,6 @@ const store = createStore({
                 return;
             }
             
-            if (!state.blocks[targetTrack]) {
-                console.log("targetTrack is undefined");
-                if (targetTrack <= state.trackCount) {
-                    state.blocks[targetTrack] = [];
-                }
-            }
-            
             const prevTrackLength: number = state.blocks[sourceTrack].length - 1;
             const [block] = state.blocks[sourceTrack].splice(blockIndex, 1);
             if (!block) {
@@ -275,6 +270,7 @@ const store = createStore({
             state.sorted[sourceTrack] = false;
             state.sorted[targetTrack] = false;
                         
+            // update selectionData
             const selectionIndex = state.selectedBlocks.findIndex((block: BlockSelection) => {return block.trackId == sourceTrack && block.index == blockIndex});
             state.selectedBlocks[selectionIndex].trackId = targetTrack;
             state.selectedBlocks[selectionIndex].index = newIndex - 1;
@@ -331,6 +327,9 @@ const store = createStore({
         },
         setTrackCount( { commit }: any, newTrackCount: number): void {
           commit('setTrackCount', newTrackCount);  
+        },
+        initTrack({ commit }: any, trackId: number): void {
+          commit('initTrack', trackId);  
         },
         addBlock({ commit }: any, {trackId, block}: {trackId: number, block: TactonRectangle}): void {
             commit('addBlock', {trackId, block});  

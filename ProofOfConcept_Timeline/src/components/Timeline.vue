@@ -1,5 +1,5 @@
 <script lang="ts">
-import {defineComponent, ref} from 'vue'
+import {defineComponent, h, ref} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp from "@/pixi/pixiApp";
@@ -103,13 +103,11 @@ export default defineComponent({
       if (box) box.remove();
     }    
     function selectRectanglesWithin(): void {
+      selectedBlocks.length = 0;
       let { x, y, width, height } = getBoundingBox();
       
-      // need to adjust coordinates
-      x -= 48;
-      y -= (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight + config.componentPadding);
-
-      selectedBlocks.length = 0;
+      // need to adjust coordinates, to be in canvas
+      y -= pixiApp.canvas.getBoundingClientRect().top;
       
       // calculate tracks to check --> only check tracks that could contain selection
       const startTrack = Math.floor(y / config.trackHeight);
@@ -118,9 +116,7 @@ export default defineComponent({
         const blocks = store.state.blocks[trackId];
         if (!blocks) continue;        
         blocks.forEach((block: BlockDTO, index: number) => {
-          // TODO save some of these in dto
-          const adjustedY = block.rect.y + (block.initTrackId * config.trackHeight);
-          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && adjustedY <= (y + height) && adjustedY + block.rect.height >= y) {
+          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && block.rect.y <= (y + height) && block.rect.y + block.rect.height >= y) {
             selectedBlocks.push({ trackId: trackId, index: index });
           }
         });
@@ -163,7 +159,7 @@ export default defineComponent({
       console.debug("tactons: ", this.blocks);
     },
     calculateInitialZoom() {
-      const viewportWidth = pixiApp.canvas.width - 48;
+      const viewportWidth = pixiApp.canvas.width - config.leftPadding;
       const padding = config.pixelsPerSecond;
       const durationInSeconds = this.totalDuration/1000;
       const durationInPixels = (durationInSeconds * config.pixelsPerSecond) + padding;

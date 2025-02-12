@@ -33,6 +33,7 @@ export default defineComponent({
       const pixelPerSeconds = config.pixelsPerSecond * store.state.zoomLevel;
       const totalWidth = pixiApp.canvas.width + Math.abs(store.state.viewportOffset + store.state.sliderOffset);  
       const steps = (totalWidth / config.pixelsPerSecond);
+      const gridOffset = config.leftPadding - store.state.viewportOffset - store.state.sliderOffset;
       const gridLines: number[] = [];
 
       getIntervals().forEach((interval) => {
@@ -43,7 +44,7 @@ export default defineComponent({
           const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
           const x = step * pixelPerSeconds * interval;
           
-          gridLines.push(x - store.state.viewportOffset - store.state.sliderOffset);          
+          gridLines.push(x + gridOffset);          
           gridGraphics!.moveTo(x, config.sliderHeight + config.componentPadding);
           gridGraphics!.lineTo(x, y);
           gridGraphics!.stroke({width: lineWidth, color: config.colors.gridColor})
@@ -58,11 +59,11 @@ export default defineComponent({
             gridContainer!.addChild(label);
           }
         }
-      });      
+      }); 
       
       gridContainer.addChild(gridGraphics);
       pixiApp.stage.addChild(gridContainer);
-      gridContainer.x = 48 - store.state.viewportOffset - store.state.sliderOffset;
+      gridContainer.x = gridOffset;
       gridContainer.zIndex = -1;
       store.commit('setGridLines', gridLines);
     }

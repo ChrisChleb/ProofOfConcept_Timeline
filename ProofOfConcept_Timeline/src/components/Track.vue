@@ -77,10 +77,6 @@ export default defineComponent({
     let pointerMoveHandler: any = null;
     let pointerUpHandler: any = null;
     
-    let trackContainer: Pixi.Container = new Pixi.Container();
-    trackContainer.height = config.trackHeight;
-    trackContainer.width = pixiApp.canvas.width;
-
     // viewport-scrolling
     let isScrolling = false;
     let currentDirection: 'left' | 'right' | null = null;
@@ -91,24 +87,30 @@ export default defineComponent({
     const rightThreshold = pixiApp.canvas.width - config.scrollThreshold;
     const leftThreshold = config.scrollThreshold;
     
-    // add 12px of padding to slider
+    let trackContainer: Pixi.Container = new Pixi.Container();
+    trackContainer.height = config.trackHeight;
+    trackContainer.width = pixiApp.canvas.width;
     trackContainer.y = config.sliderHeight + config.componentPadding + props.trackId * config.trackHeight;
+    trackContainer.x = config.leftPadding;
+    
     const trackLine = new Pixi.Graphics();
     trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
     trackLine.fill(config.colors.trackLineColor);
-    
     trackContainer.addChild(trackLine);
     
-    renderTrack();
-    pixiApp.stage.addChild(trackContainer);
-
-    // padding left
-    trackContainer.x = 48;
+    pixiApp.stage.addChild(trackContainer);    
+    renderTrack();    
 
     // TODO move updateTactons to store
     watch(() => store.state.zoomLevel, updateTactons);
     watch(() => store.state.viewportOffset, updateTactons);
     watch(() => store.state.sliderOffset, updateTactons);
+    watch(() => props.blocks, (newValue, oldValue) => {
+      if (newValue.length !== 0 || oldValue.length !== 0) {
+        renderTrack();
+      }
+    });
+
     window.addEventListener('resize', () => {
       trackLine.width = pixiApp.canvas.width;
     });
@@ -120,9 +122,9 @@ export default defineComponent({
     });
     function renderTrack() {
       store.dispatch('deleteTactons', props.trackId);
-      console.debug("Track ", props.trackId, " received: ", props.blocks);
+      console.debug("Track ", props.trackId, " received: ", props.blocks);  
       
-      const tactonContainer = new Pixi.Container();
+      store.dispatch('initTrack', props.trackId);
       props.blocks.forEach((block: TactonRectangle) => {
         const rect = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
@@ -134,7 +136,7 @@ export default defineComponent({
         rect.x = position.x;
         rect.width = position.width;
         rect.height = block.intensity * 100;
-        rect.y = (config.trackHeight / 2) - (rect.height / 2);
+        rect.y = config.sliderHeight + config.componentPadding + (props.trackId * config.trackHeight) + ((config.trackHeight / 2) - (rect.height / 2));
         
         const strokedRect = new Pixi.Graphics();
         strokedRect.rect(0, 0, 1, 1);
@@ -199,6 +201,7 @@ export default defineComponent({
         bottomHandle.interactive = true;
         bottomHandle.cursor = 'ns-resize';
         
+        const tactonContainer = new Pixi.Container();
         tactonContainer.addChild(rect);
         tactonContainer.addChild(strokedRect);
         tactonContainer.addChild(leftHandle);
@@ -224,9 +227,9 @@ export default defineComponent({
         bottomHandle.on('pointerdown', (event) => onChangeAmplitude(event, dto, Direction.BOTTOM));
         rect.on('pointerdown', (event) => onMoveBlock(event, dto));
         
-        store.dispatch('addBlock', {trackId: props.trackId, block: dto});
-        trackContainer.addChild(tactonContainer); 
-      });      
+        store.dispatch('addBlock', {trackId: props.trackId, block: dto});        
+        pixiApp.stage.addChild(tactonContainer);
+      });
       updateTactons();
     }
     function calculatePosition(tacton: TactonRectangle) {
@@ -242,8 +245,10 @@ export default defineComponent({
         // when moving tacton, dont update --> is updated onMouseUp
         if (currentTacton?.rect.uid != block.rect.uid) {
           block.rect.width = block.initWidth * store.state.zoomLevel;
-          block.rect.x = (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          // TODO only update handles after last change --> better performance
           updateHandles(block);
+          // TODO - smart update --> only activily update selected Strokes, update the rest after last change --> better performance
           updateStrokedRect(block);
         }
       });
@@ -287,12 +292,14 @@ export default defineComponent({
       }
     }
     function calculateVirtualViewportLength() {
-      store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {
+      store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {        
+        lastBlockPosition -= config.leftPadding;
         lastBlockPosition += store.state.viewportOffset;
+        lastBlockPosition += store.state.sliderOffset;
         lastBlockPosition /= store.state.zoomLevel;
         // need a better solution, because this leads to weird behavior of offset
         // --> when tacton is not exactly at border of window, as the sequenceLength is then less then what is currently shown on screen
-        store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
+        //store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
         console.log("virtualViewportWidth: ", lastBlockPosition);
         console.log("SequenzLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
       });
@@ -363,7 +370,7 @@ export default defineComponent({
       }      
             
       // check for overflow
-      const overflowRight = Math.min(((pixiApp.canvas.width - 48) - (newX + currentTacton.rect.width)), 0);
+      const overflowRight = Math.min(((pixiApp.canvas.width) - (newX + currentTacton.rect.width)), 0);
       
       if (overflowRight < 0) {
         newX += overflowRight;
@@ -476,7 +483,6 @@ export default defineComponent({
     function snapToGrid(positionToCheck: number) {
       const snapRadius = config.resizingSnappingRadius;
       const gridLines = store.state.gridLines;
-
       for (const gridX of gridLines) {
         if (Math.abs(positionToCheck - gridX) <= snapRadius) {
           return gridX;
@@ -525,6 +531,7 @@ export default defineComponent({
       store.dispatch('updateSelectedBlockHandles');
       pointerMoveHandler = null;
       pointerUpHandler = null;
+      currentTacton = null;
     }
     function updateHandles(dto: BlockDTO) {
       // update left handle
@@ -575,14 +582,7 @@ export default defineComponent({
       dto.strokedRect.y = dto.rect.y;
       dto.strokedRect.height = dto.rect.height;
     }
-    
-    return {
-      renderTrack
-    }
   },
-  watch: {
-    blocks: 'renderTrack'
-  }
 })
 </script>
 

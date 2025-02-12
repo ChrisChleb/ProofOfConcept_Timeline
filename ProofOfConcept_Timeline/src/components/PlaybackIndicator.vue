@@ -35,8 +35,8 @@ export default defineComponent({
     );    
     function renderIndicator() {
       playbackIndicator.clear();      
-      playbackIndicator.moveTo(48, config.sliderHeight + config.componentPadding);
-      playbackIndicator.lineTo(48, config.trackHeight * props.trackCount + config.sliderHeight + config.componentPadding);
+      playbackIndicator.moveTo(config.leftPadding, config.sliderHeight + config.componentPadding);
+      playbackIndicator.lineTo(config.leftPadding, config.trackHeight * props.trackCount + config.sliderHeight + config.componentPadding);
       playbackIndicator.stroke({width: 4, color: 'rgba(13,148,1,0.5)'})
       playbackIndicator._zIndex = 1;
       pixiApp.stage.addChild(playbackIndicator);

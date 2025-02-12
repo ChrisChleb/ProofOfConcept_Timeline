@@ -33,7 +33,6 @@ export default defineComponent({
       store: useStore()
     };
   },
-  // TODO manage track COunt in store
   created() {
     this.selectedJson = JsonData[0];
     this.loadFile();
@@ -220,6 +219,8 @@ export default defineComponent({
     changeTrackCount(changeBy: number) {
       this.trackCount += changeBy;
       store.dispatch('setTrackCount', this.trackCount - 1);
+      
+      // TODO for future, calculate new trackLength
     }
   },
   components: {

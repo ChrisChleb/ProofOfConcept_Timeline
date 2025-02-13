@@ -13,6 +13,7 @@ import JsonData from '../json/2024-06-20_Team1_session1.json';
 import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 import Slider from "@/components/Slider.vue";
 import store, {type BlockSelection} from "@/store";
+import ScrollBar from "@/components/ScrollBar.vue";
 
 export default defineComponent({
   name: "Timeline",
@@ -43,11 +44,6 @@ export default defineComponent({
     let selectionStart = { x: 0, y: 0 };
     let selectionEnd = { x: 0, y: 0 };
     const selectedBlocks: BlockSelection[] = [];
-
-    let scrollStep = 0;
-    let verticalScrollOffset = 0;
-    const initY =  dynamicContainer.y;
-    let maxScrollStep = this.trackCount - this.displayableTracks;
     
     document.addEventListener('keydown', (event: KeyboardEvent) => {      
       if (event.shiftKey && !store.state.isPressingShift) {
@@ -112,7 +108,9 @@ export default defineComponent({
       let { x, y, width, height } = getBoundingBox();
       
       // need to adjust coordinates, to be in canvas
-      y -= pixiApp.canvas.getBoundingClientRect().top - verticalScrollOffset;
+      y -= pixiApp.canvas.getBoundingClientRect().top;
+      // adjust for scrolling
+      y -= dynamicContainer.y;
       
       // calculate tracks to check --> only check tracks that could contain selection
       const startTrack = Math.floor(y / config.trackHeight);
@@ -135,22 +133,6 @@ export default defineComponent({
       const height = Math.abs(selectionStart.y - selectionEnd.y);
       return { x, y, width, height };
     }
-    
-    // scrolling    
-    watch(() => this.trackCount, () => {
-      maxScrollStep = this.trackCount - this.displayableTracks;
-      console.log("maxScrollStep", maxScrollStep);
-    });
-        
-    pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
-      if (this.trackCount > this.displayableTracks) {
-        const normalizedDelta = Math.sign(event.deltaY);
-        scrollStep += normalizedDelta;
-        scrollStep = Math.max(0, Math.min(scrollStep, maxScrollStep));
-        verticalScrollOffset = scrollStep * config.trackHeight;
-        dynamicContainer.y = initY - verticalScrollOffset;
-      }
-    });
   },
   mounted() {
     this.displayableTracks = Math.floor((window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight) / config.trackHeight);
@@ -249,6 +231,7 @@ export default defineComponent({
     }
   },
   components: {
+    ScrollBar,
     Slider,
     PlaybackVisualization,
     PlaybackIndicator,
@@ -271,6 +254,7 @@ export default defineComponent({
   </div>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
+  <ScrollBar></ScrollBar>
   <Grid :track-count="trackCount"></Grid>
   <div v-for="trackId in Array.from({ length: trackCount }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId" :blocks="blocks[trackId] || []"/>

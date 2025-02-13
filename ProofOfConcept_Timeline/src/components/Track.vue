@@ -253,6 +253,7 @@ export default defineComponent({
         if (currentTacton?.rect.uid != block.rect.uid) {
           block.rect.width = block.initWidth * store.state.zoomLevel;
           block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          // this is currently the biggest performance issue
           // TODO only update handles after last change --> better performance
           updateHandles(block);
           // TODO - smart update --> only activily update selected Strokes, update the rest after last change --> better performance
@@ -327,7 +328,7 @@ export default defineComponent({
     }
     function moveBlock(event: any) {
       if (currentTacton == null) return;
-      const changes = new BlockChanges();      
+      const changes = new BlockChanges();   
       const deltaX = event.clientX - initialX;
       const deltaY = event.clientY - initialY;
       
@@ -383,8 +384,8 @@ export default defineComponent({
         newX += overflowRight;
       }
       
-      if (-newX > 0) {
-        newX = 0;
+      if (newX < config.leftPadding) {
+        newX = config.leftPadding;
       }
       
       changes.x = newX - prevX;

@@ -30,7 +30,8 @@ export default defineComponent({
       loadedJson: null as any,
       selectedJson: null as any,
       jsonData: JsonData,
-      store: useStore()
+      store: useStore(),
+      displayableTracks: 0
     };
   },
   created() {
@@ -42,6 +43,11 @@ export default defineComponent({
     let selectionStart = { x: 0, y: 0 };
     let selectionEnd = { x: 0, y: 0 };
     const selectedBlocks: BlockSelection[] = [];
+
+    let scrollStep = 0;
+    let verticalScrollOffset = 0;
+    const initY =  dynamicContainer.y;
+    let maxScrollStep = this.trackCount - this.displayableTracks;
     
     document.addEventListener('keydown', (event: KeyboardEvent) => {      
       if (event.shiftKey && !store.state.isPressingShift) {
@@ -77,7 +83,6 @@ export default defineComponent({
       removeSelectionBox();
       selectRectanglesWithin();
     });
-    
     function drawSelectionBox(): void {
       const selectionBox = document.getElementById('selection-box') || createSelectionBox();
       const { x, y, width, height } = getBoundingBox();
@@ -130,21 +135,15 @@ export default defineComponent({
       const height = Math.abs(selectionStart.y - selectionEnd.y);
       return { x, y, width, height };
     }
-
-    let scrollStep = 0;
-    let verticalScrollOffset = 0;
-    const initY =  dynamicContainer.y;
-    // 106 is from pixiApp.canvas.getBoundingClientRect().top, TODO needs to be calculated after mount
-    const displayableTracks = Math.floor((window.innerHeight - 106 - config.sliderHeight) / config.trackHeight);
-    let maxScrollStep = this.trackCount - displayableTracks;
     
+    // scrolling    
     watch(() => this.trackCount, () => {
-      maxScrollStep = this.trackCount - displayableTracks;
+      maxScrollStep = this.trackCount - this.displayableTracks;
       console.log("maxScrollStep", maxScrollStep);
     });
-    
+        
     pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
-      if (this.trackCount > displayableTracks) {
+      if (this.trackCount > this.displayableTracks) {
         const normalizedDelta = Math.sign(event.deltaY);
         scrollStep += normalizedDelta;
         scrollStep = Math.max(0, Math.min(scrollStep, maxScrollStep));
@@ -152,6 +151,9 @@ export default defineComponent({
         dynamicContainer.y = initY - verticalScrollOffset;
       }
     });
+  },
+  mounted() {
+    this.displayableTracks = Math.floor((window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight) / config.trackHeight);
   },
   methods: {
     loadJson() {

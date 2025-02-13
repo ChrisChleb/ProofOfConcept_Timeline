@@ -1,7 +1,7 @@
 const config = {
     // general
     leftPadding: 48,
-    componentPadding: 12,
+    componentPadding: 32,
     horizontalScrollSpeed: 25,
     horizontalScrollThreshold: 100,
     // slider

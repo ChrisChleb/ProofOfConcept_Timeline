@@ -1,5 +1,5 @@
 <script lang="ts">
-import {defineComponent, onMounted, watch} from 'vue'
+import {defineComponent, watch} from 'vue'
 import {useStore} from "vuex";
 import pixiApp, {staticContainer} from "@/pixi/pixiApp";
 import config from "@/config";

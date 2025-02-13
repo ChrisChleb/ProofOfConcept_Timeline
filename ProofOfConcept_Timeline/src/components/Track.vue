@@ -106,7 +106,7 @@ export default defineComponent({
     trackContainer.addChild(trackLabel);
 
     dynamicContainer.addChild(trackContainer);    
-    renderTrack();    
+    renderTrack();
 
     // TODO move updateTactons to store
     watch(() => store.state.zoomLevel, updateTactons);
@@ -248,6 +248,7 @@ export default defineComponent({
       };
     }
     function updateTactons() {
+      // TODO this does not work with multiple blocks or if a block ist moved to another track
       store.state.blocks[props.trackId]?.forEach((block: BlockDTO) => {
         // when moving tacton, dont update --> is updated onMouseUp
         if (currentTacton?.rect.uid != block.rect.uid) {
@@ -515,6 +516,7 @@ export default defineComponent({
     function changeAmplitude(event: any, block: BlockDTO, direction: Direction) {
       let deltaY = 0;
       // there is a difference of appr. 106 between event.clientY and initialY? --> is the exact height-value of buttons and playbackVisualization
+      // TODO can be calculated by pixiApp.canvas.getBoundingRect().top
       if (direction == Direction.TOP) {
         deltaY = (initialY - event.clientY);
         deltaY += 106;

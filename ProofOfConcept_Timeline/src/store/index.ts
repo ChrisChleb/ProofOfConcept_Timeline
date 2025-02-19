@@ -113,6 +113,13 @@ const store = createStore({
             });
 
             delete state.blocks[trackId];
+            
+            // remove from selection
+            for (let i: number = state.selectedBlocks.length - 1; i >= 0; i--) {
+                if (state.selectedBlocks[i].trackId == trackId) {
+                    state.selectedBlocks.splice(i, 1);
+                }
+            }
         },
         selectBlock(state: any, block: BlockSelection): void {
             state.selectedBlocks.push(block);

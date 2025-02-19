@@ -7,7 +7,7 @@ import {useStore} from "vuex";
 
 export default defineComponent({
   name: "ScrollBar",
-  setup() {    
+  setup() {
     const scrollBar = new Pixi.Graphics();
     scrollBar.rect(
         pixiApp.canvas.width - config.scrollBarWidth,
@@ -28,7 +28,7 @@ export default defineComponent({
     let isScrollable = false;
     let startY = 0;
     let initialScrollY = 0;
-    let scrollOffset = 0;    
+    let scrollOffset = 0;
     let maxY = 0;
     let canvasOffset = 0;
     let totalScrollableHeight = 0;
@@ -79,18 +79,19 @@ export default defineComponent({
     
     pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
       if (!isScrollable) return;
+      if (isNaN(initialScrollY)) initialScrollY = 0;
       
-      const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;            
+      const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;
       scrollBar.y = Math.min(Math.max(initialScrollY + scrollAmount, 0), maxY);
-      initialScrollY = scrollBar.y;      
+      initialScrollY = scrollBar.y;
       const scrollRatio = scrollBar.y / (maxY);
       scrollOffset = scrollRatio * (totalScrollableHeight);
       dynamicContainer.y = -scrollOffset;
-    });    
+    });
     function calculateScrollableHeight() {
       trackHeight = ((store.state.trackCount + 1) * config.trackHeight);
       totalScrollableHeight = trackHeight > visibleHeight ? (trackHeight - visibleHeight) + config.componentPadding : 0;
-    }    
+    } 
     function checkForScrollable() {
       if (totalScrollableHeight > 0 && !isScrollable) {
         isScrollable = true;
@@ -101,7 +102,7 @@ export default defineComponent({
         scrollBar.visible = false;
         dynamicContainer.y = 0;
       }
-    }    
+    }
     function updateScrollbar() {
       scrollOffset = Math.min(scrollOffset, totalScrollableHeight);
       scrollBar.y = (scrollOffset / totalScrollableHeight) * ((visibleHeight - scrollBar.height) + config.componentPadding);

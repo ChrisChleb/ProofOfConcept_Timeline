@@ -79,13 +79,15 @@ export default defineComponent({
     
     // viewport-scrolling
     let isScrolling = false;
-    let currentDirection: 'left' | 'right' | null = null;
+    let currentDirection: Direction | null = null;
     let currentFactor = 0;
     let currentTacton: BlockDTO | null = null;
     
     // thresholds for viewport-scrolling --> TODO update on resize
     const rightThreshold = pixiApp.canvas.width - config.horizontalScrollThreshold;
     const leftThreshold = config.horizontalScrollThreshold;
+    const topThreshold  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
+    const bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
     
     let trackContainer: Pixi.Container = new Pixi.Container();
     trackContainer.height = config.trackHeight;
@@ -262,7 +264,7 @@ export default defineComponent({
         }
       });
     }
-    function startAutoScroll(direction: 'left' | 'right') {
+    function startAutoScroll(direction: Direction) {
       if (!isScrolling) {
         isScrolling = true;
         currentDirection = direction;
@@ -274,30 +276,63 @@ export default defineComponent({
       currentDirection = null;
       currentFactor = 0;
     }
+
+    let currentYAdjustment = 0;
+    let lastVerticalOffset = 0;
     function autoScroll() {
       if (!isScrolling || !currentDirection || currentTacton == null) return;
     
-      const scrollSpeed = currentFactor * config.horizontalScrollSpeed;
+      const horizontalScrollSpeed = currentFactor * config.horizontalScrollSpeed;
+      const verticalScrollSpeed = currentFactor * config.verticalScrollSpeed;
       
-      if (currentDirection === 'right') {
-        const newOffset = store.state.viewportOffset + scrollSpeed;
-        store.dispatch('updateViewportOffset', newOffset);        
-      } else if (currentDirection === 'left') {
-        const newOffset = Math.max(store.state.viewportOffset - scrollSpeed, 0);
-        store.dispatch('updateViewportOffset', newOffset);
+      switch (currentDirection) {
+        case Direction.TOP: {
+          const newOffset = Math.min(dynamicContainer.y + verticalScrollSpeed, 0);
+          currentYAdjustment = newOffset - lastVerticalOffset;
+          store.dispatch('updateVerticalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.BOTTOM: {
+          const newOffset = Math.max(dynamicContainer.y - verticalScrollSpeed, -store.state.scrollableHeight);
+          currentYAdjustment = newOffset - lastVerticalOffset;          
+          store.dispatch('updateVerticalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.LEFT: {
+          const newOffset = Math.max(store.state.horizontalViewportOffset - horizontalScrollSpeed, 0);
+          store.dispatch('updateHorizontalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.RIGHT: {
+          const newOffset = store.state.horizontalViewportOffset + horizontalScrollSpeed;
+          store.dispatch('updateHorizontalViewportOffset', newOffset);
+        }
       }
       
       requestAnimationFrame(() => autoScroll());
     }
-    function scrollViewport(cursorX: number) {
+    function scrollViewportHorizontal(cursorX: number) {
       if (cursorX >= rightThreshold) {
         currentFactor = Math.min((cursorX - rightThreshold) / config.horizontalScrollThreshold, 1);
-        startAutoScroll('right');
+        startAutoScroll(Direction.RIGHT);
       } else if (cursorX <= leftThreshold) {
         currentFactor= Math.min((leftThreshold - cursorX) / config.horizontalScrollThreshold, 1);
-        startAutoScroll('left');
+        startAutoScroll(Direction.LEFT);
       } else if (isScrolling){
         stopAutoScroll();
+      }
+    }
+    
+    function scrollViewportVertical(cursorY: number) {
+      if (cursorY <= topThreshold) {
+        currentFactor = Math.min((topThreshold - cursorY) / config.verticalScrollThreshold, 1);
+        startAutoScroll(Direction.TOP);
+      } else if (cursorY >= bottomThreshold) {
+        currentFactor= Math.min((cursorY - bottomThreshold) / config.verticalScrollThreshold, 1);
+        startAutoScroll(Direction.BOTTOM);
       }
     }
     function calculateVirtualViewportLength() {
@@ -320,6 +355,7 @@ export default defineComponent({
       initialY = event.data.global.y;
       initialBlockX = block.rect.x;
       currentTacton = block;
+      currentYAdjustment = 0;
       store.dispatch('setInteractionState', true);
       pointerMoveHandler = (event: any) => moveBlock(event);
       pointerUpHandler = () => onMoveBlockEnd();
@@ -334,7 +370,7 @@ export default defineComponent({
       const deltaY = event.clientY - initialY;
       
       // detect switching tracks
-      currentYTrackId = currentTacton.trackId + Math.floor(deltaY / config.trackHeight);
+      currentYTrackId = currentTacton.trackId + Math.floor((deltaY - currentYAdjustment) / config.trackHeight);
       currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
       changes.track = currentYTrackId - currentTacton.trackId;
       
@@ -342,7 +378,8 @@ export default defineComponent({
       const newLeftX = initialBlockX + deltaX;
       const newRightX = initialBlockX + currentTacton.rect.width + deltaX;
       
-      scrollViewport(event.clientX);      
+      scrollViewportHorizontal(event.clientX);
+      scrollViewportVertical(event.clientY);
       
       // init vars
       const snappingRadius = config.moveSnappingRadius;
@@ -399,6 +436,7 @@ export default defineComponent({
       store.dispatch('setInteractionState', false);
       pointerMoveHandler = null;
       pointerUpHandler = null;
+      lastVerticalOffset = store.state.verticalViewportOffset;
       
       if (currentTacton == null) return;         
       store.dispatch('changeBlockTrack', (currentYTrackId - currentTacton.trackId));

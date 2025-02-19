@@ -31,12 +31,8 @@ export default defineComponent({
     let scrollOffset = 0;
     let maxY = 0;
     let canvasOffset = 0;
-    let totalScrollableHeight = 0;
-    let visibleHeight = 0;
-    let trackHeight = 0;
     
     watch(() => store.state.trackCount, () => {
-      calculateScrollableHeight();
       checkForScrollable();
       updateScrollbar();
     });
@@ -44,9 +40,6 @@ export default defineComponent({
     onMounted(() => {
       canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
       maxY = window.innerHeight - canvasOffset - config.scrollBarHeight - config.sliderHeight;
-      visibleHeight = window.innerHeight - canvasOffset - config.sliderHeight - config.componentPadding;
-      console.log("visibleHeight", visibleHeight);
-      calculateScrollableHeight();
       checkForScrollable();
     });    
     
@@ -63,9 +56,8 @@ export default defineComponent({
         const deltaY = (event.clientY - startY) - canvasOffset;
         const newY = initialScrollY + deltaY;
         scrollBar.y = Math.min(Math.max(newY, 0), maxY);
-        
-        const scrollRatio = scrollBar.y / (maxY);
-        scrollOffset = scrollRatio * (totalScrollableHeight);
+        const scrollRatio = scrollBar.y / maxY;
+        scrollOffset = scrollRatio * store.state.scrollableHeight;
         dynamicContainer.y = -scrollOffset;
       }
     });
@@ -84,30 +76,31 @@ export default defineComponent({
       const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;
       scrollBar.y = Math.min(Math.max(initialScrollY + scrollAmount, 0), maxY);
       initialScrollY = scrollBar.y;
-      const scrollRatio = scrollBar.y / (maxY);
-      scrollOffset = scrollRatio * (totalScrollableHeight);
+      const scrollRatio = scrollBar.y / maxY;
+      scrollOffset = scrollRatio * store.state.scrollableHeight;
       dynamicContainer.y = -scrollOffset;
     });
-    function calculateScrollableHeight() {
-      trackHeight = ((store.state.trackCount + 1) * config.trackHeight);
-      totalScrollableHeight = trackHeight > visibleHeight ? (trackHeight - visibleHeight) + config.componentPadding : 0;
-    } 
     function checkForScrollable() {
-      if (totalScrollableHeight > 0 && !isScrollable) {
+      if (store.state.scrollableHeight > 0 && !isScrollable) {
         isScrollable = true;
         scrollBar.y = 0;
         scrollBar.visible = true;
-      } else if (totalScrollableHeight <= 0 && isScrollable){
+      } else if (store.state.scrollableHeight <= 0 && isScrollable){
         isScrollable = false;
         scrollBar.visible = false;
         dynamicContainer.y = 0;
       }
     }
     function updateScrollbar() {
-      scrollOffset = Math.min(scrollOffset, totalScrollableHeight);
-      scrollBar.y = (scrollOffset / totalScrollableHeight) * ((visibleHeight - scrollBar.height) + config.componentPadding);
+      scrollOffset = Math.min(scrollOffset, store.state.scrollableHeight);
+      scrollBar.y = (scrollOffset / store.state.scrollableHeight) * ((store.state.visibleHeight - scrollBar.height) + config.componentPadding);
       dynamicContainer.y = -scrollOffset;
     }
+    
+    watch(() => store.state.verticalViewportOffset, (newOffset) => {
+      scrollOffset = -newOffset;
+      updateScrollbar();
+    });
   }
 })
 </script>

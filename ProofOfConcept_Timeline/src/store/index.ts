@@ -28,10 +28,12 @@ const store = createStore({
     state: {
         zoomLevel: 1,
         sliderOffset: 0,
-        viewportOffset: 0,
         horizontalViewportOffset: 0,
+        verticalViewportOffset: 0,
         gridLines: [] as number[],
         trackCount: 0,
+        scrollableHeight: 0,
+        visibleHeight: 0,       
         sorted: {} as Record<number, boolean>,
         blocks: {} as Record<number, BlockDTO[]>,
         lastBlockPositionX: 0,
@@ -49,6 +51,9 @@ const store = createStore({
         setHorizontalViewportOffset(state: any, viewportOffset: number): void {
             state.horizontalViewportOffset = viewportOffset;
         },
+        setVerticalViewportOffset(state: any, viewportOffset: number): void {
+            state.verticalViewportOffset = viewportOffset;
+        },
         setSliderOffset(state: any, newSliderOffset: number): void {
           state.sliderOffset = newSliderOffset;  
         },
@@ -57,6 +62,15 @@ const store = createStore({
         },
         setTrackCount(state: any, newTrackCount: number): void {
             state.trackCount = newTrackCount;
+        },
+        setVisibleHeight(state: any, visibleHeight: number): void {
+            state.visibleHeight = visibleHeight;
+            console.log('visibleHeight', visibleHeight);
+        },
+        calculateScrollableHeight(state: any): void {
+            const trackHeight: number = (state.trackCount + 1) * config.trackHeight;
+            state.scrollableHeight = trackHeight > state.visibleHeight ? (trackHeight - state.visibleHeight) + config.componentPadding : 0;
+            console.log('scrollableHeight', state.scrollableHeight);  
         },
         initTrack(state: any, trackId: number): void {
           if (!state.blocks[trackId]) {
@@ -320,6 +334,9 @@ const store = createStore({
         updateHorizontalViewportOffset({ commit }: any, newOffset: number): void {
             commit('setHorizontalViewportOffset', newOffset);
         },
+        updateVerticalViewportOffset({ commit }: any, newOffset: number): void {
+            commit('setVerticalViewportOffset', newOffset);
+        },
         updateSliderOffset({ commit }: any, newSliderOffset: number): void {
           commit('setSliderOffset', newSliderOffset);
         },
@@ -328,6 +345,12 @@ const store = createStore({
         },
         setTrackCount( { commit }: any, newTrackCount: number): void {
           commit('setTrackCount', newTrackCount);
+        },
+        setVisibleHeight( { commit }: any, newVisibleHeight: number): void {
+          commit('setVisibleHeight', newVisibleHeight);  
+        },
+        calculateScrollableHeight( { commit }: any): void {
+          commit('calculateScrollableHeight');
         },
         initTrack({ commit }: any, trackId: number): void {
           commit('initTrack', trackId);
@@ -428,11 +451,12 @@ const store = createStore({
     },
     getters: {
         zoomLevel: (state: any) => state.zoomLevel,
-        viewportOffset: (state: any) => state.viewportOffset,
         horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
+        verticalViewportOffset: (state: any) => state.verticalViewportOffset,
         sliderOffset: (state: any) => state.sliderOffset,
         gridLines: (state: any) => state.gridLines,
         trackCount: (state: any) => state.trackCount,
+        scrollableHeight: (state: any) => state.scrollableHeight,
         blocks: (state: any) => state.blocks,
         initialVirtualViewportWidth: (state: any) => state.initialVirtualViewportWidth,
         currentVirtualViewportWidth: (state: any) => state.currentVirtualViewportWidth,

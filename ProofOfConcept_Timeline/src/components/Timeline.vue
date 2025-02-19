@@ -32,7 +32,6 @@ export default defineComponent({
       selectedJson: null as any,
       jsonData: JsonData,
       store: useStore(),
-      displayableTracks: 0
     };
   },
   created() {
@@ -135,7 +134,9 @@ export default defineComponent({
     }
   },
   mounted() {
-    this.displayableTracks = Math.floor((window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight) / config.trackHeight);
+    const visibleHeight = window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight - config.componentPadding;
+    store.dispatch('setVisibleHeight', visibleHeight);
+    store.dispatch('calculateScrollableHeight');
   },
   methods: {
     loadJson() {
@@ -226,7 +227,7 @@ export default defineComponent({
     changeTrackCount(changeBy: number) {
       this.trackCount += changeBy;
       store.dispatch('setTrackCount', this.trackCount - 1);
-      
+      store.dispatch('calculateScrollableHeight');
       // TODO for future, calculate new trackLength
     }
   },

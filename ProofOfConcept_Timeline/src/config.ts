@@ -4,6 +4,8 @@ const config = {
     componentPadding: 32,
     horizontalScrollSpeed: 25,
     horizontalScrollThreshold: 100,
+    verticalScrollSpeed: 0.1,
+    verticalScrollThreshold: 100,
     // slider
     sliderHeight: 28,
     sliderMinWidth: 5,

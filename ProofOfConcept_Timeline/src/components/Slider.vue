@@ -125,9 +125,9 @@ export default defineComponent({
       }
     }
 
-    watch(() => store.state.viewportOffset, (viewportOffset) => {
+    watch(() => store.state.horizontalViewportOffset, (newOffset) => {
       const initialLength = store.state.initialVirtualViewportWidth * store.state.zoomLevel;
-      const currentLength = initialLength + viewportOffset;
+      const currentLength = initialLength + newOffset;
       const isSliderRight = Math.round((sliderX + sliderWidth + config.sliderHandleWidth)) === windowWidth;
 
       if (isSliderRight) {

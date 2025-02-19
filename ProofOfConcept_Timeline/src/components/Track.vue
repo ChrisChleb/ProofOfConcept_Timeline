@@ -110,7 +110,7 @@ export default defineComponent({
 
     // TODO move updateTactons to store
     watch(() => store.state.zoomLevel, updateTactons);
-    watch(() => store.state.viewportOffset, updateTactons);
+    watch(() => store.state.horizontalViewportOffset, updateTactons);
     watch(() => store.state.sliderOffset, updateTactons);
     watch(() => props.blocks, (newValue, oldValue) => {
       if (newValue.length !== 0 || oldValue.length !== 0) {
@@ -253,7 +253,7 @@ export default defineComponent({
         // when moving tacton, dont update --> is updated onMouseUp
         if (currentTacton?.rect.uid != block.rect.uid) {
           block.rect.width = block.initWidth * store.state.zoomLevel;
-          block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset - store.state.sliderOffset;
           // this is currently the biggest performance issue
           // TODO only update handles after last change --> better performance
           updateHandles(block);
@@ -303,7 +303,7 @@ export default defineComponent({
     function calculateVirtualViewportLength() {
       store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {        
         lastBlockPosition -= config.leftPadding;
-        lastBlockPosition += store.state.viewportOffset;
+        lastBlockPosition += store.state.horizontalViewportOffset;
         lastBlockPosition += store.state.sliderOffset;
         lastBlockPosition /= store.state.zoomLevel;
         // need a better solution, because this leads to weird behavior of offset

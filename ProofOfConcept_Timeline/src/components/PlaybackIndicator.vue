@@ -27,10 +27,10 @@ export default defineComponent({
     
     renderIndicator();
     watch(
-        [() => props.currentTime, () => store.state.viewportOffset, () => store.state.sliderOffset],
-        ([time, viewportOffset, sliderOffset]) => {
+        [() => props.currentTime, () => store.state.horizontalViewportOffset, () => store.state.sliderOffset],
+        ([time, horizontalViewportOffset, sliderOffset]) => {
           const x = ((time / 1000) * (config.pixelsPerSecond * store.state.zoomLevel));
-          playbackIndicator.x = x - viewportOffset - sliderOffset;
+          playbackIndicator.x = x - horizontalViewportOffset - sliderOffset;
         }
     );    
     function renderIndicator() {

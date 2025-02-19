@@ -29,6 +29,7 @@ const store = createStore({
         zoomLevel: 1,
         sliderOffset: 0,
         viewportOffset: 0,
+        horizontalViewportOffset: 0,
         gridLines: [] as number[],
         trackCount: 0,
         sorted: {} as Record<number, boolean>,
@@ -45,8 +46,8 @@ const store = createStore({
         setZoomLevel(state: any, zoomLevel: number): void {
             state.zoomLevel = zoomLevel;
         },
-        setViewportOffset(state: any, viewportOffset: number): void {
-            state.viewportOffset = viewportOffset;
+        setHorizontalViewportOffset(state: any, viewportOffset: number): void {
+            state.horizontalViewportOffset = viewportOffset;
         },
         setSliderOffset(state: any, newSliderOffset: number): void {
           state.sliderOffset = newSliderOffset;  
@@ -194,7 +195,7 @@ const store = createStore({
                 
                 // update data
                 dto.initY = dto.rect.y;
-                dto.initX = (dto.rect.x + state.viewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
+                dto.initX = (dto.rect.x + state.horizontalViewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
                 
                 // update left handle
                 dto.leftHandle.clear();
@@ -316,20 +317,20 @@ const store = createStore({
         updateZoomLevel({ commit }: any, newZoomLevel: number): void {
             commit('setZoomLevel', newZoomLevel);
         },
-        updateViewportOffset({ commit }: any, newViewportOffset: number): void {
-            commit('setViewportOffset', newViewportOffset);
+        updateHorizontalViewportOffset({ commit }: any, newOffset: number): void {
+            commit('setHorizontalViewportOffset', newOffset);
         },
         updateSliderOffset({ commit }: any, newSliderOffset: number): void {
-          commit('setSliderOffset', newSliderOffset);  
+          commit('setSliderOffset', newSliderOffset);
         },
         updateGridLines({ commit }: any, newGridLines: []): void {
             commit('setGridLines', newGridLines);
         },
         setTrackCount( { commit }: any, newTrackCount: number): void {
-          commit('setTrackCount', newTrackCount);  
+          commit('setTrackCount', newTrackCount);
         },
         initTrack({ commit }: any, trackId: number): void {
-          commit('initTrack', trackId);  
+          commit('initTrack', trackId);
         },
         addBlock({ commit }: any, {trackId, block}: {trackId: number, block: TactonRectangle}): void {
             commit('addBlock', {trackId, block});  
@@ -428,6 +429,7 @@ const store = createStore({
     getters: {
         zoomLevel: (state: any) => state.zoomLevel,
         viewportOffset: (state: any) => state.viewportOffset,
+        horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
         sliderOffset: (state: any) => state.sliderOffset,
         gridLines: (state: any) => state.gridLines,
         trackCount: (state: any) => state.trackCount,

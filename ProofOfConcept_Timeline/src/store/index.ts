@@ -126,7 +126,7 @@ const store = createStore({
             state.blocks[block.trackId][block.index].strokedRect.visible = true;
             
             // store data for validation
-            const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc, block: BlockSelection) => {
+            const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
                 acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
                 acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
                 return acc;
@@ -142,7 +142,7 @@ const store = createStore({
               state.blocks[block.trackId][block.index].strokedRect.visible = false;
 
               // store data for validation
-              const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc, block: BlockSelection) => {
+              const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
                   acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
                   acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
                   return acc;
@@ -317,7 +317,7 @@ const store = createStore({
 
             let maxPosition: number = 0;
 
-            Object.values(sortedTacton).forEach((channelData: any) => {
+            Object.values(sortedTacton).forEach((channelData: any): void => {
                 if (channelData.length > 0) {
                     const trackLastTacton = channelData[channelData.length - 1];
                     const trackLastPosition = trackLastTacton.rect.x + trackLastTacton.rect.width;

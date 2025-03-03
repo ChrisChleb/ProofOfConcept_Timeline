@@ -1,5 +1,5 @@
 <script lang="ts">
-import {defineComponent, onMounted, watch} from 'vue'
+import {defineComponent, onMounted, ref, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
@@ -8,6 +8,7 @@ import {useStore} from "vuex";
 export default defineComponent({
   name: "ScrollBar",
   setup() {
+    let changeScrollImplementation = ref(false);
     const scrollBar = new Pixi.Graphics();
     scrollBar.rect(
         pixiApp.canvas.width - config.scrollBarWidth,
@@ -72,13 +73,21 @@ export default defineComponent({
     pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
       if (!isScrollable) return;
       if (isNaN(initialScrollY)) initialScrollY = 0;
-      
-      const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;
-      scrollBar.y = Math.min(Math.max(initialScrollY + scrollAmount, 0), maxY);
-      initialScrollY = scrollBar.y;
-      const scrollRatio = scrollBar.y / maxY;
-      scrollOffset = scrollRatio * store.state.scrollableHeight;
-      dynamicContainer.y = -scrollOffset;
+      console.log(changeScrollImplementation.value);
+      if (changeScrollImplementation.value) {
+        scrollBar.y = Math.min(Math.max(initialScrollY + event.deltaY , 0), maxY);
+        initialScrollY = scrollBar.y;
+        const scrollRatio = scrollBar.y / maxY;
+        scrollOffset = scrollRatio * store.state.scrollableHeight;
+        dynamicContainer.y = -scrollOffset;
+      } else {
+        const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;
+        scrollBar.y = Math.min(Math.max(initialScrollY + scrollAmount, 0), maxY);
+        initialScrollY = scrollBar.y;
+        const scrollRatio = scrollBar.y / maxY;
+        scrollOffset = scrollRatio * store.state.scrollableHeight;
+        dynamicContainer.y = -scrollOffset;
+      }
     });
     function checkForScrollable() {
       if (store.state.scrollableHeight > 0 && !isScrollable) {
@@ -101,12 +110,23 @@ export default defineComponent({
       scrollOffset = -newOffset;
       updateScrollbar();
     });
+
+    const toggleScrollImplementation = () => {
+      changeScrollImplementation.value = !changeScrollImplementation.value;
+    };
+    
+    return {
+      toggleScrollImplementation,
+      changeScrollImplementation
+    }
   }
 })
 </script>
 
 <template>
-
+  <button @click="toggleScrollImplementation">
+    Wechsel zu {{changeScrollImplementation ? 'abstrahiertem DeltaY' : 'direktem DeltaY'}}
+  </button>
 </template>
 
 <style scoped>

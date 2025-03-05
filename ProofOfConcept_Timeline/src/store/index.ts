@@ -1,6 +1,6 @@
 import {createStore} from 'vuex';
 import {BlockDTO} from "@/components/Track.vue";
-import pixiApp from "@/pixi/pixiApp";
+import {dynamicContainer} from "@/pixi/pixiApp";
 import * as Pixi from "pixi.js";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
@@ -28,9 +28,12 @@ const store = createStore({
     state: {
         zoomLevel: 1,
         sliderOffset: 0,
-        viewportOffset: 0,
+        horizontalViewportOffset: 0,
+        verticalViewportOffset: 0,
         gridLines: [] as number[],
         trackCount: 0,
+        scrollableHeight: 0,
+        visibleHeight: 0,       
         sorted: {} as Record<number, boolean>,
         blocks: {} as Record<number, BlockDTO[]>,
         lastBlockPositionX: 0,
@@ -45,8 +48,11 @@ const store = createStore({
         setZoomLevel(state: any, zoomLevel: number): void {
             state.zoomLevel = zoomLevel;
         },
-        setViewportOffset(state: any, viewportOffset: number): void {
-            state.viewportOffset = viewportOffset;
+        setHorizontalViewportOffset(state: any, viewportOffset: number): void {
+            state.horizontalViewportOffset = viewportOffset;
+        },
+        setVerticalViewportOffset(state: any, viewportOffset: number): void {
+            state.verticalViewportOffset = viewportOffset;
         },
         setSliderOffset(state: any, newSliderOffset: number): void {
           state.sliderOffset = newSliderOffset;  
@@ -56,6 +62,15 @@ const store = createStore({
         },
         setTrackCount(state: any, newTrackCount: number): void {
             state.trackCount = newTrackCount;
+        },
+        setVisibleHeight(state: any, visibleHeight: number): void {
+            state.visibleHeight = visibleHeight;
+            console.log('visibleHeight', visibleHeight);
+        },
+        calculateScrollableHeight(state: any): void {
+            const trackHeight: number = (state.trackCount + 1) * config.trackHeight;
+            state.scrollableHeight = trackHeight > state.visibleHeight ? (trackHeight - state.visibleHeight) + config.componentPadding : 0;
+            console.log('scrollableHeight', state.scrollableHeight);  
         },
         initTrack(state: any, trackId: number): void {
           if (!state.blocks[trackId]) {
@@ -89,7 +104,7 @@ const store = createStore({
         deleteTactons(state: any, trackId: number): void {
             if (state.blocks[trackId] == undefined) return;
             state.blocks[trackId].forEach((block: BlockDTO): void => {
-                pixiApp.stage.removeChild(block.container);
+                dynamicContainer.removeChild(block.container);
                 block.container.children.forEach((child: Pixi.ContainerChild): void => {
                     child.removeAllListeners();
                 });
@@ -98,13 +113,20 @@ const store = createStore({
             });
 
             delete state.blocks[trackId];
+            
+            // remove from selection
+            for (let i: number = state.selectedBlocks.length - 1; i >= 0; i--) {
+                if (state.selectedBlocks[i].trackId == trackId) {
+                    state.selectedBlocks.splice(i, 1);
+                }
+            }
         },
         selectBlock(state: any, block: BlockSelection): void {
             state.selectedBlocks.push(block);
             state.blocks[block.trackId][block.index].strokedRect.visible = true;
             
             // store data for validation
-            const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc, block: BlockSelection) => {
+            const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
                 acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
                 acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
                 return acc;
@@ -120,7 +142,7 @@ const store = createStore({
               state.blocks[block.trackId][block.index].strokedRect.visible = false;
 
               // store data for validation
-              const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc, block: BlockSelection) => {
+              const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
                   acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
                   acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
                   return acc;
@@ -194,7 +216,7 @@ const store = createStore({
                 
                 // update data
                 dto.initY = dto.rect.y;
-                dto.initX = (dto.rect.x + state.viewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
+                dto.initX = (dto.rect.x + state.horizontalViewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
                 
                 // update left handle
                 dto.leftHandle.clear();
@@ -295,7 +317,7 @@ const store = createStore({
 
             let maxPosition: number = 0;
 
-            Object.values(sortedTacton).forEach((channelData: any) => {
+            Object.values(sortedTacton).forEach((channelData: any): void => {
                 if (channelData.length > 0) {
                     const trackLastTacton = channelData[channelData.length - 1];
                     const trackLastPosition = trackLastTacton.rect.x + trackLastTacton.rect.width;
@@ -316,20 +338,29 @@ const store = createStore({
         updateZoomLevel({ commit }: any, newZoomLevel: number): void {
             commit('setZoomLevel', newZoomLevel);
         },
-        updateViewportOffset({ commit }: any, newViewportOffset: number): void {
-            commit('setViewportOffset', newViewportOffset);
+        updateHorizontalViewportOffset({ commit }: any, newOffset: number): void {
+            commit('setHorizontalViewportOffset', newOffset);
+        },
+        updateVerticalViewportOffset({ commit }: any, newOffset: number): void {
+            commit('setVerticalViewportOffset', newOffset);
         },
         updateSliderOffset({ commit }: any, newSliderOffset: number): void {
-          commit('setSliderOffset', newSliderOffset);  
+          commit('setSliderOffset', newSliderOffset);
         },
         updateGridLines({ commit }: any, newGridLines: []): void {
             commit('setGridLines', newGridLines);
         },
         setTrackCount( { commit }: any, newTrackCount: number): void {
-          commit('setTrackCount', newTrackCount);  
+          commit('setTrackCount', newTrackCount);
+        },
+        setVisibleHeight( { commit }: any, newVisibleHeight: number): void {
+          commit('setVisibleHeight', newVisibleHeight);  
+        },
+        calculateScrollableHeight( { commit }: any): void {
+          commit('calculateScrollableHeight');
         },
         initTrack({ commit }: any, trackId: number): void {
-          commit('initTrack', trackId);  
+          commit('initTrack', trackId);
         },
         addBlock({ commit }: any, {trackId, block}: {trackId: number, block: TactonRectangle}): void {
             commit('addBlock', {trackId, block});  
@@ -427,10 +458,12 @@ const store = createStore({
     },
     getters: {
         zoomLevel: (state: any) => state.zoomLevel,
-        viewportOffset: (state: any) => state.viewportOffset,
+        horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
+        verticalViewportOffset: (state: any) => state.verticalViewportOffset,
         sliderOffset: (state: any) => state.sliderOffset,
         gridLines: (state: any) => state.gridLines,
         trackCount: (state: any) => state.trackCount,
+        scrollableHeight: (state: any) => state.scrollableHeight,
         blocks: (state: any) => state.blocks,
         initialVirtualViewportWidth: (state: any) => state.initialVirtualViewportWidth,
         currentVirtualViewportWidth: (state: any) => state.currentVirtualViewportWidth,

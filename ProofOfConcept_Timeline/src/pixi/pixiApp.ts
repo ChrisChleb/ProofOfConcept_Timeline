@@ -1,6 +1,6 @@
-import * as PIXI from 'pixi.js';
+import * as Pixi from 'pixi.js';
 
-const pixiApp: PIXI.Application = new PIXI.Application();
+const pixiApp: Pixi.Application = new Pixi.Application();
 
 // Init app
 await pixiApp.init({
@@ -8,6 +8,11 @@ await pixiApp.init({
     height: window.innerHeight,
     width: window.innerWidth,
 });
+
+export const staticContainer: Pixi.Container = new Pixi.Container();
+export const dynamicContainer: Pixi.Container = new Pixi.Container();
+pixiApp.stage.addChild(staticContainer);
+pixiApp.stage.addChild(dynamicContainer);
 
 document.body.appendChild(pixiApp.canvas);
 

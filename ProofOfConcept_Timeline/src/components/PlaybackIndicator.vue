@@ -2,7 +2,7 @@
 import {defineComponent, watch} from 'vue'
 import * as Pixi from "pixi.js";
 
-import pixiApp from "@/pixi/pixiApp";
+import {dynamicContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import {useStore} from "vuex";
 export default defineComponent({
@@ -27,10 +27,10 @@ export default defineComponent({
     
     renderIndicator();
     watch(
-        [() => props.currentTime, () => store.state.viewportOffset, () => store.state.sliderOffset],
-        ([time, viewportOffset, sliderOffset]) => {
+        [() => props.currentTime, () => store.state.horizontalViewportOffset, () => store.state.sliderOffset],
+        ([time, horizontalViewportOffset, sliderOffset]) => {
           const x = ((time / 1000) * (config.pixelsPerSecond * store.state.zoomLevel));
-          playbackIndicator.x = x - viewportOffset - sliderOffset;
+          playbackIndicator.x = x - horizontalViewportOffset - sliderOffset;
         }
     );    
     function renderIndicator() {
@@ -39,7 +39,7 @@ export default defineComponent({
       playbackIndicator.lineTo(config.leftPadding, config.trackHeight * props.trackCount + config.sliderHeight + config.componentPadding);
       playbackIndicator.stroke({width: 4, color: 'rgba(13,148,1,0.5)'})
       playbackIndicator._zIndex = 1;
-      pixiApp.stage.addChild(playbackIndicator);
+      dynamicContainer.addChild(playbackIndicator);
     }
     
     return {

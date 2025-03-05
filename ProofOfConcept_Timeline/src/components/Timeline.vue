@@ -1,8 +1,8 @@
 <script lang="ts">
-import {defineComponent, h, ref} from 'vue'
+import {defineComponent, ref, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
 import Track, {type BlockDTO} from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
@@ -13,6 +13,7 @@ import JsonData from '../json/2024-06-20_Team1_session1.json';
 import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 import Slider from "@/components/Slider.vue";
 import store, {type BlockSelection} from "@/store";
+import ScrollBar from "@/components/ScrollBar.vue";
 
 export default defineComponent({
   name: "Timeline",
@@ -30,7 +31,7 @@ export default defineComponent({
       loadedJson: null as any,
       selectedJson: null as any,
       jsonData: JsonData,
-      store: useStore()
+      store: useStore(),
     };
   },
   created() {
@@ -107,6 +108,8 @@ export default defineComponent({
       
       // need to adjust coordinates, to be in canvas
       y -= pixiApp.canvas.getBoundingClientRect().top;
+      // adjust for scrolling
+      y -= dynamicContainer.y;
       
       // calculate tracks to check --> only check tracks that could contain selection
       const startTrack = Math.floor(y / config.trackHeight);
@@ -129,6 +132,11 @@ export default defineComponent({
       const height = Math.abs(selectionStart.y - selectionEnd.y);
       return { x, y, width, height };
     }
+  },
+  mounted() {
+    const visibleHeight = window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight - config.componentPadding;
+    store.dispatch('setVisibleHeight', visibleHeight);
+    store.dispatch('calculateScrollableHeight');
   },
   methods: {
     loadJson() {
@@ -219,11 +227,12 @@ export default defineComponent({
     changeTrackCount(changeBy: number) {
       this.trackCount += changeBy;
       store.dispatch('setTrackCount', this.trackCount - 1);
-      
+      store.dispatch('calculateScrollableHeight');
       // TODO for future, calculate new trackLength
     }
   },
   components: {
+    ScrollBar,
     Slider,
     PlaybackVisualization,
     PlaybackIndicator,
@@ -246,6 +255,7 @@ export default defineComponent({
   </div>
   <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
+  <ScrollBar></ScrollBar>
   <Grid :track-count="trackCount"></Grid>
   <div v-for="trackId in Array.from({ length: trackCount }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId" :blocks="blocks[trackId] || []"/>

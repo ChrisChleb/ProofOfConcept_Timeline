@@ -3,7 +3,7 @@ import { defineComponent, onBeforeUnmount, type PropType, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import type {Graphics} from "pixi.js";
-import pixiApp from "@/pixi/pixiApp";
+import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
 import {BlockChanges} from "@/store";
@@ -79,13 +79,15 @@ export default defineComponent({
     
     // viewport-scrolling
     let isScrolling = false;
-    let currentDirection: 'left' | 'right' | null = null;
+    let currentDirection: Direction | null = null;
     let currentFactor = 0;
     let currentTacton: BlockDTO | null = null;
     
     // thresholds for viewport-scrolling --> TODO update on resize
-    const rightThreshold = pixiApp.canvas.width - config.scrollThreshold;
-    const leftThreshold = config.scrollThreshold;
+    const rightThreshold = pixiApp.canvas.width - config.horizontalScrollThreshold;
+    const leftThreshold = config.horizontalScrollThreshold;
+    const topThreshold  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
+    const bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
     
     let trackContainer: Pixi.Container = new Pixi.Container();
     trackContainer.height = config.trackHeight;
@@ -97,13 +99,20 @@ export default defineComponent({
     trackLine.rect(0, config.trackHeight / 2, pixiApp.canvas.width, 2);
     trackLine.fill(config.colors.trackLineColor);
     trackContainer.addChild(trackLine);
-    
-    pixiApp.stage.addChild(trackContainer);    
-    renderTrack();    
+
+    const trackLabel = new Pixi.Text();
+    trackLabel.text = props.trackId;
+    trackLabel.style.fontSize = 18;
+    trackLabel.x = - (config.leftPadding / 2);
+    trackLabel.y = (config.trackHeight / 2) - (trackLabel.height/2);
+    trackContainer.addChild(trackLabel);
+
+    dynamicContainer.addChild(trackContainer);    
+    renderTrack();
 
     // TODO move updateTactons to store
     watch(() => store.state.zoomLevel, updateTactons);
-    watch(() => store.state.viewportOffset, updateTactons);
+    watch(() => store.state.horizontalViewportOffset, updateTactons);
     watch(() => store.state.sliderOffset, updateTactons);
     watch(() => props.blocks, (newValue, oldValue) => {
       if (newValue.length !== 0 || oldValue.length !== 0) {
@@ -227,8 +236,8 @@ export default defineComponent({
         bottomHandle.on('pointerdown', (event) => onChangeAmplitude(event, dto, Direction.BOTTOM));
         rect.on('pointerdown', (event) => onMoveBlock(event, dto));
         
-        store.dispatch('addBlock', {trackId: props.trackId, block: dto});        
-        pixiApp.stage.addChild(tactonContainer);
+        store.dispatch('addBlock', {trackId: props.trackId, block: dto});
+        dynamicContainer.addChild(tactonContainer);
       });
       updateTactons();
     }
@@ -241,11 +250,13 @@ export default defineComponent({
       };
     }
     function updateTactons() {
+      // TODO this does not work with multiple blocks or if a block ist moved to another track
       store.state.blocks[props.trackId]?.forEach((block: BlockDTO) => {
         // when moving tacton, dont update --> is updated onMouseUp
         if (currentTacton?.rect.uid != block.rect.uid) {
           block.rect.width = block.initWidth * store.state.zoomLevel;
-          block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.viewportOffset - store.state.sliderOffset;
+          block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset - store.state.sliderOffset;
+          // this is currently the biggest performance issue
           // TODO only update handles after last change --> better performance
           updateHandles(block);
           // TODO - smart update --> only activily update selected Strokes, update the rest after last change --> better performance
@@ -253,7 +264,7 @@ export default defineComponent({
         }
       });
     }
-    function startAutoScroll(direction: 'left' | 'right') {
+    function startAutoScroll(direction: Direction) {
       if (!isScrolling) {
         isScrolling = true;
         currentDirection = direction;
@@ -265,36 +276,69 @@ export default defineComponent({
       currentDirection = null;
       currentFactor = 0;
     }
+
+    let currentYAdjustment = 0;
+    let lastVerticalOffset = 0;
     function autoScroll() {
       if (!isScrolling || !currentDirection || currentTacton == null) return;
     
-      const scrollSpeed = currentFactor * config.scrollSpeed;
+      const horizontalScrollSpeed = currentFactor * config.horizontalScrollSpeed;
+      const verticalScrollSpeed = currentFactor * config.verticalScrollSpeed;
       
-      if (currentDirection === 'right') {
-        const newOffset = store.state.viewportOffset + scrollSpeed;
-        store.dispatch('updateViewportOffset', newOffset);        
-      } else if (currentDirection === 'left') {
-        const newOffset = Math.max(store.state.viewportOffset - scrollSpeed, 0);
-        store.dispatch('updateViewportOffset', newOffset);
+      switch (currentDirection) {
+        case Direction.TOP: {
+          const newOffset = Math.min(dynamicContainer.y + verticalScrollSpeed, 0);
+          currentYAdjustment = newOffset - lastVerticalOffset;
+          store.dispatch('updateVerticalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.BOTTOM: {
+          const newOffset = Math.max(dynamicContainer.y - verticalScrollSpeed, -store.state.scrollableHeight);
+          currentYAdjustment = newOffset - lastVerticalOffset;          
+          store.dispatch('updateVerticalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.LEFT: {
+          const newOffset = Math.max(store.state.horizontalViewportOffset - horizontalScrollSpeed, 0);
+          store.dispatch('updateHorizontalViewportOffset', newOffset);
+          break;
+        }
+
+        case Direction.RIGHT: {
+          const newOffset = store.state.horizontalViewportOffset + horizontalScrollSpeed;
+          store.dispatch('updateHorizontalViewportOffset', newOffset);
+        }
       }
       
       requestAnimationFrame(() => autoScroll());
     }
-    function scrollViewport(cursorX: number) {
+    function scrollViewportHorizontal(cursorX: number) {
       if (cursorX >= rightThreshold) {
-        currentFactor = Math.min((cursorX - rightThreshold) / config.scrollThreshold, 1);
-        startAutoScroll('right');
+        currentFactor = Math.min((cursorX - rightThreshold) / config.horizontalScrollThreshold, 1);
+        startAutoScroll(Direction.RIGHT);
       } else if (cursorX <= leftThreshold) {
-        currentFactor= Math.min((leftThreshold - cursorX) / config.scrollThreshold, 1);
-        startAutoScroll('left');
+        currentFactor= Math.min((leftThreshold - cursorX) / config.horizontalScrollThreshold, 1);
+        startAutoScroll(Direction.LEFT);
       } else if (isScrolling){
         stopAutoScroll();
+      }
+    }
+    
+    function scrollViewportVertical(cursorY: number) {
+      if (cursorY <= topThreshold) {
+        currentFactor = Math.min((topThreshold - cursorY) / config.verticalScrollThreshold, 1);
+        startAutoScroll(Direction.TOP);
+      } else if (cursorY >= bottomThreshold) {
+        currentFactor= Math.min((cursorY - bottomThreshold) / config.verticalScrollThreshold, 1);
+        startAutoScroll(Direction.BOTTOM);
       }
     }
     function calculateVirtualViewportLength() {
       store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {        
         lastBlockPosition -= config.leftPadding;
-        lastBlockPosition += store.state.viewportOffset;
+        lastBlockPosition += store.state.horizontalViewportOffset;
         lastBlockPosition += store.state.sliderOffset;
         lastBlockPosition /= store.state.zoomLevel;
         // need a better solution, because this leads to weird behavior of offset
@@ -311,6 +355,7 @@ export default defineComponent({
       initialY = event.data.global.y;
       initialBlockX = block.rect.x;
       currentTacton = block;
+      currentYAdjustment = 0;
       store.dispatch('setInteractionState', true);
       pointerMoveHandler = (event: any) => moveBlock(event);
       pointerUpHandler = () => onMoveBlockEnd();
@@ -320,12 +365,12 @@ export default defineComponent({
     }
     function moveBlock(event: any) {
       if (currentTacton == null) return;
-      const changes = new BlockChanges();      
+      const changes = new BlockChanges();   
       const deltaX = event.clientX - initialX;
       const deltaY = event.clientY - initialY;
       
       // detect switching tracks
-      currentYTrackId = currentTacton.trackId + Math.floor(deltaY / config.trackHeight);
+      currentYTrackId = currentTacton.trackId + Math.floor((deltaY - currentYAdjustment) / config.trackHeight);
       currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
       changes.track = currentYTrackId - currentTacton.trackId;
       
@@ -333,7 +378,8 @@ export default defineComponent({
       const newLeftX = initialBlockX + deltaX;
       const newRightX = initialBlockX + currentTacton.rect.width + deltaX;
       
-      scrollViewport(event.clientX);      
+      scrollViewportHorizontal(event.clientX);
+      scrollViewportVertical(event.clientY);
       
       // init vars
       const snappingRadius = config.moveSnappingRadius;
@@ -376,8 +422,8 @@ export default defineComponent({
         newX += overflowRight;
       }
       
-      if (-newX > 0) {
-        newX = 0;
+      if (newX < config.leftPadding) {
+        newX = config.leftPadding;
       }
       
       changes.x = newX - prevX;
@@ -390,6 +436,7 @@ export default defineComponent({
       store.dispatch('setInteractionState', false);
       pointerMoveHandler = null;
       pointerUpHandler = null;
+      lastVerticalOffset = store.state.verticalViewportOffset;
       
       if (currentTacton == null) return;         
       store.dispatch('changeBlockTrack', (currentYTrackId - currentTacton.trackId));
@@ -507,6 +554,7 @@ export default defineComponent({
     function changeAmplitude(event: any, block: BlockDTO, direction: Direction) {
       let deltaY = 0;
       // there is a difference of appr. 106 between event.clientY and initialY? --> is the exact height-value of buttons and playbackVisualization
+      // TODO can be calculated by pixiApp.canvas.getBoundingRect().top
       if (direction == Direction.TOP) {
         deltaY = (initialY - event.clientY);
         deltaY += 106;

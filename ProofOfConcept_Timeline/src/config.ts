@@ -1,15 +1,22 @@
 const config = {
     // general
     leftPadding: 48,
-    componentPadding: 12,
-    scrollSpeed: 25,
-    scrollThreshold: 100,
+    componentPadding: 32,
+    horizontalScrollSpeed: 25,
+    horizontalScrollThreshold: 100,
+    verticalScrollSpeed: 0.1,
+    verticalScrollThreshold: 100,
     // slider
     sliderHeight: 28,
     sliderMinWidth: 5,
     sliderHandleWidth: 32,
     maxZoom: 20,
     minZoom: 1,
+    //scrollBar
+    scrollBarHeight: 150,
+    scrollBarWidth: 15,
+    scrollBarPassiveAlpha: 0.5,
+    scrollBarStepSize: 200,
     // track
     trackHeight: 200,
     // tactons
@@ -19,6 +26,7 @@ const config = {
     pixelsPerSecond: 100,
     moveSnappingRadius: 20,
     resizingSnappingRadius: 5,
+    //colors
     colors: {
         gridColor: 'rgba(75, 75, 75, 0.2)',
         handleColor: 'rgba(236,102,12,0)',

@@ -270,7 +270,7 @@ export default defineComponent({
           // this is currently the biggest performance issue
           // TODO only update handles after last change --> better performance
           updateHandles(block);
-          // TODO - smart update --> only activily update selected Strokes, update the rest after last change --> better performance
+          // TODO - smart update --> only actively update selected Strokes, update the rest after last change --> better performance
           updateStrokedRect(block);
         }
       });
@@ -356,7 +356,7 @@ export default defineComponent({
         // --> when tacton is not exactly at border of window, as the sequenceLength is then less then what is currently shown on screen
         //store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
         console.log("virtualViewportWidth: ", lastBlockPosition);
-        console.log("SequenzLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
+        console.log("SequenceLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
       });
     }
     function onMoveBlock(event: any, block: BlockDTO) {

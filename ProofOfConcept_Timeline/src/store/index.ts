@@ -16,7 +16,7 @@ export class BlockChanges {
 export interface BlockSelection {
     trackId: number;
     index: number;
-    //uid: number;
+    uid: number;
 }
 
 interface UpdateValidationData {
@@ -386,11 +386,11 @@ const store = createStore({
         setInteractionState({ commit }: any, newState: boolean): void {
             commit('setInteractionState', newState);
         },
-        selectBlock({ state, commit }: any, {uid, trackId}: {uid: number, trackId: number}): void {            
-            const index: number = state.blocks[trackId].findIndex((block: BlockDTO): boolean => block.rect.uid === uid);
+        selectBlock({ state, commit }: any, blockToSelect: BlockDTO): void {            
+            const index: number = state.blocks[blockToSelect.trackId].findIndex((block: BlockDTO): boolean => block.rect.uid === blockToSelect.rect.uid);
             if (index !== -1) {
-                const selectionIndex = state.selectedBlocks.findIndex((block: BlockSelection) => block.trackId === trackId && block.index === index);
-                const block: BlockSelection = {trackId: trackId, index: index};
+                const selectionIndex = state.selectedBlocks.findIndex((block: BlockSelection) => block.trackId === blockToSelect.trackId && block.index === index);
+                const block: BlockSelection = {trackId: blockToSelect.trackId, index: index, uid: blockToSelect.rect.uid};
                 if (selectionIndex == -1) {
                     // block is not selected
                     if (!state.isPressingShift) {

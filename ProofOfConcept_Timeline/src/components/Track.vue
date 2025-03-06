@@ -349,8 +349,7 @@ export default defineComponent({
       });
     }
     function onMoveBlock(event: any, block: BlockDTO) {
-      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
-
+      store.dispatch('selectBlock', block);
       initialX = event.data.global.x;
       initialY = event.data.global.y;
       initialBlockX = block.rect.x;
@@ -450,7 +449,7 @@ export default defineComponent({
       initialBlockWidth = block.rect.width;
       initialBlockX = block.rect.x;
       store.dispatch('setInteractionState', true);
-      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+      store.dispatch('selectBlock', block);
       
       pointerMoveHandler = (event: any) => onResize(event, block);
       pointerUpHandler = () => onResizeEnd();
@@ -463,7 +462,7 @@ export default defineComponent({
       initialBlockWidth = block.rect.width;
       initialBlockX = block.rect.x;
       store.dispatch('setInteractionState', true);
-      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+      store.dispatch('selectBlock', block);
       
       pointerMoveHandler = (event: any) => onResize(event, block);
       pointerUpHandler = () => onResizeEnd();
@@ -544,7 +543,7 @@ export default defineComponent({
       initialBlockHeight = block.rect.height;
       currentTacton = block;
       store.dispatch('setInteractionState', true);
-      store.dispatch('selectBlock', {uid: block.rect.uid, trackId: block.trackId});
+      store.dispatch('selectBlock', block);
       
       pointerMoveHandler = (event: any) => changeAmplitude(event, block, direction);
       pointerUpHandler = () => onChangeAmplitudeEnd();

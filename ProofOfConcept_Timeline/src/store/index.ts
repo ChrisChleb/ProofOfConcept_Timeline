@@ -82,7 +82,7 @@ const store = createStore({
             state.sorted[trackId] = false;
         },
         sortTactons(state: any): void {
-            const sortedTactons: Record<number, BlockDTO[]> = {};                   
+            const sortedTactons: Record<number, BlockDTO[]> = {};
             Object.keys(state.blocks).forEach((channel: string, trackId: number): void => {                
                 if (state.sorted[trackId]) {
                     sortedTactons[trackId] = state.blocks[trackId];
@@ -95,7 +95,18 @@ const store = createStore({
                         }
                         return rectA.x - b.rect.x;
                     });
-                    state.sorted[trackId] = true;                  
+                    state.sorted[trackId] = true;
+                }
+            });
+            
+            // fix selectionData
+            state.selectedBlocks.forEach((selection: BlockSelection): void => {
+                console.log(selection);
+                const block: BlockDTO | undefined = sortedTactons[selection.trackId][selection.index];
+                if (block == undefined || block.rect.uid != selection.uid) {
+                    selection.index = sortedTactons[selection.trackId].findIndex((b: BlockDTO): boolean => {
+                        return b.rect.uid == selection.uid;
+                    });
                 }
             });
             
@@ -260,7 +271,7 @@ const store = createStore({
                 dto.bottomHandle.fill(config.colors.handleColor);
             });
         },
-        changeBlockTrack(state: any, {sourceTrack, targetTrack, blockIndex}: {sourceTrack: number, targetTrack: number, blockIndex: number}): void {          
+        changeBlockTrack(state: any, {sourceTrack, targetTrack, blockIndex}: {sourceTrack: number, targetTrack: number, blockIndex: number}): void {
             if (targetTrack == sourceTrack) {
                 console.log("Source- and TargetTrack are identical");
                 return;
@@ -272,10 +283,6 @@ const store = createStore({
                 console.error("Block not found: ", sourceTrack, " | ", blockIndex);
                 return;
             }
-
-            // problem: newIndex might be wrong, if later a block is removed from that trackId
-            // 1. Solution, always start with first block in move-direction
-            // 2. Solution, update if spliced block is not the last of track --> this is implemented, but maybe 1. Solution would have better performance?
             
             // fix faulty indices if removed block was not last of track
             if (prevTrackLength != blockIndex)  {
@@ -287,15 +294,14 @@ const store = createStore({
                         
             block.initY = block.rect.y;
             
-            const newIndex: number = state.blocks[targetTrack].push(block);
+            state.blocks[targetTrack].push(block);
             block.trackId = targetTrack;
             state.sorted[sourceTrack] = false;
             state.sorted[targetTrack] = false;
-                        
+            
             // update selectionData
-            const selectionIndex = state.selectedBlocks.findIndex((block: BlockSelection) => {return block.trackId == sourceTrack && block.index == blockIndex});
+            const selectionIndex = state.selectedBlocks.findIndex((selection: BlockSelection): boolean => {return selection.uid == block.rect.uid});
             state.selectedBlocks[selectionIndex].trackId = targetTrack;
-            state.selectedBlocks[selectionIndex].index = newIndex - 1;
         },
         calculateLastBlockPosition(state: any): void {
             const sortedTacton: Record<number, BlockDTO[]> = {};
@@ -311,7 +317,6 @@ const store = createStore({
                         }
                         return rectA.x - b.rect.x;
                     });
-                    state.sorted[trackId] = true;
                 }
             });
 

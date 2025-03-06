@@ -6,7 +6,7 @@ import type {Graphics} from "pixi.js";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import type {TactonRectangle} from "@/parser/instructionParser";
-import {BlockChanges} from "@/store";
+import {BlockChanges, type BlockSelection} from "@/store";
 
 enum Direction {
   LEFT = 'left',
@@ -73,7 +73,12 @@ export default defineComponent({
     let initialBlockHeight: number = 0;
     let initialBlockX: number = 0;
     let currentYTrackId: number = props.trackId;
-        
+    
+    // collision-detection vars
+    let bordersToCheck = {} as Record<number, number[]>;
+    let lastStickPosition = 0;
+    let lastViewportOffset = 0;
+    
     let pointerMoveHandler: any = null;
     let pointerUpHandler: any = null;
     
@@ -355,6 +360,19 @@ export default defineComponent({
       initialBlockX = block.rect.x;
       currentTacton = block;
       currentYAdjustment = 0;
+           
+      // calculate border to check      
+      bordersToCheck = {};
+      Object.keys(store.state.blocks).forEach((trackId) => {
+        store.state.blocks[trackId].forEach((block: BlockDTO, index: number) => {
+          if (!bordersToCheck[block.trackId]) bordersToCheck[block.trackId] = [];
+          if (!store.state.selectedBlocks.some((selection: BlockSelection) => selection.uid == block.rect.uid)) {
+            bordersToCheck[block.trackId].push(block.rect.x);
+            bordersToCheck[block.trackId].push(block.rect.x + block.rect.width);
+          }
+        });
+      });
+      lastViewportOffset = store.state.horizontalViewportOffset;
       store.dispatch('setInteractionState', true);
       pointerMoveHandler = (event: any) => moveBlock(event);
       pointerUpHandler = () => onMoveBlockEnd();
@@ -383,46 +401,93 @@ export default defineComponent({
       // init vars
       const snappingRadius = config.moveSnappingRadius;
       const prevX = currentTacton.rect.x;
-      let snappedLeftX = newLeftX;
-      let snappedRightX = newRightX;
-      let snappedLeft = false;
-      let snappedRight = false;     
-      let newX;
+      let newX = newLeftX;
+      
+      let isColliding = false;
+      let isOverflowing = false;
+      
+      // collision-detection             
+      if (bordersToCheck[currentYTrackId].length > 0) {      
+        for (let i = 0; i < bordersToCheck[currentYTrackId].length - 1; i += 2) {
+          // get borders
+          let leftBorder = bordersToCheck[currentYTrackId][i];
+          let rightBorder = bordersToCheck[currentYTrackId][i + 1];
+          
+          // if horizontal scrolling while moving, offset must be added
+          const offsetDifference = store.state.horizontalViewportOffset - lastViewportOffset;
+          if (offsetDifference != 0) {
+            // TODO causes sometimes issues ?
+            console.log("applied diff: ", offsetDifference);
+            leftBorder -= offsetDifference;
+            rightBorder -= offsetDifference;
+          }
+          
+          // check if colliding
+          if (newLeftX <= rightBorder && newRightX >= leftBorder) {
+            // get distance
+            const distanceLeft = Math.abs(newLeftX - rightBorder);
+            const distanceRight = Math.abs(leftBorder - newRightX);
+            isColliding = true;
+            // check which border is colliding
+            if (distanceRight > distanceLeft) {
+              // snap right                     
+              newX = leftBorder - currentTacton.rect.width;
+              let gapSize = bordersToCheck[currentYTrackId][i + 2] - rightBorder;
+              if (gapSize >= currentTacton.rect.width || isNaN(gapSize)) {
+                newX = rightBorder;
+                lastStickPosition = newX;
+              } else {
+                newX = lastStickPosition;
+              }
+            } else {
+              // snap left
+              let gapSize = leftBorder - bordersToCheck[currentYTrackId][i - 1];
+              
+              // no more borders left, check for start of timeline
+              if (isNaN(gapSize)) {
+                gapSize = leftBorder - config.leftPadding;
+              }
+
+              if (gapSize >= currentTacton.rect.width || isNaN(gapSize)) {
+                newX = leftBorder - currentTacton.rect.width;
+                lastStickPosition = newX;
+              } else {
+                newX = lastStickPosition;
+              }
+            }
+          }
+        }
+      }
+      
+      if (!isColliding) {
+        // check for overflow
+        const overflowRight = Math.min(((pixiApp.canvas.width) - (newX + currentTacton.rect.width)), 0);
+
+        if (overflowRight < 0) {
+          newX += overflowRight;
+          isOverflowing = true;
+        }
+
+        if (newX < config.leftPadding) {
+          newX = prevX;
+          isOverflowing = true;
+        }
+      }
       
       // check for snapping
-      for (const lineX of store.state.gridLines) {
-        // left
-        if (Math.abs(snappedLeftX - lineX) < snappingRadius) {
-          snappedLeftX = lineX;
-          snappedLeft = true;
-          break;
+      if (!isColliding && !isOverflowing) {        
+        for (const lineX of store.state.gridLines) {
+          // left
+          if (Math.abs(newLeftX - lineX) < snappingRadius) {
+            newX = lineX;
+            break;
+          }
+          // right
+          if (Math.abs(newRightX - lineX) < snappingRadius) {
+            newX = lineX - currentTacton.rect.width;
+            break;
+          }
         }
-        // right
-        if (Math.abs(snappedRightX - lineX) < snappingRadius) {
-          snappedRightX = lineX - currentTacton.rect.width;
-          snappedRight = true;
-          break;
-        }
-      }
-      
-      // finish calculation
-      if (snappedLeft) {
-        newX = snappedLeftX;
-      } else if (snappedRight) {
-        newX = snappedRightX;
-      } else {
-        newX = newLeftX;
-      }      
-            
-      // check for overflow
-      const overflowRight = Math.min(((pixiApp.canvas.width) - (newX + currentTacton.rect.width)), 0);
-      
-      if (overflowRight < 0) {
-        newX += overflowRight;
-      }
-      
-      if (newX < config.leftPadding) {
-        newX = config.leftPadding;
       }
       
       changes.x = newX - prevX;
@@ -439,6 +504,7 @@ export default defineComponent({
       
       if (currentTacton == null) return;         
       store.dispatch('changeBlockTrack', (currentYTrackId - currentTacton.trackId));
+      store.dispatch('sortTactons');
       store.dispatch('updateSelectedBlockHandles');
       calculateVirtualViewportLength();      
       currentTacton = null;
@@ -470,11 +536,13 @@ export default defineComponent({
       window.addEventListener('pointerup', pointerUpHandler);
     }
     function onResize(event: any, block: BlockDTO) {
-      const deltaX = event.clientX - initialX; 
-      let newWidth;
-      let newX;
+      const deltaX = event.clientX - initialX;
       const prevX = block.rect.x;
       const prevWidth = block.rect.width;
+      let newWidth;
+      let newX;
+
+      let collided = false;
       
       if (resizeDirection === Direction.RIGHT) {
         // calculate new tacton width
@@ -486,9 +554,24 @@ export default defineComponent({
         // calculate x coordinate of right border
         const newRightX = initialBlockX + newWidth;
         
-        // test for snapping
-        const snappedRightX = snapToGrid(newRightX);  
-        newWidth = snappedRightX - initialBlockX;
+        // check for collision
+        if (store.state.blocks[block.trackId].length > 1) {
+          store.state.blocks[block.trackId].forEach((other: BlockDTO) => {
+            if (other.rect.uid != block.rect.uid) {
+              const otherRightX = other.rect.x + other.rect.width;
+              if (newRightX > other.rect.x && prevX < otherRightX) {
+                newWidth = other.rect.x - prevX;
+                collided = true;
+              }
+            }
+          });
+        }
+        
+        if (!collided) {
+          // test for snapping
+          const snappedRightX = snapToGrid(newRightX);
+          newWidth = snappedRightX - initialBlockX;
+        }
       } else {
         // calculate new tacton width
         newWidth = Math.max((initialBlockWidth - deltaX), config.minTactonWidth);
@@ -496,17 +579,34 @@ export default defineComponent({
         // check for minTactonWidth
         if (newWidth == config.minTactonWidth) return;
         
-        // calculate new x coordinate of tacton
+        // calculate new x coordinates of tacton
         newX = initialBlockX + deltaX;
+        const newRightX = newX + newWidth;
         
-        // test for snapping
-        const snappedLeftX = snapToGrid(newX);
-        newX = snappedLeftX;
-        newWidth = initialBlockWidth + (initialBlockX - snappedLeftX);
+        // check for collision
+        if (store.state.blocks[block.trackId].length > 1) {
+          store.state.blocks[block.trackId].forEach((other: BlockDTO) => {
+            if (other.rect.uid != block.rect.uid) {
+              const otherRightX = other.rect.x + other.rect.width;
+              if (newX < otherRightX && newRightX > other.rect.x) {
+                newX = otherRightX;
+                newWidth = newRightX - otherRightX;
+                collided = true;
+              }
+            }
+          });
+        }
+        
+        if (!collided) {
+          // test for snapping
+          const snappedLeftX = snapToGrid(newX);
+          newX = snappedLeftX;
+          newWidth = initialBlockWidth + (initialBlockX - snappedLeftX);
+        }
       }
 
       // early exit -> x is past start of sequence
-      if (newX < 0) return;
+      if (newX < config.leftPadding) return;
       
       const changes = new BlockChanges();
 
@@ -526,6 +626,8 @@ export default defineComponent({
       pointerMoveHandler = null;
       pointerUpHandler = null;
     }
+    
+    // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration
     function snapToGrid(positionToCheck: number) {
       const snapRadius = config.resizingSnappingRadius;
       const gridLines = store.state.gridLines;

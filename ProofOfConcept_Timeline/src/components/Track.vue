@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, onBeforeUnmount, type PropType, watch} from 'vue'
+import {defineComponent, onBeforeUnmount, onMounted, type PropType, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import type {Graphics} from "pixi.js";
@@ -94,6 +94,8 @@ export default defineComponent({
     const topThreshold  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
     const bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
     
+    let canvasOffset = 0;
+    
     let trackContainer: Pixi.Container = new Pixi.Container();
     trackContainer.height = config.trackHeight;
     trackContainer.width = pixiApp.canvas.width;
@@ -128,7 +130,11 @@ export default defineComponent({
     window.addEventListener('resize', () => {
       trackLine.width = pixiApp.canvas.width;
     });
-
+    
+    onMounted(() => {
+      canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
+    });
+    
     onBeforeUnmount(() => {
       console.log("deleting track: ", props.trackId);
       store.dispatch('deleteTactons', props.trackId);
@@ -654,14 +660,12 @@ export default defineComponent({
     }
     function changeAmplitude(event: any, block: BlockDTO, direction: Direction) {
       let deltaY = 0;
-      // there is a difference of appr. 106 between event.clientY and initialY? --> is the exact height-value of buttons and playbackVisualization
-      // TODO can be calculated by pixiApp.canvas.getBoundingRect().top
       if (direction == Direction.TOP) {
         deltaY = (initialY - event.clientY);
-        deltaY += 106;
+        deltaY += canvasOffset;
       } else if (direction == Direction.BOTTOM) {
         deltaY = event.clientY - initialY;
-        deltaY -= 106;
+        deltaY -= canvasOffset;
       }
 
       // TODO add vars for min and maxHeight for config

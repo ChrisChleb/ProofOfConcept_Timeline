@@ -9,14 +9,26 @@ export default defineComponent({
       type: Instruction,
       default: null,
     },
+    currentTime: {
+      type: Number,
+      required: true
+    },
+    totalDuration: {
+      type: Number,
+      required: true
+    }
   }
 })
 </script>
 
 <template>
-  <p style="user-select: none">{{currentInstruction ? currentInstruction : "No Instruction"}}</p>
+  <!--currentTime and totalDuration are in ms-->
+  <p>Time: {{(currentTime/1000).toFixed(2)}} / {{(totalDuration/1000).toFixed(2)}} sec</p>
+  <p>Current Instruction: {{currentInstruction ? currentInstruction : "No Instruction"}}</p>
 </template>
 
 <style scoped>
-
+  p {
+    user-select: none;
+  }
 </style>

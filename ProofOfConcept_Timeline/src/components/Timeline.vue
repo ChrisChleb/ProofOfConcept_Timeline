@@ -1,5 +1,5 @@
 <script lang="ts">
-import {defineComponent, ref, watch} from 'vue'
+import {defineComponent, ref} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
@@ -32,6 +32,7 @@ export default defineComponent({
       selectedJson: null as any,
       jsonData: JsonData,
       store: useStore(),
+      dialog: ref(false)
     };
   },
   created() {
@@ -254,7 +255,6 @@ export default defineComponent({
     <button @click="changeTrackCount(1)">Add Track</button>
     <button @click="changeTrackCount(-1)">Remove Track</button>
   </div>
-  <PlaybackVisualization :current-instruction="currentInstruction"></PlaybackVisualization>
   <Slider></Slider>
   <ScrollBar></ScrollBar>
   <Grid :track-count="trackCount"></Grid>
@@ -263,6 +263,23 @@ export default defineComponent({
   </div>
   <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount"></PlaybackIndicator>
   
+  <!--Visualization Dialog-->
+  <v-dialog max-width="auto" height="70%" v-model="dialog">
+    <template v-slot:default="{ isActive }">
+      <v-card title="Visualization">
+        <v-card-text>
+          <PlaybackVisualization :current-instruction="currentInstruction" :current-time="currentTime" :total-duration="totalDuration"></PlaybackVisualization>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+              text="Close"
+              @click="isActive.value = false"
+          ></v-btn>
+        </v-card-actions>
+      </v-card>
+    </template>
+  </v-dialog>
 </template>
 
 <style scoped>

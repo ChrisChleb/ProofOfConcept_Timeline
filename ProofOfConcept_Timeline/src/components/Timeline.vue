@@ -119,7 +119,8 @@ export default defineComponent({
         if (!blocks) continue;        
         blocks.forEach((block: BlockDTO, index: number) => {
           if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && block.rect.y <= (y + height) && block.rect.y + block.rect.height >= y) {
-            selectedBlocks.push({ trackId: trackId, index: index });
+            const selection: BlockSelection = {trackId: trackId, index: index, uid: block.rect.uid};
+            selectedBlocks.push(selection);
           }
         });
       }

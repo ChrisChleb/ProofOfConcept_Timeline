@@ -247,14 +247,15 @@ export default defineComponent({
 
 <template>
   <div class="playbackContainer">
-    <button :disabled="isPlaying" @click="startPlayback">Play</button>
-    <button @click="stopPlayback">Stop</button>
-    <button :disabled="selectedJson == loadedJson" @click="loadFile">Load File</button>
+    <v-btn v-show="!isPlaying" @click="startPlayback">Play</v-btn>
+    <v-btn v-show="isPlaying" @click="stopPlayback">Stop</v-btn>
+    <v-btn :disabled="selectedJson == loadedJson" @click="loadFile">Load File</v-btn>
     <select id="fileSelect" v-model="selectedJson">      
         <option v-for="(file, index) in jsonData" :key="index" :value="file">{{file.metadata.name}}</option>      
     </select>
-    <button @click="changeTrackCount(1)">Add Track</button>
-    <button @click="changeTrackCount(-1)">Remove Track</button>
+    <v-btn @click="changeTrackCount(1)">Add Track</v-btn>
+    <v-btn @click="changeTrackCount(-1)">Remove Track</v-btn>
+    <v-btn @click="dialog = true">Open Visualization</v-btn>
   </div>
   <Slider></Slider>
   <ScrollBar></ScrollBar>

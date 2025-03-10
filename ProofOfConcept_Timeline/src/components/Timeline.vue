@@ -216,7 +216,8 @@ export default defineComponent({
       }
 
       if (this.currentTime >= this.totalDuration) {
-        this.stopPlayback();
+        this.currentTime = 0;
+        this.currentInstructionIndex = 0;
       }
     },
     loadFile() {

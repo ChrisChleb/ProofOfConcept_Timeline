@@ -369,9 +369,9 @@ export default defineComponent({
            
       // calculate border to check      
       bordersToCheck = {};
-      Object.keys(store.state.blocks).forEach((trackId) => {
+      Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
+        bordersToCheck[trackId] = [];
         store.state.blocks[trackId].forEach((block: BlockDTO, index: number) => {
-          if (!bordersToCheck[block.trackId]) bordersToCheck[block.trackId] = [];
           if (!store.state.selectedBlocks.some((selection: BlockSelection) => selection.uid == block.rect.uid)) {
             bordersToCheck[block.trackId].push(block.rect.x);
             bordersToCheck[block.trackId].push(block.rect.x + block.rect.width);
@@ -412,7 +412,7 @@ export default defineComponent({
       let isColliding = false;
       let isOverflowing = false;
       
-      // collision-detection             
+      // collision-detection
       if (bordersToCheck[currentYTrackId].length > 0) {      
         for (let i = 0; i < bordersToCheck[currentYTrackId].length - 1; i += 2) {
           // get borders

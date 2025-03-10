@@ -645,8 +645,6 @@ export default defineComponent({
       return positionToCheck;
     }
     function onChangeAmplitude(event: any, block: BlockDTO, direction: Direction) {
-      console.debug("initialY: ", event);
-      console.log("initY of block: ", block.rect.y);
       initialY = event.data.global.y;
       initialBlockHeight = block.rect.height;
       currentTacton = block;

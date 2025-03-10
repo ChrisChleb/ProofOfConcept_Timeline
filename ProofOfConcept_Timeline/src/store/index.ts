@@ -101,7 +101,6 @@ const store = createStore({
             
             // fix selectionData
             state.selectedBlocks.forEach((selection: BlockSelection): void => {
-                console.log(selection);
                 const block: BlockDTO | undefined = sortedTactons[selection.trackId][selection.index];
                 if (block == undefined || block.rect.uid != selection.uid) {
                     selection.index = sortedTactons[selection.trackId].findIndex((b: BlockDTO): boolean => {

@@ -25,8 +25,8 @@ export class Wait {
     }
 }
 
-export interface TactonRectangle {
-    channel: number;
+export interface BlockData {
+    trackId: number;
     startTime: number;
     endTime: number;
     intensity: number;
@@ -36,8 +36,8 @@ export class InstructionParser {
     constructor(json: any) {
         this.instructions = json.instructions.map((instruction: any) => new Instruction(instruction));
     }
-    public parseInstructionsToRectangles(): { [key: number]: TactonRectangle[] } {
-        const rectangles: TactonRectangle[] = [];
+    public parseInstructionsToRectangles(): BlockData[] {
+        const blocks: BlockData[] = [];
         let currentTime: number = 0;
         const activeChannels: Map<number, { startTime: number; intensity: number }> = new Map<number, { startTime: number; intensity: number }>();
 
@@ -48,18 +48,18 @@ export class InstructionParser {
 
                 channels.forEach((channel: number): void => {
                     if (intensity > 0) {
-                        // start of tacton
+                        // start of block
                         activeChannels.set(channel, { startTime: currentTime, intensity });
                     } else if (intensity === 0 && activeChannels.has(channel)) {
-                        // end of tacton
+                        // end of block
                         const channelData: { startTime: number; intensity: number } = activeChannels.get(channel)!;
-                        const rectangle: TactonRectangle = {
-                            channel: channel,
+                        const block: BlockData = {
+                            trackId: channel,
                             startTime: channelData.startTime,
                             endTime: currentTime,
                             intensity: channelData.intensity,
                         };
-                        rectangles.push(rectangle);
+                        blocks.push(block);
                         activeChannels.delete(channel);
                     }
                 });
@@ -68,15 +68,6 @@ export class InstructionParser {
             }
         });
 
-        const trackData: { [key: number]: TactonRectangle[] } = {};
-
-        rectangles.forEach((tacton: TactonRectangle): void => {
-            if (!trackData[tacton.channel]) {
-                trackData[tacton.channel] = [];
-            }
-            trackData[tacton.channel].push(tacton);
-        });
-
-        return trackData;
+        return blocks;
     }
 }

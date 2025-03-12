@@ -1,14 +1,12 @@
 <script lang="ts">
 import {defineComponent, watch} from 'vue'
-import {useStore} from "vuex";
 import pixiApp, {staticContainer} from "@/pixi/pixiApp";
 import config from "@/config";
 import * as Pixi from "pixi.js";
-
+import store from "@/store";
 export default defineComponent({
   name: "Slider",
   setup() {
-    const store: any = useStore();
     let windowWidth = pixiApp.canvas.width
     let viewportWidth = windowWidth - config.leftPadding;
     let sliderMaxWidth = windowWidth - (2 * config.sliderHandleWidth);
@@ -155,6 +153,7 @@ export default defineComponent({
       store.dispatch('setInteractionState', false);
       window.removeEventListener('pointermove', onScale);
       window.removeEventListener('pointerup', onScaleEnd);
+      store.state.blockManager?.onSliderScaleEnd();
     }
 
     // TODO dynamicaly calculate max zoom, depending on last tacton

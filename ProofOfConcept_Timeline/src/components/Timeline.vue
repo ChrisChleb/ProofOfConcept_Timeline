@@ -238,6 +238,8 @@ export default defineComponent({
       this.trackCount += changeBy;
       store.dispatch('setTrackCount', this.trackCount);
       store.dispatch('calculateScrollableHeight');
+      // init tracks
+      store.dispatch('initTracks');
       // TODO for future, calculate new trackLength
     }
   },

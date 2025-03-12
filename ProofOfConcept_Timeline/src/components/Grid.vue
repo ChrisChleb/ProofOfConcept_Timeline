@@ -6,13 +6,7 @@ import {useStore} from "vuex";
 import config from "@/config";
 export default defineComponent({
   name: "Grid",
-  props: {
-    trackCount: {
-      type: Number,
-      required: true
-    }
-  },
-  setup(props: any) {
+  setup() {
     const store: any = useStore();    
     let gridContainer: Pixi.Container | null;
     let labelContainer: Pixi.Container | null;
@@ -33,7 +27,7 @@ export default defineComponent({
       rerenderLabels = true;
       rerenderGrid();
     });
-    watch(() => props.trackCount, () => {
+    watch(() => store.state.trackCount, () => {
       rerenderLabels = false;
       rerenderGrid();
     });
@@ -48,6 +42,8 @@ export default defineComponent({
       clearGrid();
     });
     function renderGrid() {
+      // +1 as first trackId is 0
+      const trackCount = store.state.trackCount + 1;
       gridContainer = new Pixi.Container();
       gridGraphics = new Pixi.Graphics();
       
@@ -65,7 +61,7 @@ export default defineComponent({
         const lineWidth = isMajor ? 2 : 1;
         
         for (let step = 0; step < steps/interval; step++) {
-          const y = props.trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
+          const y = trackCount * config.trackHeight + config.componentPadding + config.sliderHeight;
           const x = step * adjustedPixelsPerSecond * interval;
 
           // TODO when shifting viewport, gridlines that are pushed out of the viewport (left) are still rendered

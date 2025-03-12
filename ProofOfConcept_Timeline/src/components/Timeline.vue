@@ -3,8 +3,8 @@ import {defineComponent, ref} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
-import {InstructionParser, type TactonRectangle, Instruction} from "@/parser/instructionParser";
-import Track, {type BlockDTO} from "@/components/Track.vue";
+import {InstructionParser, type BlockData, Instruction} from "@/parser/instructionParser";
+import Track from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
 import PlaybackIndicator from "@/components/PlaybackIndicator.vue";
 
@@ -14,6 +14,7 @@ import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 import Slider from "@/components/Slider.vue";
 import store, {type BlockSelection} from "@/store";
 import ScrollBar from "@/components/ScrollBar.vue";
+import {type BlockDTO, BlockManager} from "@/helper/blockManager";
 
 export default defineComponent({
   name: "Timeline",
@@ -22,7 +23,7 @@ export default defineComponent({
       instructions: [] as Instruction[],
       currentInstructionIndex: 0,
       currentInstruction: ref<Instruction | null>(null),
-      blocks: {} as { [trackId: number]: TactonRectangle[] },
+      blocks: [] as BlockData[],
       currentTime: 0,
       totalDuration: 0,
       trackCount: 0,
@@ -143,10 +144,10 @@ export default defineComponent({
   methods: {
     loadJson() {
       console.debug("loading: ", this.loadedJson);
-      const parser = new InstructionParser(this.loadedJson);      
+      const parser = new InstructionParser(this.loadedJson);   
       this.blocks = parser.parseInstructionsToRectangles();
-      this.trackCount = Object.keys(this.blocks).reduce((a, b) => Math.max(a, parseInt(b)), -Infinity) + 1;
-      store.dispatch('setTrackCount', this.trackCount - 1);
+      this.trackCount = Math.max(...this.blocks.map((block: BlockData) => block.trackId));
+      store.dispatch('setTrackCount',  this.trackCount);
       
       let accumulatedTime = 0;
       this.instructions = this.loadedJson.instructions.map((instruction: any) => {
@@ -162,10 +163,16 @@ export default defineComponent({
       this.totalDuration = accumulatedTime;
       this.calculateInitialZoom();
       
+      if (store.state.blockManager == null) {
+        store.state.blockManager = new BlockManager();
+        store.state.blockManager.createBlocksFromData(this.blocks);
+      } else {
+        store.state.blockManager.createBlocksFromData(this.blocks);
+      }      
+      
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);
-      console.debug("Instructions: ", this.instructions);
-      console.debug("tactons: ", this.blocks);
+      console.debug("blocks: ", this.blocks);
     },
     calculateInitialZoom() {
       const viewportWidth = pixiApp.canvas.width - config.leftPadding;
@@ -229,7 +236,7 @@ export default defineComponent({
     },
     changeTrackCount(changeBy: number) {
       this.trackCount += changeBy;
-      store.dispatch('setTrackCount', this.trackCount - 1);
+      store.dispatch('setTrackCount', this.trackCount);
       store.dispatch('calculateScrollableHeight');
       // TODO for future, calculate new trackLength
     }
@@ -259,11 +266,11 @@ export default defineComponent({
   </div>
   <Slider></Slider>
   <ScrollBar></ScrollBar>
-  <Grid :track-count="trackCount"></Grid>
-  <div v-for="trackId in Array.from({ length: trackCount }, (_, i) => i)" :key="trackId">
-    <Track :track-id="trackId" :blocks="blocks[trackId] || []"/>
+  <Grid></Grid>
+  <div v-for="trackId in Array.from({ length: trackCount + 1 }, (_, i) => i)" :key="trackId">
+    <Track :track-id="trackId"></Track>
   </div>
-  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount"></PlaybackIndicator>
+  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount + 1"></PlaybackIndicator>
   
   <!--Visualization Dialog-->
   <v-dialog max-width="auto" height="70%" v-model="dialog">

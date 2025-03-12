@@ -1,9 +1,9 @@
 import {createStore} from 'vuex';
-import {BlockDTO} from "@/components/Track.vue";
 import {dynamicContainer} from "@/pixi/pixiApp";
 import * as Pixi from "pixi.js";
 import config from "@/config";
-import type {TactonRectangle} from "@/parser/instructionParser";
+import type {BlockData} from "@/parser/instructionParser";
+import {type BlockDTO, BlockManager} from "@/helper/blockManager";
 
 
 export class BlockChanges {
@@ -42,9 +42,15 @@ const store = createStore({
         initialVirtualViewportWidth: 0,
         currentVirtualViewportWidth: 0,
         isInteracting: false,
-        isPressingShift: false
+        isPressingShift: false,
+        blockManager: null as BlockManager | null
     },
     mutations: {
+        setBlockManager(state: any, manager: BlockManager): void {
+          if (state.blockManager == null) {
+              state.blockManager = manager;
+          }  
+        },
         setZoomLevel(state: any, zoomLevel: number): void {
             state.zoomLevel = zoomLevel;
         },
@@ -72,14 +78,62 @@ const store = createStore({
             state.scrollableHeight = trackHeight > state.visibleHeight ? (trackHeight - state.visibleHeight) + config.componentPadding : 0;
             console.log('scrollableHeight', state.scrollableHeight);  
         },
-        initTrack(state: any, trackId: number): void {
-          if (!state.blocks[trackId]) {
-              state.blocks[trackId] = [];
+        initTracks(state: any): void {          
+          for (let trackId: number = 0; trackId <= state.trackCount; trackId++) {
+              if (!state.blocks[trackId]) {
+                  state.blocks[trackId] = [];
+              }
           }
         },
         addBlock(state: any, {trackId, block}: {trackId: number, block: BlockDTO}): void {
+            if (state.blocks[trackId] == undefined) {
+                state.blocks[trackId] = [];
+            }
             state.blocks[trackId].push(block);
             state.sorted[trackId] = false;
+        },
+        updateSelectedBlocks(state: any, changes: BlockChanges): void {
+            state.selectedBlocks.forEach((block: BlockSelection) => {
+                const dto = store.state.blocks[block.trackId][block.index];
+                let isWidthClipped: boolean = false;
+
+                // apply Changes              
+                if (changes.height) {
+                    const newHeight: number = Math.min(Math.max((dto.rect.height + changes.height), 10), 150);
+                    dto.rect.height = newHeight;
+                    const trackOffset: number = config.sliderHeight + config.componentPadding + (dto.trackId * config.trackHeight);
+                    const newY: number = (config.trackHeight / 2) - (newHeight / 2);
+                    dto.rect.y = newY + trackOffset;
+                }
+
+                if (changes.track != null) {
+                    const trackContainerY: number =  (dto.trackId  * config.trackHeight);
+                    const newTrackContainerY: number = ((dto.trackId + changes.track) * config.trackHeight);
+                    dto.rect.y = (newTrackContainerY - trackContainerY) + dto.initY;
+                }
+
+                if (changes.width != null) {
+                    dto.rect.width = Math.max((dto.rect.width + changes.width), config.minTactonWidth);
+                    if (dto.rect.width == config.minTactonWidth) {
+                        isWidthClipped = true;
+                    }
+                    dto.initWidth = dto.rect.width / state.zoomLevel;
+                }
+
+                if (changes.x !) {
+                    if (isWidthClipped && changes.width) return;
+                    dto.rect.x += changes.x;
+
+                    // mark track as unsorted
+                    state.sorted[dto.trackId] = false;
+                }
+
+                // update stroke
+                dto.strokedRect.x = dto.rect.x;
+                dto.strokedRect.width = dto.rect.width;
+                dto.strokedRect.y = dto.rect.y;
+                dto.strokedRect.height = dto.rect.height;
+            });
         },
         sortTactons(state: any): void {
             const sortedTactons: Record<number, BlockDTO[]> = {};
@@ -111,7 +165,7 @@ const store = createStore({
             
             state.blocks = sortedTactons;
         },
-        deleteTactons(state: any, trackId: number): void {
+        deleteBlocks(state: any, trackId: number): void {
             if (state.blocks[trackId] == undefined) return;
             state.blocks[trackId].forEach((block: BlockDTO): void => {
                 dynamicContainer.removeChild(block.container);
@@ -176,99 +230,6 @@ const store = createStore({
         },
         setInteractionState(state: any, newState: boolean): void {
             state.isInteracting = newState;
-        },
-        updateSelectedBlocks(state: any, changes: BlockChanges): void {
-            state.selectedBlocks.forEach((block: BlockSelection) => {
-                const dto = store.state.blocks[block.trackId][block.index];
-                let isWidthClipped: boolean = false;
-
-                // apply Changes              
-                if (changes.height) {
-                    const newHeight: number = Math.min(Math.max((dto.rect.height + changes.height), 10), 150);
-                    dto.rect.height = newHeight;
-                    const trackOffset: number = config.sliderHeight + config.componentPadding + (dto.trackId * config.trackHeight);
-                    const newY: number = (config.trackHeight / 2) - (newHeight / 2);
-                    dto.rect.y = newY + trackOffset;
-                }
-
-                if (changes.track != null) {
-                    const trackContainerY: number =  (dto.trackId  * config.trackHeight);
-                    const newTrackContainerY: number = ((dto.trackId + changes.track) * config.trackHeight);
-                    dto.rect.y = (newTrackContainerY - trackContainerY) + dto.initY;
-                }
-
-                if (changes.width != null) {
-                    dto.rect.width = Math.max((dto.rect.width + changes.width), config.minTactonWidth);
-                    if (dto.rect.width == config.minTactonWidth) {
-                        isWidthClipped = true;
-                    }
-                    dto.initWidth = dto.rect.width / state.zoomLevel;
-                }
-
-                if (changes.x !) {
-                    if (isWidthClipped && changes.width) return;
-                    dto.rect.x += changes.x;
-                    
-                    // mark track as unsorted
-                    state.sorted[dto.trackId] = false;
-                }
-
-                // update stroke
-                dto.strokedRect.x = dto.rect.x;
-                dto.strokedRect.width = dto.rect.width;
-                dto.strokedRect.y = dto.rect.y;
-                dto.strokedRect.height = dto.rect.height;
-            });
-        },
-        updateSelectedBlockHandles(state: any): void {
-            state.selectedBlocks.forEach((block: BlockSelection): void => {
-                const dto = state.blocks[block.trackId][block.index];
-                
-                // update data
-                dto.initY = dto.rect.y;
-                dto.initX = (dto.rect.x + state.horizontalViewportOffset + state.sliderOffset - config.leftPadding) / state.zoomLevel;
-                
-                // update left handle
-                dto.leftHandle.clear();
-                dto.leftHandle.rect(
-                    dto.rect.x - config.resizingHandleWidth,
-                    dto.rect.y,
-                    config.resizingHandleWidth,
-                    dto.rect.height
-                );
-                dto.leftHandle.fill(config.colors.handleColor);
-
-                // update right handle
-                dto.rightHandle.clear();
-                dto.rightHandle.rect(
-                    dto.rect.x + dto.rect.width,
-                    dto.rect.y,
-                    config.resizingHandleWidth,
-                    dto.rect.height
-                );
-                dto.rightHandle.fill(config.colors.handleColor);
-
-                // update top handle
-                dto.topHandle.clear();
-                dto.topHandle.rect(
-                    dto.rect.x,
-                    dto.rect.y - config.resizingHandleWidth,
-                    dto.rect.width,
-                    config.resizingHandleWidth
-                );
-
-                dto.topHandle.fill(config.colors.handleColor);
-
-                // update bottom handle
-                dto.bottomHandle.clear();
-                dto.bottomHandle.rect(
-                    dto.rect.x,
-                    dto.rect.y + dto.rect.height,
-                    dto.rect.width,
-                    config.resizingHandleWidth
-                );
-                dto.bottomHandle.fill(config.colors.handleColor);
-            });
         },
         changeBlockTrack(state: any, {sourceTrack, targetTrack, blockIndex}: {sourceTrack: number, targetTrack: number, blockIndex: number}): void {
             if (targetTrack == sourceTrack) {
@@ -339,6 +300,9 @@ const store = createStore({
         }
     },
     actions: {
+        setBlockManager({ commit }: any, manager: BlockManager): void {
+            commit('setBlockManager', manager);
+        },
         updateZoomLevel({ commit }: any, newZoomLevel: number): void {
             commit('setZoomLevel', newZoomLevel);
         },
@@ -349,31 +313,40 @@ const store = createStore({
             commit('setVerticalViewportOffset', newOffset);
         },
         updateSliderOffset({ commit }: any, newSliderOffset: number): void {
-          commit('setSliderOffset', newSliderOffset);
+            commit('setSliderOffset', newSliderOffset);
         },
         updateGridLines({ commit }: any, newGridLines: []): void {
             commit('setGridLines', newGridLines);
         },
         setTrackCount( { commit }: any, newTrackCount: number): void {
-          commit('setTrackCount', newTrackCount);
+            commit('setTrackCount', newTrackCount);
         },
         setVisibleHeight( { commit }: any, newVisibleHeight: number): void {
-          commit('setVisibleHeight', newVisibleHeight);  
+            commit('setVisibleHeight', newVisibleHeight);  
         },
         calculateScrollableHeight( { commit }: any): void {
-          commit('calculateScrollableHeight');
+            commit('calculateScrollableHeight');
         },
-        initTrack({ commit }: any, trackId: number): void {
-          commit('initTrack', trackId);
+        initTracks({ commit }: any): void {
+            commit('initTracks');
         },
-        addBlock({ commit }: any, {trackId, block}: {trackId: number, block: TactonRectangle}): void {
+        addBlock({ commit }: any, {trackId, block}: {trackId: number, block: BlockData}): void {
             commit('addBlock', {trackId, block});  
         },
         sortTactons({ commit }: any): void {
             commit('sortTactons');
         },
-        deleteTactons({ commit }: any, trackId: number): void {
-            commit('deleteTactons', trackId);
+        deleteBlocks({ commit }: any, trackId: number): void {
+            commit('deleteBlocks', trackId);
+        },
+        deleteAllBlocks({ state, commit }: any): void {
+          if (state.blocks) {
+              console.log("deleting all blocks");
+              Object.keys(state.blocks).forEach((trackIdAsString: string, trackId: number) => {
+                  console.log("deleting blocks of track ", trackId);
+                  commit('deleteBlocks', trackId);
+              });
+          }  
         },
         updateInitialVirtualViewportWidth({ commit }: any, newWidth: number): void {
             commit('setInitialVirtualViewportWidth', newWidth);
@@ -429,9 +402,6 @@ const store = createStore({
             }            
             commit("updateSelectedBlocks", changes);         
         },
-        updateSelectedBlockHandles({ commit }: any): void {
-            commit("updateSelectedBlockHandles");
-        },
         changeBlockTrack({ state, commit }: any, trackChange: number): void {
             // validation
             const minTrackId = state.updateValidationData.minTrackId;
@@ -461,6 +431,7 @@ const store = createStore({
         }
     },
     getters: {
+        blockManager: (state: any) => state.blockManager,
         zoomLevel: (state: any) => state.zoomLevel,
         horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
         verticalViewportOffset: (state: any) => state.verticalViewportOffset,

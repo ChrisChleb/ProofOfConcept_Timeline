@@ -121,7 +121,7 @@ export class BlockManager {
         const position: {x: number, width: number} = this.calculatePosition(block);
         rect.x = position.x;
         rect.width = position.width;
-        rect.height = block.intensity * 100;
+        rect.height = block.intensity * config.blockHeightScaleFactor;
         rect.y = config.sliderHeight + config.componentPadding + (block.trackId * config.trackHeight) + ((config.trackHeight / 2) - (rect.height / 2));
 
         const strokedRect = new Pixi.Graphics();
@@ -130,7 +130,7 @@ export class BlockManager {
 
         strokedRect.x = position.x;
         strokedRect.width = position.width;
-        strokedRect.height = block.intensity * 100;
+        strokedRect.height = block.intensity * config.blockHeightScaleFactor;
         strokedRect.y = (config.trackHeight / 2) - (rect.height / 2);
         strokedRect.visible = false;
 

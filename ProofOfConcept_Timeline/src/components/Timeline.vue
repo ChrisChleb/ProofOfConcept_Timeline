@@ -16,6 +16,7 @@ import store, {type BlockSelection} from "@/store";
 import ScrollBar from "@/components/ScrollBar.vue";
 import {type BlockDTO, BlockManager} from "@/helper/blockManager";
 
+const storageKey = "storedSequences";
 export default defineComponent({
   name: "Timeline",
   data() {
@@ -33,7 +34,8 @@ export default defineComponent({
       selectedJson: null as any,
       jsonData: JsonData,
       store: useStore(),
-      dialog: ref(false)
+      dialog: ref(false),
+      instructionParser: new InstructionParser()
     };
   },
   created() {
@@ -46,6 +48,13 @@ export default defineComponent({
     let selectionEnd = { x: 0, y: 0 };
     const selectedBlocks: BlockSelection[] = [];
     
+    // load storedSequences from localstorage
+    const storedSequencesStr = localStorage.getItem(storageKey);
+    if (storedSequencesStr != null) {
+      this.jsonData = JsonData.concat(JSON.parse(storedSequencesStr));
+    }
+    
+    // shift detection for multiselection
     document.addEventListener('keydown', (event: KeyboardEvent) => {      
       if (event.shiftKey && !store.state.isPressingShift) {
         store.dispatch('toggleShiftValue');
@@ -144,8 +153,8 @@ export default defineComponent({
   methods: {
     loadJson() {
       console.debug("loading: ", this.loadedJson);
-      const parser = new InstructionParser(this.loadedJson);   
-      this.blocks = parser.parseInstructionsToRectangles();
+      this.instructionParser.loadJSON(this.loadedJson);
+      this.blocks = this.instructionParser.parseInstructionsToBlocks();
       this.trackCount = Math.max(...this.blocks.map((block: BlockData) => block.trackId));
       store.dispatch('setTrackCount',  this.trackCount);
       
@@ -173,6 +182,22 @@ export default defineComponent({
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);
       console.debug("blocks: ", this.blocks);
+    },
+    exportJson() {
+      const instructions: Instruction[] = this.instructionParser.parseBlocksToInstructions();
+            
+      let storedSequences = [];
+      const storedSequencesStr = localStorage.getItem(storageKey);
+      
+      if (storedSequencesStr != null) {
+        storedSequences = JSON.parse(storedSequencesStr);
+      }
+      
+      storedSequences.push({instructions: instructions, metadata: {name: "sequence_" + (storedSequences.length + 1)}});
+      localStorage.setItem(storageKey, JSON.stringify(storedSequences));
+      
+      // refresh list
+      this.jsonData = JsonData.concat(storedSequences);      
     },
     calculateInitialZoom() {
       const viewportWidth = pixiApp.canvas.width - config.leftPadding;
@@ -265,6 +290,7 @@ export default defineComponent({
     <v-btn @click="changeTrackCount(1)">Add Track</v-btn>
     <v-btn @click="changeTrackCount(-1)">Remove Track</v-btn>
     <v-btn @click="dialog = true">Open Visualization</v-btn>
+    <v-btn @click="exportJson">Save Sequence</v-btn>
   </div>
   <Slider></Slider>
   <ScrollBar></ScrollBar>

@@ -1,3 +1,8 @@
+import store from "@/store";
+import {BlockDTO} from "@/helper/blockManager";
+import config from "@/config";
+import pixiApp from "@/pixi/pixiApp";
+
 export class Instruction {
     setParameter?: SetParameter;
     wait?: Wait;
@@ -31,12 +36,25 @@ export interface BlockData {
     endTime: number;
     intensity: number;
 }
+
+interface BlockEvent {
+    time: number;
+    trackId: number;
+    intensity: number;
+}
 export class InstructionParser {
-    private instructions: Instruction[];
-    constructor(json: any) {
+    private instructions: Instruction[] | undefined;
+    constructor() {}
+    
+    public loadJSON(json: any): void {
         this.instructions = json.instructions.map((instruction: any) => new Instruction(instruction));
     }
-    public parseInstructionsToRectangles(): BlockData[] {
+    public parseInstructionsToBlocks(): BlockData[] {
+        if (this.instructions == undefined) {
+            console.warn("No JSON loaded");
+            return [];
+        }
+        
         const blocks: BlockData[] = [];
         let currentTime: number = 0;
         const activeChannels: Map<number, { startTime: number; intensity: number }> = new Map<number, { startTime: number; intensity: number }>();
@@ -69,5 +87,57 @@ export class InstructionParser {
         });
 
         return blocks;
+    }
+    public parseBlocksToInstructions(): Instruction[] {
+        // flatten (per track) stored blocks into one sequence
+        let sequence: BlockDTO[] = [];
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+               sequence.push(block); 
+            });
+        }); 
+        
+        const timelineWidth: number = pixiApp.canvas.width;
+        const totalDuration: number = (timelineWidth / config.pixelsPerSecond) * 1000;
+        let currentTime: number = 0;
+        const events: BlockEvent[] = [];        
+        let instructions: Instruction[] = [];
+        
+        // transform sequence into events
+        sequence.forEach((block: BlockDTO): void => {
+            const convertedX: number = ((block.rect.x - config.leftPadding) / store.state.zoomLevel);
+            const convertedWidth: number = (block.rect.width / store.state.zoomLevel);
+
+            const startTime: number = (convertedX / timelineWidth) * totalDuration;
+            const endTime: number = startTime + ((convertedWidth / timelineWidth) * totalDuration);
+
+            events.push({ time: startTime, trackId: block.trackId, intensity: block.rect.height / config.blockHeightScaleFactor });
+            events.push({ time: endTime,trackId: block.trackId, intensity: 0 });
+        });       
+        
+        // sort events
+        events.sort((a: BlockEvent, b: BlockEvent) => a.time - b.time);
+
+        // transform events into instructions
+        events.forEach((event: BlockEvent): void => {
+            // insert wait-instruction if needed
+            if (event.time > currentTime) {
+                instructions.push({
+                    wait: { miliseconds: event.time - currentTime }
+                });
+                currentTime = event.time;
+            }
+
+            // insert set-Parameter instruction
+            instructions.push({
+                setParameter: {
+                    startTime: currentTime,
+                    intensity: event.intensity,
+                    channels: [event.trackId]
+                }
+            });
+        });
+        
+        return instructions;
     }
 }

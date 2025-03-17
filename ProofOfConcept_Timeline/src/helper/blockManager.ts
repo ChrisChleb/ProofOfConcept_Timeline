@@ -61,7 +61,7 @@ export class BlockManager {
     
     // collision-detection vars
     private bordersToCheck: Record<number, number[]> = {} as Record<number, number[]>;
-    private lastStickPosition: number = 0;
+    private lastStickPosition: {position: number, trackId: number} = {position: 0, trackId: 0};
     private lastViewportOffset: number = 0;
 
     // horizontal viewport-scrolling
@@ -121,7 +121,7 @@ export class BlockManager {
         const position: {x: number, width: number} = this.calculatePosition(block);
         rect.x = position.x;
         rect.width = position.width;
-        rect.height = block.intensity * 100;
+        rect.height = block.intensity * config.blockHeightScaleFactor;
         rect.y = config.sliderHeight + config.componentPadding + (block.trackId * config.trackHeight) + ((config.trackHeight / 2) - (rect.height / 2));
 
         const strokedRect = new Pixi.Graphics();
@@ -130,7 +130,7 @@ export class BlockManager {
 
         strokedRect.x = position.x;
         strokedRect.width = position.width;
-        strokedRect.height = block.intensity * 100;
+        strokedRect.height = block.intensity * config.blockHeightScaleFactor;
         strokedRect.y = (config.trackHeight / 2) - (rect.height / 2);
         strokedRect.visible = false;
 
@@ -520,10 +520,11 @@ export class BlockManager {
                         let gapSize: number = this.bordersToCheck[this.currentYTrackId][i + 2] - rightBorder;
                         if (gapSize >= this.currentTacton.rect.width || isNaN(gapSize)) {
                             newX = rightBorder;
-                            this.lastStickPosition = newX;
+                            this.lastStickPosition = {position: newX, trackId: this.currentYTrackId};
                         } else {
-                            // TODO if lastStickPosition is from different track, this position is not valid anymore
-                            newX = this.lastStickPosition;
+                            if (this.lastStickPosition.trackId == this.currentYTrackId) {
+                                newX = this.lastStickPosition.position;
+                            }                         
                         }
                     } else {
                         // snap left
@@ -536,10 +537,13 @@ export class BlockManager {
 
                         if (gapSize >= this.currentTacton.rect.width || isNaN(gapSize)) {
                             newX = leftBorder - this.currentTacton.rect.width;
-                            this.lastStickPosition = newX;
+                            this.lastStickPosition = {position: newX, trackId: this.currentYTrackId};
                         } else {
-                            // TODO if lastStickPosition is from different track, this position is not valid anymore
-                            newX = this.lastStickPosition;
+                            if (this.lastStickPosition.trackId == this.currentYTrackId) {
+                                newX = this.lastStickPosition.position;
+                            } else {
+                                newX = rightBorder;
+                            }
                         }
                     }
                 }

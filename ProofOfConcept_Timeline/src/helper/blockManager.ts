@@ -1,10 +1,10 @@
 import type {BlockData} from "@/parser/instructionParser";
+import type {Graphics} from "pixi.js";
 import * as Pixi from "pixi.js";
 import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import store, {BlockChanges, type BlockSelection} from "@/store";
 import {onMounted, watch} from "vue";
-import type {Graphics} from "pixi.js";
 enum Direction {
     LEFT = 'left',
     RIGHT = 'right',
@@ -48,21 +48,29 @@ export class BlockDTO {
         this.initTrackId = trackId;
     }
 }
-export class BlockManager {
+export class BlockManager {    
     private resizeDirection: Direction | null = null;
     private initialX: number = 0;
     private initialY: number = 0;
     private initialBlockWidth: number = 0;
     private initialBlockHeight: number = 0;
     private initialBlockX: number = 0;
-    private currentYTrackId: number = 0;
     private pointerMoveHandler: any = null;
     private pointerUpHandler: any = null;
     
     // collision-detection vars
-    private bordersToCheck: Record<number, number[]> = {} as Record<number, number[]>;
-    private lastStickPosition: {position: number, trackId: number} = {position: 0, trackId: 0};
+    private unselectedBorders: number[][] = [];
+    private selectedBorders: number[][] = [];
+    private selectedTracks: number[] = [];
+    private lastValidOffset: number = 0;
+    private lastTrackOffset: number = 0;
     private lastViewportOffset: number = 0;
+    private stickyOffsetsPerTrackOffset: Map<number, number[]> = new Map();
+    
+    // validation data
+    private validTrackOffsets: number[] = [];
+    private minTrackChange: number = 0;
+    private maxTrackChange: number = 0;
 
     // horizontal viewport-scrolling
     private isScrolling: boolean = false;
@@ -79,7 +87,6 @@ export class BlockManager {
     // vertical viewport-scrolling
     private currentYAdjustment: number = 0;
     private lastVerticalOffset: number = 0;
-
     private canvasOffset: number = 0;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
@@ -426,9 +433,232 @@ export class BlockManager {
             console.log("SequenceLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
         });
     }
-    
-    private selectionBorders: Record<number, number[]> = {} as Record<number, number[]>;
+    private createBorders(): void {
+        this.selectedTracks = [];
+        // calculate border to check
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            this.unselectedBorders[trackId] = [];
+            this.selectedBorders[trackId] = [];
+            store.state.blocks[trackId].forEach((block: BlockDTO, index: number): void => {
+                if (!store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid)) {
+                    // block is unselected
+                    this.unselectedBorders[block.trackId].push(block.rect.x);
+                    this.unselectedBorders[block.trackId].push(block.rect.x + block.rect.width);
+                } else {
+                    // block is selected
+                    this.selectedBorders[block.trackId].push(block.rect.x);
+                    this.selectedBorders[block.trackId].push(block.rect.x + block.rect.width);
+                    
+                    const isAdded: boolean = this.selectedTracks.some((track: number): boolean => {
+                        return track == block.trackId;
+                    });
+                    
+                    if (!isAdded) this.selectedTracks.push(block.trackId);
+                }
+            });
+        });
+        
+        this.calculateStickyOffsets();
+    }
+    private getValidTrackOffsets(): number[] {
+        const minTrack: number = Math.min(...this.selectedTracks);
+        const maxTrack: number = Math.max(...this.selectedTracks);
+        
+        const possibleTrackOffsets: number[] = [0];
+        
+        const maxTrackToTop: number = minTrack;
+        if (maxTrackToTop > 0) {
+            for (let i = 1; i <= maxTrackToTop; i++) {
+                possibleTrackOffsets.push(-i);
+            }
+        }
+        
+        const maxTrackToBottom: number = store.state.trackCount - maxTrack;
+        if (maxTrackToBottom > 0) {
+            for (let i = 1; i <= maxTrackToBottom; i++) {
+                possibleTrackOffsets.push(i);
+            }
+        }
+        return possibleTrackOffsets;
+    }
+    private checkPossibleOffsets(possibleOffsets: number[]): void {
+        this.stickyOffsetsPerTrackOffset.clear();
+        this.validTrackOffsets = this.getValidTrackOffsets();
+        // iterate over possible trackOffsets e.g. [-1, 0, 1, 2]
+        this.validTrackOffsets.forEach((trackOffset: number): void => {
+            let validOffsetsPerTrackOffset: number[] = [];
+            // iterate over possible offsets 
+            possibleOffsets.forEach((offset: number): void => {
+                let isValid: boolean = true;
+                // add offset to border
+                // check if any of unselectedBorders[current track + trackOffset] is overlapping with adjusted border
+                Object.keys(this.selectedBorders).forEach((trackAsString: string, trackId: number): void => {
+                    for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
+                        let start2: number = this.selectedBorders[trackId][i] + offset;
+                        let end2: number = this.selectedBorders[trackId][i + 1] + offset;
+
+                        if (start2 < config.leftPadding) {
+                            isValid = false;
+                            break;
+                        }
+                        
+                        for (let j = 0; j < this.unselectedBorders[trackId + trackOffset].length; j += 2) {
+                            let start1: number = this.unselectedBorders[trackId + trackOffset][j];
+                            let end1: number = this.unselectedBorders[trackId + trackOffset][j + 1];
+                            if ((end2 > start1 && start2 < end1)) {
+                                isValid = false;
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                if (isValid) {
+                    validOffsetsPerTrackOffset.push(offset);
+                }
+            });
+            
+            this.stickyOffsetsPerTrackOffset.set(trackOffset, validOffsetsPerTrackOffset);            
+        });
+    }
+    private calculateStickyOffsets(): void {
+        const possibleOffset: number[] = [];
+        for (let trackId = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
+            // loop over selectedBorders
+            for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
+                // loop over unselected border tracks
+                for (let j = 0; j < this.unselectedBorders.length; j ++) {
+                    // loop over every unselected border block in this track
+                    for (let k = 0; k < this.unselectedBorders[j].length; k += 2 ) {
+                        let start2: number = this.unselectedBorders[j][k];
+                        let end2: number = this.unselectedBorders[j][k + 1];
+
+                        // calculate possible offsets         
+                        let offsetToStart: number = end2 - this.selectedBorders[trackId][i];
+                        let offsetToEnd: number = start2 - this.selectedBorders[trackId][i + 1];
+                        possibleOffset.push(offsetToStart);
+                        possibleOffset.push(offsetToEnd);
+                    }
+                }        
+            }            
+        }
+        this.checkPossibleOffsets(possibleOffset);
+    }
+    private getValidStickyOffset(offset: number, trackOffset: number, horizontalOffsetDifference: number): number {
+        const possibleOffsets: number[] = this.stickyOffsetsPerTrackOffset.get(trackOffset) || [];
+        let bestOffset: number = offset;
+        let minDistance: number = Infinity;
+        
+        for (const fallbackOffset of possibleOffsets) {
+            const adjustedFallbackOffset: number = fallbackOffset - horizontalOffsetDifference;
+            let distance: number = Math.abs(adjustedFallbackOffset - offset);
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestOffset = adjustedFallbackOffset;
+            }
+        }        
+        return bestOffset;
+    }    
+    private adjustOffset(offset: number, trackOffset: number): number {
+        const maxAttempts: number = 10;
+        let attemptCount: number = 0;
+        let validOffset: number = offset;
+        let hasCollision: boolean = true;
+        let isSticking: boolean = false;
+
+        // skip validation while scrolling
+        if (this.isScrolling) return this.lastValidOffset;
+        
+        // calculate offsetDifference to adjust borders
+        const horizontalOffsetDifference: number = store.state.horizontalViewportOffset - this.lastViewportOffset;
+        
+        // if track was changes lastValidOffset is invalid -> needs to be updated
+        if (this.lastTrackOffset != trackOffset) {
+            this.lastValidOffset = this.getValidStickyOffset(offset, trackOffset, horizontalOffsetDifference);
+        }
+        
+        while (hasCollision && attemptCount < maxAttempts) {
+            hasCollision = false;
+            attemptCount++;
+            
+            for (let trackId = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
+                // calculate correct trackId
+                let adjustedTrack: number = trackId + trackOffset;
+                
+                if (adjustedTrack < 0 || adjustedTrack >= this.unselectedBorders.length) {
+                    // skip invalid trackId
+                    continue;
+                }                
+                
+                // collision-detection
+                for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
+                    let start2: number = this.selectedBorders[trackId][i] + validOffset;
+                    let end2: number = this.selectedBorders[trackId][i + 1] + validOffset;
+                    if (start2 < config.leftPadding) {                        
+                        validOffset = this.lastValidOffset;
+                        isSticking = true;
+                        break;
+                    }
+                    
+                    for (let j = 0; j < this.unselectedBorders[adjustedTrack].length; j += 2) {
+                        let start1: number = this.unselectedBorders[adjustedTrack][j] - horizontalOffsetDifference;
+                        let end1: number = this.unselectedBorders[adjustedTrack][j + 1] - horizontalOffsetDifference;
+
+                        if ((end2 > start1 && start2 < end1)) {
+                            // collision detected
+                            hasCollision = true;
+
+                            // calculate distance of mouse to start and end of colliding block
+                            const currsorX: number = this.initialX + offset;
+                            let distToStart2: number = Math.abs(currsorX - start1);
+                            let distToEnd2: number = Math.abs(currsorX - end1);
+                            
+                            // choose side to stick to
+                            if (distToStart2 > distToEnd2) {
+                                validOffset = end1 - this.selectedBorders[trackId][i];
+                            } else {
+                                // if block is at start of timeline, use lastValidOffset
+                                if (start1 == config.leftPadding) {
+                                    validOffset = this.lastValidOffset;
+                                } else {
+                                    validOffset = start1 - this.selectedBorders[trackId][i + 1];
+                                }                           
+                            }
+                            
+                            isSticking = true;
+                            break;
+                        }
+                    }
+
+                    // snapping if no collision was detected
+                    if (!isSticking) {
+                        for (const lineX of store.state.gridLines) {
+                            // left
+                            if (Math.abs(start2 - lineX) < config.moveSnappingRadius) {
+                                validOffset = lineX - this.selectedBorders[trackId][i];
+                                break;
+                            }
+                            // right
+                            if (Math.abs(end2 - lineX) < config.moveSnappingRadius) {
+                                validOffset = lineX - this.selectedBorders[trackId][i + 1];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (attemptCount >= maxAttempts) {
+            validOffset = this.lastValidOffset;
+        }
+        
+        this.lastValidOffset = validOffset;
+        this.lastTrackOffset = trackOffset;
+        return validOffset;
+    }        
     private onMoveBlock(event: any, block: BlockDTO): void {
+        // select block
         store.dispatch('selectBlock', block);
         
         // init vars
@@ -437,152 +667,45 @@ export class BlockManager {
         this.initialBlockX = block.rect.x;
         this.currentTacton = block;
         this.currentYAdjustment = 0;
-
-        // calculate border to check
-        this.bordersToCheck = {};
-        this.selectionBorders = {};
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            this.bordersToCheck[trackId] = [];
-            this.selectionBorders[trackId] = [];
-            store.state.blocks[trackId].forEach((block: BlockDTO, index: number): void => {
-                if (!store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid)) {
-                    // block is not selected
-                    this.bordersToCheck[block.trackId].push(block.rect.x);
-                    this.bordersToCheck[block.trackId].push(block.rect.x + block.rect.width);
-                } else {
-                    // block is selected
-                    this.selectionBorders[block.trackId].push(block.rect.x);
-                    this.selectionBorders[block.trackId].push(block.rect.x + block.rect.width);
-                }
-            });
-        });
         this.lastViewportOffset = store.state.horizontalViewportOffset;
+        
+        // calculate and init borders for collision detection
+        this.createBorders();
+
+        // create validTrackOffsets for collisionDetection and change validation
+        this.minTrackChange = Math.min(...this.validTrackOffsets);
+        this.maxTrackChange = Math.max(...this.validTrackOffsets);
+        
+        // set interactionState to block multiSelection
         store.dispatch('setInteractionState', true);
+        
+        // init handlers
         this.pointerMoveHandler = (event: any) => this.moveBlock(event);
         this.pointerUpHandler = () => this.onMoveBlockEnd();
-
+        
+        // add EventListeners
         window.addEventListener('pointermove', this.pointerMoveHandler);
         window.addEventListener('pointerup', this.pointerUpHandler);
     }
-    
-    // TODO view all selected blocks as one block
     private moveBlock(event: any): void {
         if (this.currentTacton == null) return;
         const changes: BlockChanges = new BlockChanges();
+        changes.track = 0;
         const deltaX: number = event.clientX - this.initialX;
         const deltaY: number = event.clientY - this.initialY;
-
-        // detect switching tracks
-        this.currentYTrackId = this.currentTacton.trackId + Math.floor((deltaY - this.currentYAdjustment) / config.trackHeight);
-        this.currentYTrackId = Math.max(0, Math.min(this.currentYTrackId, store.state.trackCount));
-        changes.track = this.currentYTrackId - this.currentTacton.trackId;
-
-        // calculate x coordinates of left and right border
-        const newLeftX: number = this.initialBlockX + deltaX;
-        const newRightX: number = this.initialBlockX + this.currentTacton.rect.width + deltaX;
-
+        
+        // detect switching tracks        
+        let currentYTrackId: number = this.currentTacton.trackId + Math.floor((deltaY - this.currentYAdjustment) / config.trackHeight);
+        currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
+        changes.track  = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
+                
+        // scroll viewport if needed 
+        // TODO maybe improve this by using lowest start and highest end position of the whole selection
         this.scrollViewportHorizontal(event.clientX);
         this.scrollViewportVertical(event.clientY);
-
-        // init vars
-        const snappingRadius: number = config.moveSnappingRadius;
-        const prevX: number = this.currentTacton.rect.x;
-        let newX: number = newLeftX;
-
-        let isColliding: boolean = false;
-        let isOverflowing: boolean = false;
         
-        // TODO advanced collision detection
-        
-        // collision-detection
-        if (this.bordersToCheck[this.currentYTrackId].length > 0) {
-            for (let i: number = 0; i < this.bordersToCheck[this.currentYTrackId].length - 1; i += 2) {
-                // get borders
-                let leftBorder: number = this.bordersToCheck[this.currentYTrackId][i];
-                let rightBorder: number = this.bordersToCheck[this.currentYTrackId][i + 1];
-
-                // if horizontal scrolling while moving, offset must be added
-                const offsetDifference: number = store.state.horizontalViewportOffset - this.lastViewportOffset;
-                if (offsetDifference != 0) {
-                    leftBorder -= offsetDifference;
-                    rightBorder -= offsetDifference;
-                }
-
-                // check if colliding
-                if (newLeftX <= rightBorder && newRightX >= leftBorder) {
-                    // get distance
-                    const distanceLeft: number = Math.abs(newLeftX - rightBorder);
-                    const distanceRight: number = Math.abs(leftBorder - newRightX);
-                    isColliding = true;
-                    // check which border is colliding
-                    if (distanceRight > distanceLeft) {
-                        // snap right                     
-                        newX = leftBorder - this.currentTacton.rect.width;
-                        let gapSize: number = this.bordersToCheck[this.currentYTrackId][i + 2] - rightBorder;
-                        if (gapSize >= this.currentTacton.rect.width || isNaN(gapSize)) {
-                            newX = rightBorder;
-                            this.lastStickPosition = {position: newX, trackId: this.currentYTrackId};
-                        } else {
-                            if (this.lastStickPosition.trackId == this.currentYTrackId) {
-                                newX = this.lastStickPosition.position;
-                            }                         
-                        }
-                    } else {
-                        // snap left
-                        let gapSize: number = leftBorder - this.bordersToCheck[this.currentYTrackId][i - 1];
-
-                        // no more borders left, check for start of timeline
-                        if (isNaN(gapSize)) {
-                            gapSize = leftBorder - config.leftPadding;
-                        }
-
-                        if (gapSize >= this.currentTacton.rect.width || isNaN(gapSize)) {
-                            newX = leftBorder - this.currentTacton.rect.width;
-                            this.lastStickPosition = {position: newX, trackId: this.currentYTrackId};
-                        } else {
-                            if (this.lastStickPosition.trackId == this.currentYTrackId) {
-                                newX = this.lastStickPosition.position;
-                            } else {
-                                newX = rightBorder;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!isColliding) {
-            // check for overflow
-            const overflowRight: number = Math.min(((pixiApp.canvas.width) - (newX + this.currentTacton.rect.width)), 0);
-
-            if (overflowRight < 0) {
-                newX += overflowRight;
-                isOverflowing = true;
-            }
-
-            if (newX < config.leftPadding) {
-                newX = prevX;
-                isOverflowing = true;
-            }
-        }
-
-        // check for snapping
-        if (!isColliding && !isOverflowing) {
-            for (const lineX of store.state.gridLines) {
-                // left
-                if (Math.abs(newLeftX - lineX) < snappingRadius) {
-                    newX = lineX;
-                    break;
-                }
-                // right
-                if (Math.abs(newRightX - lineX) < snappingRadius) {
-                    newX = lineX - this.currentTacton.rect.width;
-                    break;
-                }
-            }
-        }
-
-        changes.x = newX - prevX;
+        const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);       
+        changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
         store.dispatch('applyChangesToSelectedBlocks', changes);
     }
     private onMoveBlockEnd(): void {
@@ -595,7 +718,7 @@ export class BlockManager {
         this.lastVerticalOffset = store.state.verticalViewportOffset;
 
         if (this.currentTacton == null) return;
-        store.dispatch('changeBlockTrack', (this.currentYTrackId - this.currentTacton.trackId));
+        store.dispatch('changeBlockTrack', this.lastTrackOffset);
         store.dispatch('sortTactons');
         
         this.forEachBlock((block: BlockDTO): void => {

@@ -397,6 +397,7 @@ export class BlockManager {
             this.currentFactor = Math.min((cursorX - this.rightThreshold) / config.horizontalScrollThreshold, 1);
             this.startAutoScroll(Direction.RIGHT);
         } else if (cursorX <= this.leftThreshold) {
+            if (store.state.horizontalViewportOffset == 0) return;
             this.currentFactor= Math.min((this.leftThreshold - cursorX) / config.horizontalScrollThreshold, 1);
             this.startAutoScroll(Direction.LEFT);
         } else if (this.isScrolling){

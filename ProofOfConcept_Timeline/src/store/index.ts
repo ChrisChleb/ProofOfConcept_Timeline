@@ -19,11 +19,6 @@ export interface BlockSelection {
     uid: number;
 }
 
-interface UpdateValidationData {
-    maxTrackId: number;
-    minTrackId: number;
-}
-
 const store = createStore({
     state: {
         zoomLevel: 1,
@@ -38,7 +33,6 @@ const store = createStore({
         blocks: {} as Record<number, BlockDTO[]>,
         lastBlockPositionX: 0,
         selectedBlocks: [] as BlockSelection[],
-        updateValidationData: {} as UpdateValidationData,
         initialVirtualViewportWidth: 0,
         currentVirtualViewportWidth: 0,
         isInteracting: false,
@@ -188,32 +182,12 @@ const store = createStore({
         selectBlock(state: any, block: BlockSelection): void {
             state.selectedBlocks.push(block);
             state.blocks[block.trackId][block.index].strokedRect.visible = true;
-            
-            // store data for validation
-            const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
-                acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
-                acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
-                return acc;
-            }, { minTrackId: Infinity, maxTrackId: -Infinity });
-            
-            state.updateValidationData.minTrackId = minTrackId;
-            state.updateValidationData.maxTrackId = maxTrackId;
         },
         unselectBlock(state: any, block: BlockSelection): void {
           const index: number = state.selectedBlocks.findIndex((selectedBlock: BlockSelection) => selectedBlock.trackId == block.trackId && selectedBlock.index == block.index);
           if (index != -1) {
               state.selectedBlocks.splice(index, 1);
               state.blocks[block.trackId][block.index].strokedRect.visible = false;
-
-              // store data for validation
-              const { minTrackId, maxTrackId } = state.selectedBlocks.reduce((acc: {maxTrackId: number, minTrackId: number}, block: BlockSelection) => {
-                  acc.minTrackId = Math.min(acc.minTrackId, block.trackId);
-                  acc.maxTrackId = Math.max(acc.maxTrackId, block.trackId);
-                  return acc;
-              }, { minTrackId: Infinity, maxTrackId: -Infinity });
-
-              state.updateValidationData.minTrackId = minTrackId;
-              state.updateValidationData.maxTrackId = maxTrackId;
           }
         },
         clearSelection(state: any): void {
@@ -391,34 +365,9 @@ const store = createStore({
           commit('clearSelection');
         },
         applyChangesToSelectedBlocks({ state, commit }: any, changes: BlockChanges): void {
-            // validation
-            if (changes.track) {              
-                const minTrackId = state.updateValidationData.minTrackId;
-                const maxTrackId = state.updateValidationData.maxTrackId;
-                if (minTrackId + changes.track < 0) {
-                    changes.track = changes.track - (minTrackId + changes.track);
-                }
-                if (maxTrackId + changes.track > state.trackCount) {
-                    changes.track = changes.track + (state.trackCount - (maxTrackId + changes.track));
-                }
-            }            
             commit("updateSelectedBlocks", changes);         
         },
         changeBlockTrack({ state, commit }: any, trackChange: number): void {
-            // validation
-            const minTrackId = state.updateValidationData.minTrackId;
-            const maxTrackId = state.updateValidationData.maxTrackId;
-            if (minTrackId + trackChange < 0) {
-                trackChange = trackChange - (minTrackId + trackChange);
-            }            
-            if (maxTrackId + trackChange > state.trackCount) {
-                trackChange = trackChange + (state.trackCount - (maxTrackId + trackChange));
-            }
-            
-            // store data for validation
-            state.updateValidationData.minTrackId = minTrackId + trackChange;
-            state.updateValidationData.maxTrackId = maxTrackId + trackChange;
-            
             state.selectedBlocks.forEach((block: BlockSelection): void => {
                 const targetTrack: number = block.trackId + trackChange;                
                 commit("changeBlockTrack", {sourceTrack: block.trackId, targetTrack: targetTrack, blockIndex: block.index});

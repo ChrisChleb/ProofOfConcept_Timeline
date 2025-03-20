@@ -597,8 +597,9 @@ export class BlockManager {
         store.dispatch('changeBlockTrack', (this.currentYTrackId - this.currentTacton.trackId));
         store.dispatch('sortTactons');
         
-        this.forEachSelectedBlock((block: BlockDTO): void => {
+        this.forEachBlock((block: BlockDTO): void => {
            this.updateHandles(block);
+           this.updateStroke(block);
         });
         
         this.calculateVirtualViewportLength();

@@ -354,8 +354,10 @@ const store = createStore({
         updateCurrentVirtualViewportWidth({ commit }: any, newWidth: number): void {
             commit('setCurrentVirtualViewportWidth', newWidth);
         },
-        onSelectBlocks({ commit }: any, selectedBlocks: BlockSelection[]): void {            
-            commit('clearSelection');
+        onSelectBlocks({ state, commit }: any, selectedBlocks: BlockSelection[]): void {
+            if (!state.isPressingShift) {
+                commit('clearSelection');
+            }          
             selectedBlocks.forEach((block: BlockSelection): void => {                
                 commit('selectBlock', block);
             });

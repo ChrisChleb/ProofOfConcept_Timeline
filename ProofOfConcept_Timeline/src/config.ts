@@ -17,7 +17,6 @@ const config = {
     scrollBarHeight: 150,
     scrollBarWidth: 15,
     scrollBarPassiveAlpha: 0.5,
-    scrollBarStepSize: 200,
     // track
     trackHeight: 200,
     // tactons

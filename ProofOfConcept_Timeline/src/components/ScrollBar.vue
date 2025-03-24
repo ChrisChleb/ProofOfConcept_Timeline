@@ -72,12 +72,11 @@ export default defineComponent({
     pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {
       if (!isScrollable) return;
       if (isNaN(initialScrollY)) initialScrollY = 0;
-      const scrollAmount = event.deltaY > 0 ? config.scrollBarStepSize : -config.scrollBarStepSize;
-      scrollBar.y = Math.min(Math.max(initialScrollY + scrollAmount, 0), maxY);
+      scrollBar.y = Math.min(Math.max(initialScrollY + event.deltaY , 0), maxY);
       initialScrollY = scrollBar.y;
       const scrollRatio = scrollBar.y / maxY;
       scrollOffset = scrollRatio * store.state.scrollableHeight;
-      dynamicContainer.y = -scrollOffset;      
+      dynamicContainer.y = -scrollOffset;  
     });
     function checkForScrollable() {
       if (store.state.scrollableHeight > 0 && !isScrollable) {

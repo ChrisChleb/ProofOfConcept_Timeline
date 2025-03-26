@@ -4,8 +4,6 @@ import * as Pixi from "pixi.js";
 import config from "@/config";
 import type {BlockData} from "@/parser/instructionParser";
 import {type BlockDTO, BlockManager} from "@/helper/blockManager";
-
-
 export class BlockChanges {
     x: number | null = null;
     width: number | null = null;
@@ -22,7 +20,6 @@ export interface BlockSelection {
 const store = createStore({
     state: {
         zoomLevel: 1,
-        sliderOffset: 0,
         horizontalViewportOffset: 0,
         verticalViewportOffset: 0,
         gridLines: [] as number[],
@@ -53,9 +50,6 @@ const store = createStore({
         },
         setVerticalViewportOffset(state: any, viewportOffset: number): void {
             state.verticalViewportOffset = viewportOffset;
-        },
-        setSliderOffset(state: any, newSliderOffset: number): void {
-          state.sliderOffset = newSliderOffset;  
         },
         setGridLines(state: any, gridLines: []): void {
             state.gridLines = gridLines;
@@ -286,9 +280,6 @@ const store = createStore({
         updateVerticalViewportOffset({ commit }: any, newOffset: number): void {
             commit('setVerticalViewportOffset', newOffset);
         },
-        updateSliderOffset({ commit }: any, newSliderOffset: number): void {
-            commit('setSliderOffset', newSliderOffset);
-        },
         updateGridLines({ commit }: any, newGridLines: []): void {
             commit('setGridLines', newGridLines);
         },
@@ -386,7 +377,6 @@ const store = createStore({
         zoomLevel: (state: any) => state.zoomLevel,
         horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
         verticalViewportOffset: (state: any) => state.verticalViewportOffset,
-        sliderOffset: (state: any) => state.sliderOffset,
         gridLines: (state: any) => state.gridLines,
         trackCount: (state: any) => state.trackCount,
         scrollableHeight: (state: any) => state.scrollableHeight,

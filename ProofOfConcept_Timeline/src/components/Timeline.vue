@@ -201,10 +201,9 @@ export default defineComponent({
     },
     calculateInitialZoom() {
       const viewportWidth = pixiApp.canvas.width - config.leftPadding;
-      const padding = config.pixelsPerSecond;
       const durationInSeconds = this.totalDuration/1000;
-      const durationInPixels = (durationInSeconds * config.pixelsPerSecond) + padding;
-      const zoom = viewportWidth / (durationInPixels);
+      const durationInPixels = (durationInSeconds * config.pixelsPerSecond) + config.pixelsPerSecond;
+      const zoom = viewportWidth / durationInPixels;
 
       console.debug("viewportWidth", viewportWidth);
       console.debug("totalDuration:", durationInSeconds.toFixed(2),"s");

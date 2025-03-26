@@ -91,7 +91,6 @@ export class BlockManager {
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
         watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
-        watch(() => store.state.sliderOffset, this.onSliderOffsetChange.bind(this));
 
         onMounted((): void => {
             this.canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
@@ -233,12 +232,12 @@ export class BlockManager {
     }
     private updateBlock(block: BlockDTO): void {
         block.rect.width = block.initWidth * store.state.zoomLevel;
-        block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset - store.state.sliderOffset;
+        block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
     }
     private updateHandles(block: BlockDTO): void {
         // update data
         block.initY = block.rect.y;
-        block.initX = (block.rect.x + store.state.horizontalViewportOffset + store.state.sliderOffset - config.leftPadding) / store.state.zoomLevel;
+        block.initX = (block.rect.x + store.state.horizontalViewportOffset - config.leftPadding) / store.state.zoomLevel;
         
         // update left handle
         block.leftHandle.clear();
@@ -306,17 +305,6 @@ export class BlockManager {
             const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
             if (!isSelected) {
                 this.updateBlock(block);
-            }
-        });
-    }
-
-    // Updates all blocks, updates strokes of selected blocks (these are visible)
-    private onSliderOffsetChange(): void {
-        this.forEachBlock((block: BlockDTO): void => {
-            this.updateBlock(block);
-            const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-            if (isSelected) {
-                this.updateStroke(block)
             }
         });
     }

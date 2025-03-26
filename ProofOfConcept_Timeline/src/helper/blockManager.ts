@@ -421,16 +421,21 @@ export class BlockManager {
         }
     }
     private calculateVirtualViewportLength(): void {
-        store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {
+        store.dispatch('sortTactons');
+        store.dispatch('getLastBlockPosition').then((lastBlockPosition: number): void => {
             lastBlockPosition -= config.leftPadding;
             lastBlockPosition += store.state.horizontalViewportOffset;
-            lastBlockPosition += store.state.sliderOffset;
             lastBlockPosition /= store.state.zoomLevel;
-            // need a better solution, because this leads to weird behavior of offset
-            // --> when tacton is not exactly at border of window, as the sequenceLength is then less then what is currently shown on screen
-            //store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
-            console.log("virtualViewportWidth: ", lastBlockPosition);
-            console.log("SequenceLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
+            
+            const compareValue: number = ((pixiApp.canvas.width - config.leftPadding) + store.state.horizontalViewportOffset)/ store.state.zoomLevel;
+            if (lastBlockPosition < compareValue) {
+                const whitespace: number = compareValue - lastBlockPosition;
+                console.log("SequenceLength without whitespace: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
+                lastBlockPosition += whitespace;
+            }
+            
+            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
+            console.log("SequenceLength without whitespace: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
         });
     }
     private createBorders(): void {
@@ -719,7 +724,6 @@ export class BlockManager {
 
         if (this.currentTacton == null) return;
         store.dispatch('changeBlockTrack', this.lastTrackOffset);
-        store.dispatch('sortTactons');
         
         this.forEachBlock((block: BlockDTO): void => {
            this.updateHandles(block);
@@ -846,7 +850,7 @@ export class BlockManager {
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
         });
-        
+        this.calculateVirtualViewportLength();
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
     }

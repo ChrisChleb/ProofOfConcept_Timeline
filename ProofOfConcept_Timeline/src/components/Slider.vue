@@ -20,7 +20,10 @@ export default defineComponent({
     let initialSliderX = config.sliderHandleWidth;
     let sliderX = initialSliderX;
     const sliderContainer = new Pixi.Container();
+    let lastZoomLevel = store.state.zoomLevel;
 
+    //*************** init slider ***************
+    
     // slider      
     const sliderRect = new Pixi.Graphics();
     sliderRect.rect((windowWidth - sliderWidth)/2, 0, sliderWidth, config.sliderHeight);
@@ -28,56 +31,92 @@ export default defineComponent({
     sliderRect.interactive = true;
     sliderRect.cursor = 'pointer';
 
-    sliderRect.on('pointerdown', (event) => {
-      isDraggingSlider = true;
-      initialMouseX = event.data.global.x;
-      initialSliderX = sliderX;
-      store.dispatch('setInteractionState', true);
-      window.addEventListener('pointermove', onScale);
-      window.addEventListener('pointerup', onScaleEnd);
-    });
-
     // left handle
     const leftSliderHandle = new Pixi.Graphics();
     leftSliderHandle.rect(0, 0, config.sliderHandleWidth, config.sliderHeight);
     leftSliderHandle.fill(config.colors.sliderHandleColor);
     leftSliderHandle.interactive = true;
-    leftSliderHandle.cursor = 'ew-resize';
-
-    leftSliderHandle.on('pointerdown', (event) => {
-      isResizingLeft = true;
-      initialMouseX = event.data.global.x;
-      initialSliderWidth = sliderWidth;
-      initialSliderX = sliderX;
-      store.dispatch('setInteractionState', true);
-      window.addEventListener('pointermove', onScale);
-      window.addEventListener('pointerup', onScaleEnd);
-    });
+    leftSliderHandle.cursor = 'ew-resize';    
 
     // right handle
     const rightSliderHandle = new Pixi.Graphics();
     rightSliderHandle.rect(sliderRect.width + config.sliderHandleWidth, 0, config.sliderHandleWidth, config.sliderHeight);
     rightSliderHandle.fill(config.colors.sliderHandleColor);
     rightSliderHandle.interactive = true;
-    rightSliderHandle.cursor = 'ew-resize';
-
-    rightSliderHandle.on('pointerdown', (event) => {
-      isResizingRight = true;
-      initialMouseX = event.data.global.x;
-      initialSliderWidth = sliderWidth;
-      store.dispatch('setInteractionState', true);
-      window.addEventListener('pointermove', onScale);
-      window.addEventListener('pointerup', onScaleEnd);
-    });
+    rightSliderHandle.cursor = 'ew-resize';    
 
     sliderContainer.addChild(leftSliderHandle);
     sliderContainer.addChild(sliderRect);
     sliderContainer.addChild(rightSliderHandle);
     staticContainer.addChild(sliderContainer);
 
+    //*************** EventListeners / Watcher ***************
+    
+    sliderRect.on('pointerdown', (event) => {
+      isDraggingSlider = true;
+      initialMouseX = event.data.global.x;
+      initialSliderX = sliderX;
+
+      updateLastZoomLevel(store.state.zoomLevel);
+      store.dispatch('clearSelection');
+      store.dispatch('setInteractionState', true);
+      window.addEventListener('pointermove', onScale);
+      window.addEventListener('pointerup', onScaleEnd);
+    });
+    
+    leftSliderHandle.on('pointerdown', (event) => {
+      isResizingLeft = true;
+      initialMouseX = event.data.global.x;
+      initialSliderWidth = sliderWidth;
+      initialSliderX = sliderX;
+
+      updateLastZoomLevel(store.state.zoomLevel);
+      store.dispatch('clearSelection');
+      store.dispatch('setInteractionState', true);
+      window.addEventListener('pointermove', onScale);
+      window.addEventListener('pointerup', onScaleEnd);
+    });
+    
+    rightSliderHandle.on('pointerdown', (event) => {
+      isResizingRight = true;
+      initialMouseX = event.data.global.x;
+      initialSliderWidth = sliderWidth;
+
+      updateLastZoomLevel(store.state.zoomLevel);
+      store.dispatch('clearSelection');
+      store.dispatch('setInteractionState', true);
+      window.addEventListener('pointermove', onScale);
+      window.addEventListener('pointerup', onScaleEnd);
+    });
+    
     window.addEventListener('resize', () => {
       // TODO
     });
+    
+    watch(() => store.state.horizontalViewportOffset, (newOffset) => {
+      if (isDraggingSlider || isResizingLeft || isResizingRight) return;
+      const leftOverflow = getLeftOverflow(newOffset);
+      const rightOverflow = getRightOverflow(leftOverflow);
+      updateSliderToViewport(leftOverflow, rightOverflow);
+    });
+
+    watch(() => store.state.currentVirtualViewportWidth, (newVirtualViewportWidth) => {
+      let leftOverflow = getLeftOverflow();
+      let rightOverflow = getRightOverflow(leftOverflow, newVirtualViewportWidth);
+      updateSliderToViewport(leftOverflow, rightOverflow);
+    });
+
+    //*************** functions ***************
+    
+    function updateLastZoomLevel(newZoomLevel: number) {
+      const lo = getLeftOverflow();
+      const ro = getRightOverflow(lo);
+      if (ro == 0 && lo == 0) {
+        if (newZoomLevel > lastZoomLevel) {
+          lastZoomLevel = newZoomLevel;
+        }
+      }
+    }
     function updateSlider() {
       sliderRect.clear();
       sliderRect.rect(sliderX, 0, sliderWidth  , config.sliderHeight);
@@ -96,7 +135,7 @@ export default defineComponent({
 
       if (isResizingLeft) {
         sliderWidth = Math.max(config.sliderMinWidth, Math.min(initialSliderWidth - deltaX, sliderMaxWidth));
-        sliderX = Math.max(config.sliderHandleWidth, Math.min((initialSliderX + deltaX), (windowWidth - config.sliderMinWidth - config.sliderHandleWidth)));
+        sliderX = Math.max(config.sliderHandleWidth, Math.min((initialSliderX + deltaX), (windowWidth - sliderWidth- config.sliderHandleWidth)));
       }
 
       if (isResizingRight) {
@@ -114,38 +153,9 @@ export default defineComponent({
       }
 
       updateSlider();
-
-      if (isResizingRight || isResizingLeft) {
-        store.dispatch('updateZoomLevel', calculateZoom());
-      }
-      if (isDraggingSlider || isResizingLeft) {
-        store.dispatch('updateSliderOffset', calculateViewport());
-      }
+      store.dispatch('updateZoomLevel', calculateZoom());
+      store.dispatch('updateHorizontalViewportOffset', calculateViewport());
     }
-
-    watch(() => store.state.horizontalViewportOffset, (newOffset) => {
-      const initialLength = store.state.initialVirtualViewportWidth * store.state.zoomLevel;
-      const currentLength = initialLength + newOffset;
-      const isSliderRight = Math.round((sliderX + sliderWidth + config.sliderHandleWidth)) === windowWidth;
-
-      if (isSliderRight) {
-        const lengthRatio = currentLength / initialLength;
-
-        let newSliderWidth = sliderMaxWidth / lengthRatio;
-        newSliderWidth = Math.max(newSliderWidth, config.sliderMinWidth);
-
-        const deltaWidth = sliderWidth - newSliderWidth;
-        let newSliderX = sliderX + deltaWidth;
-
-        newSliderX = Math.max(newSliderX, config.sliderHandleWidth);
-        newSliderX = Math.min(newSliderX, windowWidth - newSliderWidth - config.sliderHandleWidth);
-
-        sliderX = newSliderX;
-        sliderWidth = newSliderWidth;
-      }
-
-      updateSlider();
-    });
     function onScaleEnd() {
       isResizingRight = false;
       isResizingLeft = false;
@@ -155,43 +165,47 @@ export default defineComponent({
       window.removeEventListener('pointerup', onScaleEnd);
       store.state.blockManager?.onSliderScaleEnd();
     }
-
-    // TODO dynamicaly calculate max zoom, depending on last tacton
+    function getLeftOverflow(newOffset?: number): number {
+      let offset;
+      if (newOffset) {
+        offset = newOffset;
+      } else {
+        offset = store.state.horizontalViewportOffset;
+      }
+      return Math.max(0, (offset) / store.state.zoomLevel);
+    }
+    function getRightOverflow(leftOverflow?: number, newVirtualViewportWidth?: number): number {
+      let lo;
+      if (leftOverflow) {
+        lo = leftOverflow
+      } else {
+        lo = getLeftOverflow();
+      }
+      let virtualViewportWidth;
+      if (newVirtualViewportWidth) {
+        virtualViewportWidth = newVirtualViewportWidth;
+      } else {
+        virtualViewportWidth = store.state.currentVirtualViewportWidth;
+      }
+      return Math.max(0, (virtualViewportWidth - ((viewportWidth)/store.state.zoomLevel) - lo));
+    }
+    function updateSliderToViewport(lo: number, ro: number) {
+      const initialLength = store.state.initialVirtualViewportWidth;
+      const currentLength = initialLength + lo + ro;
+      const currentViewportRatio = initialLength / currentLength;
+      sliderWidth = sliderMaxWidth * currentViewportRatio;
+      sliderX = ((lo / currentLength) * sliderMaxWidth) + config.sliderHandleWidth;
+      updateSlider();
+    }
     function calculateZoom(): number {
       const sliderRatio = sliderWidth / sliderMaxWidth;
       const visibleLength = store.state.currentVirtualViewportWidth * sliderRatio;
-
-      const zoomLevel = viewportWidth / (visibleLength);
-      return Math.min(Math.max(zoomLevel, config.minZoom), config.maxZoom);
+      return viewportWidth / visibleLength;
     }
-
-    let zoomOffset = 0;
-    let dragOffset = 0;
     function calculateViewport(): number {
-      const zoom = store.state.zoomLevel;
-      const visibleArea = viewportWidth/zoom;
-      const maxOffset = (store.state.currentVirtualViewportWidth - visibleArea) * zoom;
-
-      if (isResizingLeft) {
-        zoomOffset = (visibleArea - store.state.currentVirtualViewportWidth) * zoom;
-      }
-
-      // this works, until virtual viewport is changed
-      let sliderPositionRatio;
-      if (zoomOffset == 0) {
-        sliderPositionRatio =  - ((sliderX - config.sliderHandleWidth) / (windowWidth - sliderWidth - (2 * config.sliderHandleWidth)));
-      } else {
-        sliderPositionRatio = 1 - ((sliderX - config.sliderHandleWidth) / (windowWidth - sliderWidth - (2 * config.sliderHandleWidth)));
-      }
-
-      if (store.state.currentVirtualViewportWidth > store.state.initialVirtualViewportWidth) {
-        sliderPositionRatio = 1 - ((sliderX - config.sliderHandleWidth) / (windowWidth - sliderWidth - (2 * config.sliderHandleWidth)));
-      }
-
-      if (isNaN(sliderPositionRatio)) sliderPositionRatio = 0;
-      dragOffset = sliderPositionRatio * maxOffset;
-
-      return -(dragOffset + zoomOffset);
+      const leftHandleSpace = sliderX - config.sliderHandleWidth;
+      const newOffset = leftHandleSpace * (store.state.initialVirtualViewportWidth / sliderWidth);
+      return newOffset * lastZoomLevel;
     }
   }
 })

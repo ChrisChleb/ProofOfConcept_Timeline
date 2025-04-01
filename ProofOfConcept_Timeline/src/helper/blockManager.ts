@@ -661,6 +661,7 @@ export class BlockManager {
         this.currentTacton = block;
         this.currentYAdjustment = 0;
         this.lastViewportOffset = store.state.horizontalViewportOffset;
+        this.lastTrackOffset = 0;
         
         // calculate and init borders for collision detection
         this.createBorders();
@@ -690,7 +691,7 @@ export class BlockManager {
         // detect switching tracks        
         let currentYTrackId: number = this.currentTacton.trackId + Math.floor((deltaY - this.currentYAdjustment) / config.trackHeight);
         currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
-        changes.track  = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
+        changes.track = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
                 
         // scroll viewport if needed 
         // TODO maybe improve this by using lowest start and highest end position of the whole selection

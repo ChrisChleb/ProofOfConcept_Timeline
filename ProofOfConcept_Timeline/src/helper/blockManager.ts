@@ -78,7 +78,7 @@ export class BlockManager {
     private currentFactor: number = 0;
     private currentTacton: BlockDTO | null = null;
 
-    // thresholds for viewport-scrolling --> TODO update on resize
+    // thresholds for viewport-scrolling --> TODO update on resize and on zoom
     private rightThreshold: number = pixiApp.canvas.width - config.horizontalScrollThreshold;
     private leftThreshold: number = config.horizontalScrollThreshold;
     private topThreshold: number  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
@@ -116,6 +116,8 @@ export class BlockManager {
                 this.updateStroke(block);
             });
         });
+        
+        store.dispatch('getLastBlockPosition');
     }
     private createBlock(block: BlockData): void {
         const rect: Pixi.Graphics = new Pixi.Graphics();
@@ -193,7 +195,7 @@ export class BlockManager {
         bottomHandle.interactive = true;
         bottomHandle.cursor = 'ns-resize';
 
-        const tactonContainer = new Pixi.Container();
+        const tactonContainer: Pixi.Container = new Pixi.Container();
         tactonContainer.addChild(rect);
         tactonContainer.addChild(strokedRect);
         tactonContainer.addChild(leftHandle);
@@ -308,7 +310,6 @@ export class BlockManager {
             }
         });
     }
-    
     private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
             store.state.blocks[trackId].forEach((block: BlockDTO): void => {
@@ -410,21 +411,22 @@ export class BlockManager {
     }
     private calculateVirtualViewportLength(): void {
         store.dispatch('sortTactons');
-        store.dispatch('getLastBlockPosition').then((lastBlockPosition: number): void => {
-            lastBlockPosition -= config.leftPadding;
-            lastBlockPosition += store.state.horizontalViewportOffset;
-            lastBlockPosition /= store.state.zoomLevel;
-            
-            const compareValue: number = ((pixiApp.canvas.width - config.leftPadding) + store.state.horizontalViewportOffset)/ store.state.zoomLevel;
-            if (lastBlockPosition < compareValue) {
-                const whitespace: number = compareValue - lastBlockPosition;
-                console.log("SequenceLength without whitespace: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
-                lastBlockPosition += whitespace;
-            }
-            
-            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
-            console.log("SequenceLength without whitespace: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
-        });
+        store.dispatch('getLastBlockPosition');
+        
+        let lastBlockPosition = store.state.lastBlockPositionX;
+        lastBlockPosition -= config.leftPadding;
+        lastBlockPosition += store.state.horizontalViewportOffset;
+        lastBlockPosition /= store.state.zoomLevel;
+        
+        // calculate rightOverflow
+        const viewport: number = ((pixiApp.canvas.width - config.leftPadding) + store.state.horizontalViewportOffset) / store.state.zoomLevel;
+        const ro: number = Math.max(0, lastBlockPosition - viewport);
+        if (ro == 0) {
+            const whitespace: number = viewport - lastBlockPosition;
+            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition + whitespace);
+        } else {
+            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition + config.pixelsPerSecond);
+        }   
     }
     private createBorders(): void {
         this.selectedTracks = [];
@@ -552,6 +554,8 @@ export class BlockManager {
         }        
         return bestOffset;
     }    
+    
+    // TODO snapping is wonky sometimes when using multi-selection --> chooses only the last possible snap
     private adjustOffset(offset: number, trackOffset: number): number {
         const maxAttempts: number = 10;
         let attemptCount: number = 0;

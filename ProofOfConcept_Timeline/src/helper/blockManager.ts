@@ -95,6 +95,10 @@ export class BlockManager {
         onMounted((): void => {
             this.canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
         });
+
+        window.addEventListener('resize', (): void => {
+            this.calculateVirtualViewportLength();
+        });
     }    
     createBlocksFromData(blockData: BlockData[]): void {
         // clear stored blocks

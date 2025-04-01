@@ -102,6 +102,10 @@ export default defineComponent({
     watch(() => store.state.currentVirtualViewportWidth, () => {
       updateSliderToViewport();
     });
+    
+    watch(() => store.state.initialZoomLevel, () => {
+      initialZoomLevel = store.state.initialZoomLevel;
+    });
 
     //*************** functions ***************
     async function updateLastZoomLevel(newZoomLevel?: number) {

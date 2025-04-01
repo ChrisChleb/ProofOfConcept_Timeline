@@ -39,10 +39,6 @@ export default defineComponent({
     };
   },
   created() {
-    this.selectedJson = JsonData[0];
-    this.loadFile();
-    const store = useStore();
-    
     let isDragging = false;
     let selectionStart = { x: 0, y: 0 };
     let selectionEnd = { x: 0, y: 0 };
@@ -53,6 +49,10 @@ export default defineComponent({
     if (storedSequencesStr != null) {
       this.jsonData = JsonData.concat(JSON.parse(storedSequencesStr));
     }
+
+    this.selectedJson = this.jsonData[0];
+    this.loadFile();
+    const store = useStore();
     
     // shift detection for multiselection
     document.addEventListener('keydown', (event: KeyboardEvent) => {      
@@ -213,6 +213,7 @@ export default defineComponent({
       this.store.dispatch('updateInitialVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateCurrentVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateZoomLevel', zoom);
+      this.store.dispatch('updateInitialZoomLevel', zoom);
     },
     startPlayback() {
       if (this.isPlaying) return;

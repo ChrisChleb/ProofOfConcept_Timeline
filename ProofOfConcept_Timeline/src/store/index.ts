@@ -20,12 +20,13 @@ export interface BlockSelection {
 const store = createStore({
     state: {
         zoomLevel: 1,
+        initialZoomLevel: 1,
         horizontalViewportOffset: 0,
         verticalViewportOffset: 0,
         gridLines: [] as number[],
         trackCount: 0,
         scrollableHeight: 0,
-        visibleHeight: 0,       
+        visibleHeight: 0,
         sorted: {} as Record<number, boolean>,
         blocks: {} as Record<number, BlockDTO[]>,
         lastBlockPositionX: 0,
@@ -44,6 +45,9 @@ const store = createStore({
         },
         setZoomLevel(state: any, zoomLevel: number): void {
             state.zoomLevel = zoomLevel;
+        },
+        setInitialZoomLevel(state: any, newInitialZoomLevel: number): void {
+          state.initialZoomLevel = newInitialZoomLevel;  
         },
         setHorizontalViewportOffset(state: any, viewportOffset: number): void {
             state.horizontalViewportOffset = viewportOffset;
@@ -274,6 +278,9 @@ const store = createStore({
         updateZoomLevel({ commit }: any, newZoomLevel: number): void {
             commit('setZoomLevel', newZoomLevel);
         },
+        updateInitialZoomLevel({ commit }: any, newInitialZoomLevel: number): void {
+            commit('setInitialZoomLevel', newInitialZoomLevel);
+        },
         updateHorizontalViewportOffset({ commit }: any, newOffset: number): void {
             commit('setHorizontalViewportOffset', newOffset);
         },
@@ -375,6 +382,7 @@ const store = createStore({
     getters: {
         blockManager: (state: any) => state.blockManager,
         zoomLevel: (state: any) => state.zoomLevel,
+        initialZoomLevel: (state: any) => state.initialZoomLevel,
         horizontalViewportOffset: (state: any) => state.horizontalViewportOffset,
         verticalViewportOffset: (state: any) => state.verticalViewportOffset,
         gridLines: (state: any) => state.gridLines,

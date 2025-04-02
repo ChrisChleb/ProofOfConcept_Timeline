@@ -227,9 +227,24 @@ export default defineComponent({
       this.store.dispatch('updateZoomLevel', zoom);
       this.store.dispatch('updateInitialZoomLevel', zoom);
     },
+    updateLoadedInstructions() {      
+      let accumulatedTime = 0;
+      this.instructions = this.instructionParser.parseBlocksToInstructions().map((instruction: any) => {
+        if (instruction.wait) {
+          accumulatedTime += instruction.wait.miliseconds;
+        }
+        if (instruction.setParameter) {
+          instruction.setParameter.startTime = accumulatedTime;
+        }
+        return new Instruction(instruction);
+      });
+
+      this.totalDuration = accumulatedTime;
+    },
     startPlayback() {
       if (this.isPlaying) return;
-      
+      store.dispatch('clearSelection');
+      this.updateLoadedInstructions();
       this.isPlaying = true;
       this.currentTime = 0;
       this.currentInstructionIndex = 0;

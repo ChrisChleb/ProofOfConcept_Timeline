@@ -105,9 +105,8 @@ export class InstructionParser {
         
         // transform sequence into events
         sequence.forEach((block: BlockDTO): void => {
-            const convertedX: number = ((block.rect.x - config.leftPadding) / store.state.zoomLevel);
+            const convertedX: number = ((block.rect.x - config.leftPadding + store.state.horizontalViewportOffset) / store.state.zoomLevel);
             const convertedWidth: number = (block.rect.width / store.state.zoomLevel);
-
             const startTime: number = (convertedX / timelineWidth) * totalDuration;
             const endTime: number = startTime + ((convertedWidth / timelineWidth) * totalDuration);
 

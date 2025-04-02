@@ -221,6 +221,7 @@ export default defineComponent({
       console.debug("durationInPixels", durationInPixels);
       console.debug("zoom: ", zoom);
       
+      this.store.dispatch('updateHorizontalViewportOffset', 0);
       this.store.dispatch('updateInitialVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateCurrentVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateZoomLevel', zoom);

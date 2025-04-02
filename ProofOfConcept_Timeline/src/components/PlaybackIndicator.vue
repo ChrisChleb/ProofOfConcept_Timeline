@@ -25,7 +25,15 @@ export default defineComponent({
     const store = useStore();
     const playbackIndicator = new Pixi.Graphics();
     dynamicContainer.addChild(playbackIndicator);
+    let isSliderFollowing = false;
     renderIndicator();
+    
+    watch(() => store.state.lastBlockPositionX, () => {
+      const isLastBlockOutOfViewport = store.state.lastBlockPositionX > pixiApp.canvas.width;
+      // new refers to the playback-viewport, where horizontalViewportOffset is set to 0
+      const isLastBlockOutOfNewViewport = (store.state.lastBlockPositionX + store.state.horizontalViewportOffset) > pixiApp.canvas.width;
+      isSliderFollowing =  isLastBlockOutOfViewport || (store.state.horizontalViewportOffset != 0 && isLastBlockOutOfNewViewport);
+    });
     
     watch(() => store.state.trackCount, () => {
       renderIndicator();
@@ -35,7 +43,8 @@ export default defineComponent({
     watch(() => props.currentTime, (currentTime: number) => {
       if (props.isPlaybackActive) {
         const x = ((currentTime / 1000) * (config.pixelsPerSecond * store.state.zoomLevel));
-        if ((x + config.leftPadding) >= (pixiApp.canvas.width/2) && store.state.lastBlockPositionX > pixiApp.canvas.width) {
+        const isIndicatorAtViewportCenter = (x + config.leftPadding) >= (pixiApp.canvas.width/2);
+        if (isIndicatorAtViewportCenter && isSliderFollowing) {
           store.dispatch('updateHorizontalViewportOffset', (x + config.leftPadding) - (pixiApp.canvas.width/2));
           playbackIndicator.x = x - store.state.horizontalViewportOffset;
         } else {

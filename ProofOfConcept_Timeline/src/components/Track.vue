@@ -9,6 +9,7 @@ export default defineComponent({
   props: {
     trackId: {
       type: Number,
+      required: true
     },
   },
   setup(props: any) {

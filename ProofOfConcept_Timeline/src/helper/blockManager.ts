@@ -78,11 +78,11 @@ export class BlockManager {
     private currentFactor: number = 0;
     private currentTacton: BlockDTO | null = null;
 
-    // thresholds for viewport-scrolling --> TODO update on resize
-    private rightThreshold: number = pixiApp.canvas.width - config.horizontalScrollThreshold;
-    private leftThreshold: number = config.horizontalScrollThreshold;
-    private topThreshold: number  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
-    private bottomThreshold: number = window.innerHeight - config.verticalScrollThreshold;
+    // thresholds for viewport-scrolling --> TODO update on resize and on zoom
+    private rightThreshold: number = 0;
+    private leftThreshold: number = 0;
+    private topThreshold: number  = 0;
+    private bottomThreshold: number = 0;
 
     // vertical viewport-scrolling
     private currentYAdjustment: number = 0;
@@ -91,11 +91,17 @@ export class BlockManager {
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
         watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
-        watch(() => store.state.sliderOffset, this.onSliderOffsetChange.bind(this));
 
         onMounted((): void => {
             this.canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
         });
+
+        window.addEventListener('resize', (): void => {
+            this.calculateVirtualViewportLength();
+            this.generateThresholds();
+        });
+        
+        this.generateThresholds();
     }    
     createBlocksFromData(blockData: BlockData[]): void {
         // clear stored blocks
@@ -117,6 +123,8 @@ export class BlockManager {
                 this.updateStroke(block);
             });
         });
+        
+        store.dispatch('getLastBlockPosition');
     }
     private createBlock(block: BlockData): void {
         const rect: Pixi.Graphics = new Pixi.Graphics();
@@ -194,7 +202,7 @@ export class BlockManager {
         bottomHandle.interactive = true;
         bottomHandle.cursor = 'ns-resize';
 
-        const tactonContainer = new Pixi.Container();
+        const tactonContainer: Pixi.Container = new Pixi.Container();
         tactonContainer.addChild(rect);
         tactonContainer.addChild(strokedRect);
         tactonContainer.addChild(leftHandle);
@@ -233,12 +241,12 @@ export class BlockManager {
     }
     private updateBlock(block: BlockDTO): void {
         block.rect.width = block.initWidth * store.state.zoomLevel;
-        block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset - store.state.sliderOffset;
+        block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
     }
     private updateHandles(block: BlockDTO): void {
         // update data
         block.initY = block.rect.y;
-        block.initX = (block.rect.x + store.state.horizontalViewportOffset + store.state.sliderOffset - config.leftPadding) / store.state.zoomLevel;
+        block.initX = (block.rect.x + store.state.horizontalViewportOffset - config.leftPadding) / store.state.zoomLevel;
         
         // update left handle
         block.leftHandle.clear();
@@ -288,6 +296,13 @@ export class BlockManager {
         block.strokedRect.y = block.rect.y;
         block.strokedRect.height = block.rect.height;
     }
+    private generateThresholds(): void {
+        const scaleFactor: number = Math.max(0, store.state.initialZoomLevel - store.state.zoomLevel) + 1;
+        this.rightThreshold = pixiApp.canvas.width - (config.horizontalScrollThreshold / scaleFactor);
+        this.leftThreshold = config.horizontalScrollThreshold / scaleFactor;
+        this.topThreshold  = this.canvasOffset + config.sliderHeight + config.verticalScrollThreshold;
+        this.bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
+    }
 
     // Updates all blocks, updates strokes of selected blocks (these are visible)
     private onZoomLevelChange(): void {
@@ -298,6 +313,7 @@ export class BlockManager {
                 this.updateStroke(block);
             }
         });
+        this.generateThresholds();
     }
     
     // Updates all unselected blocks
@@ -309,18 +325,6 @@ export class BlockManager {
             }
         });
     }
-
-    // Updates all blocks, updates strokes of selected blocks (these are visible)
-    private onSliderOffsetChange(): void {
-        this.forEachBlock((block: BlockDTO): void => {
-            this.updateBlock(block);
-            const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-            if (isSelected) {
-                this.updateStroke(block)
-            }
-        });
-    }
-    
     private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
             store.state.blocks[trackId].forEach((block: BlockDTO): void => {
@@ -421,17 +425,23 @@ export class BlockManager {
         }
     }
     private calculateVirtualViewportLength(): void {
-        store.dispatch('getLastBlockPosition').then((lastBlockPosition: number) => {
-            lastBlockPosition -= config.leftPadding;
-            lastBlockPosition += store.state.horizontalViewportOffset;
-            lastBlockPosition += store.state.sliderOffset;
-            lastBlockPosition /= store.state.zoomLevel;
-            // need a better solution, because this leads to weird behavior of offset
-            // --> when tacton is not exactly at border of window, as the sequenceLength is then less then what is currently shown on screen
-            //store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition);
-            console.log("virtualViewportWidth: ", lastBlockPosition);
-            console.log("SequenceLength: ", (lastBlockPosition / config.pixelsPerSecond).toFixed(2), "sec");
-        });
+        store.dispatch('sortTactons');
+        store.dispatch('getLastBlockPosition');
+        
+        let lastBlockPosition = store.state.lastBlockPositionX;
+        lastBlockPosition -= config.leftPadding;
+        lastBlockPosition += store.state.horizontalViewportOffset;
+        lastBlockPosition /= store.state.zoomLevel;
+        
+        // calculate rightOverflow
+        const viewport: number = ((pixiApp.canvas.width - config.leftPadding) + store.state.horizontalViewportOffset) / store.state.zoomLevel;
+        const ro: number = Math.max(0, lastBlockPosition - viewport);
+        if (ro == 0) {
+            const whitespace: number = viewport - lastBlockPosition;
+            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition + whitespace);
+        } else {
+            store.dispatch('updateCurrentVirtualViewportWidth', lastBlockPosition + config.pixelsPerSecond);
+        }   
     }
     private createBorders(): void {
         this.selectedTracks = [];
@@ -559,6 +569,8 @@ export class BlockManager {
         }        
         return bestOffset;
     }    
+    
+    // TODO snapping is wonky sometimes when using multi-selection --> chooses only the last possible snap
     private adjustOffset(offset: number, trackOffset: number): number {
         const maxAttempts: number = 10;
         let attemptCount: number = 0;
@@ -668,6 +680,7 @@ export class BlockManager {
         this.currentTacton = block;
         this.currentYAdjustment = 0;
         this.lastViewportOffset = store.state.horizontalViewportOffset;
+        this.lastTrackOffset = 0;
         
         // calculate and init borders for collision detection
         this.createBorders();
@@ -697,7 +710,7 @@ export class BlockManager {
         // detect switching tracks        
         let currentYTrackId: number = this.currentTacton.trackId + Math.floor((deltaY - this.currentYAdjustment) / config.trackHeight);
         currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
-        changes.track  = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
+        changes.track = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
                 
         // scroll viewport if needed 
         // TODO maybe improve this by using lowest start and highest end position of the whole selection
@@ -719,7 +732,6 @@ export class BlockManager {
 
         if (this.currentTacton == null) return;
         store.dispatch('changeBlockTrack', this.lastTrackOffset);
-        store.dispatch('sortTactons');
         
         this.forEachBlock((block: BlockDTO): void => {
            this.updateHandles(block);
@@ -846,7 +858,7 @@ export class BlockManager {
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
         });
-        
+        this.calculateVirtualViewportLength();
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
     }

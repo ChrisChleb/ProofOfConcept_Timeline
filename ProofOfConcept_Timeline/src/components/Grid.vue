@@ -23,10 +23,6 @@ export default defineComponent({
       rerenderLabels = true;
       rerenderGrid();
     });
-    watch(() => store.state.sliderOffset, () => {
-      rerenderLabels = true;
-      rerenderGrid();
-    });
     watch(() => store.state.trackCount, () => {
       rerenderLabels = false;
       rerenderGrid();
@@ -52,9 +48,9 @@ export default defineComponent({
       }
       
       const adjustedPixelsPerSecond = config.pixelsPerSecond * store.state.zoomLevel;
-      const totalWidth = pixiApp.canvas.width + Math.abs(store.state.horizontalViewportOffset + store.state.sliderOffset) - config.leftPadding;
+      const totalWidth = pixiApp.canvas.width + Math.abs(store.state.horizontalViewportOffset) - config.leftPadding;
       const steps = (totalWidth / adjustedPixelsPerSecond);
-      const gridOffset = config.leftPadding - store.state.horizontalViewportOffset - store.state.sliderOffset;
+      const gridOffset = config.leftPadding - store.state.horizontalViewportOffset;
       const gridLines: number[] = [];
       getIntervals().forEach((interval) => {
         const isMajor = interval == 1;

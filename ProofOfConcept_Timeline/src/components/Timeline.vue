@@ -307,7 +307,7 @@ export default defineComponent({
     <v-btn @click="dialog = true">Open Visualization</v-btn>
     <v-btn @click="exportJson">Save Sequence</v-btn>
   </div>
-  <Slider></Slider>
+  <Slider :is-playback-active="isPlaying"></Slider>
   <ScrollBar></ScrollBar>
   <Grid></Grid>
   <div v-for="trackId in Array.from({ length: trackCount + 1 }, (_, i) => i)" :key="trackId">

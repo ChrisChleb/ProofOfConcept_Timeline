@@ -67,6 +67,16 @@ export default defineComponent({
         store.dispatch('toggleShiftValue');
       }
     });
+
+    document.addEventListener('keypress', (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        if (!this.isPlaying) {
+          this.startPlayback();
+        } else {
+          this.stopPlayback();
+        }
+      }
+    });
     
     // multiselection by dragging
     pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {

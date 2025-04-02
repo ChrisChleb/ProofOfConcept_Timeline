@@ -35,7 +35,8 @@ export default defineComponent({
       jsonData: JsonData,
       store: useStore(),
       dialog: ref(false),
-      instructionParser: new InstructionParser()
+      instructionParser: new InstructionParser(),
+      lastHorizontalViewportOffset: 0
     };
   },
   created() {
@@ -221,6 +222,8 @@ export default defineComponent({
       this.isPlaying = true;
       this.currentTime = 0;
       this.currentInstructionIndex = 0;
+      this.lastHorizontalViewportOffset = store.state.horizontalViewportOffset;
+      store.dispatch('updateHorizontalViewportOffset', 0);
       this.playbackTimer = pixiApp.ticker.add(this.updatePlayback)
     },
     stopPlayback() {
@@ -231,6 +234,7 @@ export default defineComponent({
       this.currentTime = 0;
       this.currentInstructionIndex = 0;
       this.currentInstruction = null;
+      store.dispatch('updateHorizontalViewportOffset', this.lastHorizontalViewportOffset);
     },
     updatePlayback(ticker: any) {
       if (!this.isPlaying) return;
@@ -250,6 +254,7 @@ export default defineComponent({
       if (this.currentTime >= this.totalDuration) {
         this.currentTime = 0;
         this.currentInstructionIndex = 0;
+        store.dispatch('updateHorizontalViewportOffset', 0);
       }
     },
     loadFile() {
@@ -298,7 +303,7 @@ export default defineComponent({
   <div v-for="trackId in Array.from({ length: trackCount + 1 }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId"></Track>
   </div>
-  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount + 1"></PlaybackIndicator>
+  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :is-playback-active="isPlaying"></PlaybackIndicator>
   
   <!--Visualization Dialog-->
   <v-dialog max-width="auto" height="70%" v-model="dialog">

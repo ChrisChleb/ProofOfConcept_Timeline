@@ -174,6 +174,7 @@ export default defineComponent({
       isResizingLeft = false;
       isDraggingSlider = false;
       store.dispatch('setInteractionState', false);
+      store.dispatch('getLastBlockPosition');
       window.removeEventListener('pointermove', onScale);
       window.removeEventListener('pointerup', onScaleEnd);
       store.state.blockManager?.onSliderScaleEnd();

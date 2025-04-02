@@ -79,10 +79,10 @@ export class BlockManager {
     private currentTacton: BlockDTO | null = null;
 
     // thresholds for viewport-scrolling --> TODO update on resize and on zoom
-    private rightThreshold: number = pixiApp.canvas.width - config.horizontalScrollThreshold;
-    private leftThreshold: number = config.horizontalScrollThreshold;
-    private topThreshold: number  = (pixiApp.canvas.getBoundingClientRect().top + config.sliderHeight) + config.verticalScrollThreshold;
-    private bottomThreshold: number = window.innerHeight - config.verticalScrollThreshold;
+    private rightThreshold: number = 0;
+    private leftThreshold: number = 0;
+    private topThreshold: number  = 0;
+    private bottomThreshold: number = 0;
 
     // vertical viewport-scrolling
     private currentYAdjustment: number = 0;
@@ -98,7 +98,10 @@ export class BlockManager {
 
         window.addEventListener('resize', (): void => {
             this.calculateVirtualViewportLength();
+            this.generateThresholds();
         });
+        
+        this.generateThresholds();
     }    
     createBlocksFromData(blockData: BlockData[]): void {
         // clear stored blocks
@@ -293,6 +296,13 @@ export class BlockManager {
         block.strokedRect.y = block.rect.y;
         block.strokedRect.height = block.rect.height;
     }
+    private generateThresholds(): void {
+        const scaleFactor: number = Math.max(0, store.state.initialZoomLevel - store.state.zoomLevel) + 1;
+        this.rightThreshold = pixiApp.canvas.width - (config.horizontalScrollThreshold / scaleFactor);
+        this.leftThreshold = config.horizontalScrollThreshold / scaleFactor;
+        this.topThreshold  = this.canvasOffset + config.sliderHeight + config.verticalScrollThreshold;
+        this.bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
+    }
 
     // Updates all blocks, updates strokes of selected blocks (these are visible)
     private onZoomLevelChange(): void {
@@ -303,6 +313,7 @@ export class BlockManager {
                 this.updateStroke(block);
             }
         });
+        this.generateThresholds();
     }
     
     // Updates all unselected blocks

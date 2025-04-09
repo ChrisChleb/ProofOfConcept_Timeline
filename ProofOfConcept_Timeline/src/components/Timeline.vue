@@ -35,7 +35,8 @@ export default defineComponent({
       jsonData: JsonData,
       store: useStore(),
       dialog: ref(false),
-      instructionParser: new InstructionParser()
+      instructionParser: new InstructionParser(),
+      lastHorizontalViewportOffset: 0
     };
   },
   created() {
@@ -64,6 +65,16 @@ export default defineComponent({
     document.addEventListener('keyup', (event: KeyboardEvent) => {    
       if (event.key == "Shift" && store.state.isPressingShift) {
         store.dispatch('toggleShiftValue');
+      }
+    });
+
+    document.addEventListener('keypress', (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        if (!this.isPlaying) {
+          this.startPlayback();
+        } else {
+          this.stopPlayback();
+        }
       }
     });
     
@@ -210,17 +221,35 @@ export default defineComponent({
       console.debug("durationInPixels", durationInPixels);
       console.debug("zoom: ", zoom);
       
+      this.store.dispatch('updateHorizontalViewportOffset', 0);
       this.store.dispatch('updateInitialVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateCurrentVirtualViewportWidth', durationInPixels);
       this.store.dispatch('updateZoomLevel', zoom);
       this.store.dispatch('updateInitialZoomLevel', zoom);
     },
+    updateLoadedInstructions() {      
+      let accumulatedTime = 0;
+      this.instructions = this.instructionParser.parseBlocksToInstructions().map((instruction: any) => {
+        if (instruction.wait) {
+          accumulatedTime += instruction.wait.miliseconds;
+        }
+        if (instruction.setParameter) {
+          instruction.setParameter.startTime = accumulatedTime;
+        }
+        return new Instruction(instruction);
+      });
+
+      this.totalDuration = accumulatedTime;
+    },
     startPlayback() {
       if (this.isPlaying) return;
-      
+      store.dispatch('clearSelection');
+      this.updateLoadedInstructions();
       this.isPlaying = true;
       this.currentTime = 0;
       this.currentInstructionIndex = 0;
+      this.lastHorizontalViewportOffset = store.state.horizontalViewportOffset;
+      store.dispatch('updateHorizontalViewportOffset', 0);
       this.playbackTimer = pixiApp.ticker.add(this.updatePlayback)
     },
     stopPlayback() {
@@ -231,6 +260,7 @@ export default defineComponent({
       this.currentTime = 0;
       this.currentInstructionIndex = 0;
       this.currentInstruction = null;
+      store.dispatch('updateHorizontalViewportOffset', this.lastHorizontalViewportOffset);
     },
     updatePlayback(ticker: any) {
       if (!this.isPlaying) return;
@@ -250,6 +280,7 @@ export default defineComponent({
       if (this.currentTime >= this.totalDuration) {
         this.currentTime = 0;
         this.currentInstructionIndex = 0;
+        store.dispatch('updateHorizontalViewportOffset', 0);
       }
     },
     loadFile() {
@@ -292,13 +323,13 @@ export default defineComponent({
     <v-btn @click="dialog = true">Open Visualization</v-btn>
     <v-btn @click="exportJson">Save Sequence</v-btn>
   </div>
-  <Slider></Slider>
+  <Slider :is-playback-active="isPlaying"></Slider>
   <ScrollBar></ScrollBar>
   <Grid></Grid>
   <div v-for="trackId in Array.from({ length: trackCount + 1 }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId"></Track>
   </div>
-  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :track-count="trackCount + 1"></PlaybackIndicator>
+  <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :is-playback-active="isPlaying"></PlaybackIndicator>
   
   <!--Visualization Dialog-->
   <v-dialog max-width="auto" height="70%" v-model="dialog">

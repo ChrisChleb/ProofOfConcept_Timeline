@@ -6,7 +6,13 @@ import * as Pixi from "pixi.js";
 import store from "@/store";
 export default defineComponent({
   name: "Slider",
-  setup() {
+  props: {
+    isPlaybackActive: {
+      type: Boolean,
+      required: true
+    },
+  },
+  setup(props: any) {
     let windowWidth = pixiApp.canvas.width;
     let viewportWidth = windowWidth - config.leftPadding;
     let sliderMaxWidth = windowWidth - (2 * config.sliderHandleWidth);
@@ -106,6 +112,12 @@ export default defineComponent({
     watch(() => store.state.initialZoomLevel, () => {
       initialZoomLevel = store.state.initialZoomLevel;
     });
+    
+    watch(() => props.isPlaybackActive, () => {
+      sliderContainer.children.forEach((object) => {
+        object.interactive = !props.isPlaybackActive;
+      });
+    });
 
     //*************** functions ***************
     async function updateLastZoomLevel(newZoomLevel?: number) {
@@ -174,6 +186,7 @@ export default defineComponent({
       isResizingLeft = false;
       isDraggingSlider = false;
       store.dispatch('setInteractionState', false);
+      store.dispatch('getLastBlockPosition');
       window.removeEventListener('pointermove', onScale);
       window.removeEventListener('pointerup', onScaleEnd);
       store.state.blockManager?.onSliderScaleEnd();

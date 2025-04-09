@@ -180,7 +180,7 @@ export class BlockManager {
         
         store.dispatch('getLastBlockPosition');
     }
-    private createBlock(block: BlockData): void {
+    private createBlock(block: BlockData): BlockDTO {
         const rect: Pixi.Graphics = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.tactonColor);
@@ -284,6 +284,7 @@ export class BlockManager {
         
         store.dispatch('addBlock', {trackId: block.trackId, block: dto});
         dynamicContainer.addChild(blockContainer);
+        return dto;
     }
     private createCopiedBLock(block: BlockData): CopiedBlockDTO {
         const rect: Pixi.Graphics = new Pixi.Graphics();
@@ -540,7 +541,14 @@ export class BlockManager {
     }
     private pasteSelection(): void {
         const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
-        copiedBlockData.forEach((blockData: BlockData) => this.createBlock(blockData));
+        
+        // todo quick and dirty fix by toggling shiftValue --> change that and use dedicated function for multiple blockSelection
+        store.dispatch('toggleShiftValue');
+        copiedBlockData.forEach((blockData: BlockData): void => {
+            const block = this.createBlock(blockData);
+            store.dispatch('selectBlock', block);
+        });
+        store.dispatch('toggleShiftValue');
         
         // update blocks, handles and strokes
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {

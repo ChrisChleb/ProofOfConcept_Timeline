@@ -15,6 +15,7 @@ import Slider from "@/components/Slider.vue";
 import store, {type BlockSelection} from "@/store";
 import ScrollBar from "@/components/ScrollBar.vue";
 import {type BlockDTO, BlockManager} from "@/helper/blockManager";
+import PositionIndicator from "@/components/PositionIndicator.vue";
 
 const storageKey = "storedSequences";
 export default defineComponent({
@@ -300,6 +301,7 @@ export default defineComponent({
     }
   },
   components: {
+    PositionIndicator,
     ScrollBar,
     Slider,
     PlaybackVisualization,
@@ -329,6 +331,7 @@ export default defineComponent({
   <div v-for="trackId in Array.from({ length: trackCount + 1 }, (_, i) => i)" :key="trackId">
     <Track :track-id="trackId"></Track>
   </div>
+  <PositionIndicator :is-playback-active="isPlaying"></PositionIndicator>
   <PlaybackIndicator :current-time="currentTime" :total-duration="totalDuration" :is-playback-active="isPlaying"></PlaybackIndicator>
   
   <!--Visualization Dialog-->

@@ -35,7 +35,8 @@ const store = createStore({
         currentVirtualViewportWidth: 0,
         isInteracting: false,
         isPressingShift: false,
-        blockManager: null as BlockManager | null
+        blockManager: null as BlockManager | null,
+        currentCursorPosition: {x: 0, y: 0}
     },
     mutations: {
         setBlockManager(state: any, manager: BlockManager): void {
@@ -269,6 +270,9 @@ const store = createStore({
         },
         toggleShiftValue(state: any): void {
             state.isPressingShift = !state.isPressingShift;
+        },
+        setCurrentCursorPosition(state: any, newPosition: {x: number, y: number}): void {
+            state.currentCursorPosition = newPosition;
         }
     },
     actions: {
@@ -377,7 +381,10 @@ const store = createStore({
         },
         toggleShiftValue({ commit }: any): void {
             commit("toggleShiftValue");
-        }
+        },
+        updateCurrentCursorPosition({ commit }: any, newPosition: {x: number, y: number}): void {
+            commit('setCurrentCursorPosition', newPosition);
+        },
     },
     getters: {
         blockManager: (state: any) => state.blockManager,
@@ -394,7 +401,8 @@ const store = createStore({
         sorted: (state: any) => state.sorted,
         selectedBlocks: (state: any) => state.selectedBlocks,
         isInteracting: (state: any) => state.isInteracting,
-        isPressingShift: (state: any) => state.isPressingShift
+        isPressingShift: (state: any) => state.isPressingShift,
+        currentCursorPosition: (state: any) => state.currentCursorPosition
     }
 });
 export default store;

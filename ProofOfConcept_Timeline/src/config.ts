@@ -11,8 +11,6 @@ const config = {
     sliderHeight: 28,
     sliderMinWidth: 5,
     sliderHandleWidth: 32,
-    maxZoom: 20,
-    minZoom: 1,
     //scrollBar
     scrollBarHeight: 150,
     scrollBarWidth: 15,
@@ -24,6 +22,8 @@ const config = {
     resizingHandleWidth: 20,
     // grid
     pixelsPerSecond: 100,
+    minLineDistance: 100,
+    maxLineDistance: 500,
     moveSnappingRadius: 20,
     resizingSnappingRadius: 5,
     //colors

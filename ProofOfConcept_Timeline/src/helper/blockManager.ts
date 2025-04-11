@@ -130,19 +130,28 @@ export class BlockManager {
         
         this.generateThresholds();
         
-        // listen for copy + paste
+        // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
             if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = true;
         });
-
+        
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
             if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = false;
         });
-
+        
+        // detect copy & paste
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
             if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
             if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
+            if (event.code == 'Escape') this.clearCopiedBlocks();
         });
+        
+        // paste on click
+        pixiApp.canvas.addEventListener('mousedown', () => {
+            if (!store.state.isInteracting) {
+                this.pasteSelection();
+            }           
+        })
         
         // watch currentCursorPosition        
         watch(() => store.state.currentCursorPosition, (): void => {
@@ -341,7 +350,6 @@ export class BlockManager {
         block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
     }
     private updateCopiedBlocks(): void {
-        
         // detect switching tracks
         const currentYTrackId: number = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
         const trackChange: number = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.initYTrackId), this.maxTrackChange));
@@ -471,73 +479,66 @@ export class BlockManager {
     
     //*************** Interactions ***************
     private copySelection(): void {
-        if (this.copiedBlocks.length > 0) {
-            // already copied blocks --> remove copies from screen and reset arrays
-            this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
-                block.container.destroy({children: true});
-            });
-            
-            this.copiedBlocks = [];
-            return;
-        }
-        
+        this.clearCopiedBlocks();
         const selectedBlocks: BlockDTO[] = [];
         
         store.state.selectedBlocks.forEach((selection: BlockSelection) => {
            selectedBlocks.push(store.state.blocks[selection.trackId][selection.index]); 
         });
         
-        let lowestXofCopies = Infinity;
-        const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
-        copiedBlockData.forEach((blockData: BlockData): void => {
-            const block: CopiedBlockDTO = this.createCopiedBLock(blockData)
-            
-            if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
-            
-            this.copiedBlocks.push(block);
-            dynamicContainer.addChild(block.container);
-        });
-        
-        const offset: number = store.state.currentCursorPosition.x - lowestXofCopies;
+        if (selectedBlocks.length > 0) {
+            let lowestXofCopies: number = Infinity;
+            const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
+            copiedBlockData.forEach((blockData: BlockData): void => {
+                const block: CopiedBlockDTO = this.createCopiedBLock(blockData)
 
-        this.initYTrackId = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
-        this.initYTrackId = Math.max(0, Math.min(this.initYTrackId, store.state.trackCount));
-        let trackChange: number = this.initYTrackId - this.copiedBlocks[0].trackId;
-        
-        // validate trackChange
-        const maxTrackId: number = this.copiedBlocks.reduce((prev: CopiedBlockDTO, current: CopiedBlockDTO): CopiedBlockDTO => {
-           return (prev && prev.trackId > current.trackId) ? prev : current; 
-        }).trackId;
-        
-        if (maxTrackId + trackChange > store.state.trackCount) {
-            trackChange = store.state.trackCount - maxTrackId;
+                if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
+
+                this.copiedBlocks.push(block);
+                dynamicContainer.addChild(block.container);
+            });
+
+            const offset: number = store.state.currentCursorPosition.x - lowestXofCopies;
+
+            this.initYTrackId = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
+            this.initYTrackId = Math.max(0, Math.min(this.initYTrackId, store.state.trackCount));
+            let trackChange: number = this.initYTrackId - this.copiedBlocks[0].trackId;
+
+            // validate trackChange
+            const maxTrackId: number = this.copiedBlocks.reduce((prev: CopiedBlockDTO, current: CopiedBlockDTO): CopiedBlockDTO => {
+                return (prev && prev.trackId > current.trackId) ? prev : current;
+            }).trackId;
+
+            if (maxTrackId + trackChange > store.state.trackCount) {
+                trackChange = store.state.trackCount - maxTrackId;
+            }
+
+            this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+                block.rect.x = block.rect.x + offset;
+                block.initX = block.rect.x;
+
+                const newTrackId: number = block.trackId + trackChange;
+                block.rect.y = config.sliderHeight + config.componentPadding + (newTrackId * config.trackHeight) + ((config.trackHeight / 2) - (block.rect.height / 2));
+                block.initY = block.rect.y;
+                block.trackId = newTrackId;
+                block.initTrackId = newTrackId;
+            });
+
+            // calculate and init borders for collision detection
+            this.createBordersForCopies();
+
+            // create validTrackOffsets for collisionDetection and change validation
+            this.minTrackChange = Math.min(...this.validTrackOffsets);
+            this.maxTrackChange = Math.max(...this.validTrackOffsets);
+
+            // set initialX for collisionDetection
+            this.initialX = store.state.currentCursorPosition.x;
+
+            this.initialY = store.state.currentCursorPosition.y;
+            this.lastCursorX = this.initialX;
+
+            store.dispatch('clearSelection');
         }
-        
-        this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
-            block.rect.x = block.rect.x + offset;
-            block.initX = block.rect.x;
-            
-            const newTrackId: number = block.trackId + trackChange;
-            block.rect.y = config.sliderHeight + config.componentPadding + (newTrackId * config.trackHeight) + ((config.trackHeight / 2) - (block.rect.height / 2));
-            block.initY = block.rect.y;
-            block.trackId = newTrackId;
-            block.initTrackId = newTrackId;
-        });
-
-        // calculate and init borders for collision detection
-        this.createBordersForCopies();
-        
-        // create validTrackOffsets for collisionDetection and change validation
-        this.minTrackChange = Math.min(...this.validTrackOffsets);
-        this.maxTrackChange = Math.max(...this.validTrackOffsets);
-        
-        // set initialX for collisionDetection
-        this.initialX = store.state.currentCursorPosition.x;
-        
-        this.initialY = store.state.currentCursorPosition.y;
-        this.lastCursorX = this.initialX;
-        
-        store.dispatch('clearSelection');
     }
     private pasteSelection(): void {
         const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
@@ -568,6 +569,16 @@ export class BlockManager {
 
         this.copiedBlocks = [];
         return;
+    }
+    private clearCopiedBlocks(): void {
+        if (this.copiedBlocks.length > 0) {
+            this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+                block.container.destroy({children: true});
+            });
+
+            this.copiedBlocks = [];
+            return;
+        }
     }
     private startAutoScroll(direction: Direction): void {
         if (!this.isScrolling) {

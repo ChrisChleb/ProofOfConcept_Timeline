@@ -48,6 +48,28 @@ export class BlockDTO {
         this.initTrackId = trackId;
     }
 }
+export class CopiedBlockDTO {
+    rect: Graphics;
+    initX: number;
+    initY: number;
+    initWidth: number;
+    container: Pixi.Container;
+    trackId: number;
+    initTrackId: number;
+    constructor(
+        rect: Graphics,
+        container: Pixi.Container,
+        trackId: number
+    ) {
+        this.rect = rect;
+        this.initX = rect.x;
+        this.initY = rect.y;
+        this.initWidth = rect.width;
+        this.container = container;
+        this.trackId = trackId;
+        this.initTrackId = trackId;
+    }
+}
 export class BlockManager {    
     private resizeDirection: Direction | null = null;
     private initialX: number = 0;
@@ -88,6 +110,11 @@ export class BlockManager {
     private currentYAdjustment: number = 0;
     private lastVerticalOffset: number = 0;
     private canvasOffset: number = 0;
+    
+    private strgDown: boolean = false;
+    private copiedBlocks: CopiedBlockDTO[] = [];
+    private lastCursorX: number = 0;
+    private initYTrackId: number = 0;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
         watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
@@ -102,6 +129,42 @@ export class BlockManager {
         });
         
         this.generateThresholds();
+        
+        // detect strg
+        document.addEventListener('keydown', (event: KeyboardEvent): void => {
+            if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = true;
+        });
+        
+        document.addEventListener('keyup', (event: KeyboardEvent): void => {
+            if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = false;
+        });
+        
+        // detect copy & paste
+        document.addEventListener('keydown', (event: KeyboardEvent): void => {
+            if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
+            if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
+            if (event.code == 'Escape') this.clearCopiedBlocks();
+        });
+        
+        // paste on click
+        pixiApp.canvas.addEventListener('mousedown', () => {
+            if (!store.state.isInteracting) {
+                this.pasteSelection();
+            }           
+        })
+        
+        // watch currentCursorPosition        
+        watch(() => store.state.currentCursorPosition, (): void => {
+           if (this.copiedBlocks.length > 0) {
+               // follow cursor
+               this.updateCopiedBlocks();
+           } 
+        });
+        
+        watch(() => store.state.trackCount, (value, oldValue): void => {
+            // update maxTrackChange
+            this.maxTrackChange += (oldValue + value);
+        });
     }    
     createBlocksFromData(blockData: BlockData[]): void {
         // clear stored blocks
@@ -126,7 +189,7 @@ export class BlockManager {
         
         store.dispatch('getLastBlockPosition');
     }
-    private createBlock(block: BlockData): void {
+    private createBlock(block: BlockData): BlockDTO {
         const rect: Pixi.Graphics = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.tactonColor);
@@ -139,7 +202,7 @@ export class BlockManager {
         rect.height = block.intensity * config.blockHeightScaleFactor;
         rect.y = config.sliderHeight + config.componentPadding + (block.trackId * config.trackHeight) + ((config.trackHeight / 2) - (rect.height / 2));
 
-        const strokedRect = new Pixi.Graphics();
+        const strokedRect: Pixi.Graphics = new Pixi.Graphics();
         strokedRect.rect(0, 0, 1, 1);
         strokedRect.fill(config.colors.selectedBlockColor);
 
@@ -202,13 +265,13 @@ export class BlockManager {
         bottomHandle.interactive = true;
         bottomHandle.cursor = 'ns-resize';
 
-        const tactonContainer: Pixi.Container = new Pixi.Container();
-        tactonContainer.addChild(rect);
-        tactonContainer.addChild(strokedRect);
-        tactonContainer.addChild(leftHandle);
-        tactonContainer.addChild(rightHandle);
-        tactonContainer.addChild(topHandle);
-        tactonContainer.addChild(bottomHandle);
+        const blockContainer: Pixi.Container = new Pixi.Container();
+        blockContainer.addChild(rect);
+        blockContainer.addChild(strokedRect);
+        blockContainer.addChild(leftHandle);
+        blockContainer.addChild(rightHandle);
+        blockContainer.addChild(topHandle);
+        blockContainer.addChild(bottomHandle);  
 
         // assign methods
         const dto: BlockDTO = new BlockDTO(
@@ -218,7 +281,7 @@ export class BlockManager {
             rightHandle,
             topHandle,
             bottomHandle,
-            tactonContainer,
+            blockContainer,
             block.trackId
         );
 
@@ -229,7 +292,28 @@ export class BlockManager {
         rect.on('pointerdown', (event) => this.onMoveBlock(event, dto));
         
         store.dispatch('addBlock', {trackId: block.trackId, block: dto});
-        dynamicContainer.addChild(tactonContainer);
+        dynamicContainer.addChild(blockContainer);
+        return dto;
+    }
+    private createCopiedBLock(block: BlockData): CopiedBlockDTO {
+        const rect: Pixi.Graphics = new Pixi.Graphics();
+        rect.rect(0, 0, 1, 1);
+        rect.fill(config.colors.copyColor);
+
+        const position: {x: number, width: number} = this.calculatePosition(block);
+        rect.x = config.leftPadding + (position.x * store.state.zoomLevel);
+        rect.width = position.width * store.state.zoomLevel;
+        rect.height = block.intensity * config.blockHeightScaleFactor;
+        rect.y = config.sliderHeight + config.componentPadding + (block.trackId * config.trackHeight) + ((config.trackHeight / 2) - (rect.height / 2));
+        
+        const blockContainer: Pixi.Container = new Pixi.Container();
+        blockContainer.addChild(rect);
+        
+        return new CopiedBlockDTO(
+            rect,
+            blockContainer,
+            block.trackId
+        );
     }
     private calculatePosition(tacton: BlockData): {x: number, width: number} {
         const timelineWidth: number = pixiApp.canvas.width;
@@ -239,9 +323,47 @@ export class BlockManager {
             width: ((tacton.endTime - tacton.startTime) / totalDuration) * timelineWidth
         };
     }
+    private createBlockDataFromBlocks(blocks: BlockDTO[] | CopiedBlockDTO[]): BlockData[] {
+        const blockData: BlockData[] = [];
+        const timelineWidth: number = pixiApp.canvas.width;
+        const totalDuration: number = (timelineWidth / config.pixelsPerSecond) * 1000;
+        
+        blocks.forEach((block: BlockDTO | CopiedBlockDTO): void => {
+            const convertedX: number = ((block.rect.x - config.leftPadding + store.state.horizontalViewportOffset) / store.state.zoomLevel);
+            const convertedWidth: number = (block.rect.width / store.state.zoomLevel);
+            const startTime: number = (convertedX / timelineWidth) * totalDuration;
+            const endTime: number = startTime + ((convertedWidth / timelineWidth) * totalDuration);
+            const intensity: number = block.rect.height / config.blockHeightScaleFactor;
+            
+            blockData.push({
+                trackId: block.trackId,
+                startTime: startTime,
+                endTime: endTime,
+                intensity: intensity
+            });
+        });
+        
+        return blockData;
+    }
     private updateBlock(block: BlockDTO): void {
         block.rect.width = block.initWidth * store.state.zoomLevel;
         block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
+    }
+    private updateCopiedBlocks(): void {
+        // detect switching tracks
+        const currentYTrackId: number = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
+        const trackChange: number = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.initYTrackId), this.maxTrackChange));
+        
+        let diff: number = (store.state.currentCursorPosition.x - this.lastCursorX);
+        diff = this.adjustOffset(diff, trackChange);
+        this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+            block.rect.x = block.initX + diff;
+            
+            const trackContainerY: number =  (block.trackId  * config.trackHeight);
+            const newTrackContainerY: number = ((block.trackId + trackChange) * config.trackHeight);
+            block.rect.y = (newTrackContainerY - trackContainerY) + block.initY;
+            block.trackId = trackChange + block.initTrackId;
+        });
     }
     private updateHandles(block: BlockDTO): void {
         // update data
@@ -356,6 +478,108 @@ export class BlockManager {
     }
     
     //*************** Interactions ***************
+    private copySelection(): void {
+        this.clearCopiedBlocks();
+        const selectedBlocks: BlockDTO[] = [];
+        
+        store.state.selectedBlocks.forEach((selection: BlockSelection) => {
+           selectedBlocks.push(store.state.blocks[selection.trackId][selection.index]); 
+        });
+        
+        if (selectedBlocks.length > 0) {
+            let lowestXofCopies: number = Infinity;
+            const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
+            copiedBlockData.forEach((blockData: BlockData): void => {
+                const block: CopiedBlockDTO = this.createCopiedBLock(blockData)
+
+                if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
+
+                this.copiedBlocks.push(block);
+                dynamicContainer.addChild(block.container);
+            });
+
+            const offset: number = store.state.currentCursorPosition.x - lowestXofCopies;
+
+            this.initYTrackId = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
+            this.initYTrackId = Math.max(0, Math.min(this.initYTrackId, store.state.trackCount));
+            let trackChange: number = this.initYTrackId - this.copiedBlocks[0].trackId;
+
+            // validate trackChange
+            const maxTrackId: number = this.copiedBlocks.reduce((prev: CopiedBlockDTO, current: CopiedBlockDTO): CopiedBlockDTO => {
+                return (prev && prev.trackId > current.trackId) ? prev : current;
+            }).trackId;
+
+            if (maxTrackId + trackChange > store.state.trackCount) {
+                trackChange = store.state.trackCount - maxTrackId;
+            }
+
+            this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+                block.rect.x = block.rect.x + offset;
+                block.initX = block.rect.x;
+
+                const newTrackId: number = block.trackId + trackChange;
+                block.rect.y = config.sliderHeight + config.componentPadding + (newTrackId * config.trackHeight) + ((config.trackHeight / 2) - (block.rect.height / 2));
+                block.initY = block.rect.y;
+                block.trackId = newTrackId;
+                block.initTrackId = newTrackId;
+            });
+
+            // calculate and init borders for collision detection
+            this.createBordersForCopies();
+
+            // create validTrackOffsets for collisionDetection and change validation
+            this.minTrackChange = Math.min(...this.validTrackOffsets);
+            this.maxTrackChange = Math.max(...this.validTrackOffsets);
+
+            // set initialX for collisionDetection
+            this.initialX = store.state.currentCursorPosition.x;
+
+            this.initialY = store.state.currentCursorPosition.y;
+            this.lastCursorX = this.initialX;
+
+            store.dispatch('clearSelection');
+        }
+    }
+    private pasteSelection(): void {
+        const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
+        
+        // todo quick and dirty fix by toggling shiftValue --> change that and use dedicated function for multiple blockSelection
+        store.dispatch('toggleShiftValue');
+        copiedBlockData.forEach((blockData: BlockData): void => {
+            const block = this.createBlock(blockData);
+            store.dispatch('selectBlock', block);
+        });
+        store.dispatch('toggleShiftValue');
+        
+        // update blocks, handles and strokes
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+                this.updateBlock(block);
+                this.updateHandles(block);
+                this.updateStroke(block);
+            });
+        });
+        
+        this.calculateVirtualViewportLength();
+        
+        // remove copies and clear arrays
+        this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+            block.container.destroy({children: true});
+        });
+
+        this.copiedBlocks = [];
+        return;
+    }
+    private clearCopiedBlocks(): void {
+        if (this.copiedBlocks.length > 0) {
+            this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+                block.container.destroy({children: true});
+            });
+
+            this.copiedBlocks = [];
+            return;
+        }
+    }
     private startAutoScroll(direction: Direction): void {
         if (!this.isScrolling) {
             this.isScrolling = true;
@@ -470,6 +694,34 @@ export class BlockManager {
         
         this.calculateStickyOffsets();
     }
+    private createBordersForCopies(): void {
+        this.selectedTracks = [];
+        // calculate border to check
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            this.unselectedBorders[trackId] = [];
+            this.selectedBorders[trackId] = [];
+            store.state.blocks[trackId].forEach((block: BlockDTO, index: number): void => {
+                // block is unselected
+                this.unselectedBorders[block.trackId].push(block.rect.x);
+                this.unselectedBorders[block.trackId].push(block.rect.x + block.rect.width);
+            });
+        });
+
+        this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
+            // if block is copied, add to selectedBlocks
+            this.selectedBorders[block.trackId].push(block.rect.x);
+            this.selectedBorders[block.trackId].push(block.rect.x + block.rect.width);
+
+            const isAdded: boolean = this.selectedTracks.some((track: number): boolean => {
+                return track == block.trackId;
+            });
+
+            if (!isAdded) this.selectedTracks.push(block.trackId);
+
+        });
+
+        this.calculateStickyOffsets();
+    }
     private getValidTrackOffsets(): number[] {
         const minTrack: number = Math.min(...this.selectedTracks);
         const maxTrack: number = Math.max(...this.selectedTracks);
@@ -577,7 +829,6 @@ export class BlockManager {
         let validOffset: number = offset;
         let hasCollision: boolean = true;
         let isSticking: boolean = false;
-
         // skip validation while scrolling
         if (this.isScrolling) return this.lastValidOffset;
         
@@ -593,7 +844,7 @@ export class BlockManager {
             hasCollision = false;
             attemptCount++;
             
-            for (let trackId = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
+            for (let trackId: number = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
                 // calculate correct trackId
                 let adjustedTrack: number = trackId + trackOffset;
                 
@@ -621,10 +872,9 @@ export class BlockManager {
                             hasCollision = true;
 
                             // calculate distance of mouse to start and end of colliding block
-                            const currsorX: number = this.initialX + offset;
-                            let distToStart2: number = Math.abs(currsorX - start1);
-                            let distToEnd2: number = Math.abs(currsorX - end1);
-                            
+                            const cursorX: number = this.initialX + offset;
+                            let distToStart2: number = Math.abs(cursorX - start1);
+                            let distToEnd2: number = Math.abs(cursorX - end1);
                             // choose side to stick to
                             if (distToStart2 > distToEnd2) {
                                 validOffset = end1 - this.selectedBorders[trackId][i];
@@ -717,7 +967,7 @@ export class BlockManager {
         this.scrollViewportHorizontal(event.clientX);
         this.scrollViewportVertical(event.clientY);
         
-        const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);       
+        const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
         changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
         store.dispatch('applyChangesToSelectedBlocks', changes);
     }

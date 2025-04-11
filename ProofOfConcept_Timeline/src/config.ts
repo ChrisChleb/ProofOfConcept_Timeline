@@ -31,6 +31,7 @@ const config = {
         gridColor: 'rgba(75, 75, 75, 0.2)',
         handleColor: 'rgba(236,102,12,0)',
         tactonColor: '#848484',
+        copyColor: 'rgba(236,102,12, 0.3)',
         selectedBlockColor: 'rgba(236,102,12, 0.3)',
         trackLineColor: '#777777',
         sliderHandleColor: 'rgba(236,102,12, 1)',

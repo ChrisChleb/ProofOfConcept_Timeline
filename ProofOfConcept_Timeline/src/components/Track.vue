@@ -37,7 +37,7 @@ export default defineComponent({
     
     onBeforeUnmount(() => {
       console.log("deleting track: ", props.trackId);
-      store.dispatch('deleteBlocks', props.trackId);
+      store.dispatch('deleteBlocksOfTrack', props.trackId);
       trackContainer.destroy({children: true});
     });
     

@@ -144,6 +144,7 @@ export class BlockManager {
             if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
             if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
             if (event.code == 'Escape') this.clearCopiedBlocks();
+            if (event.code == 'Delete') this.deleteBlock();
         });
         
         // paste on click
@@ -579,6 +580,10 @@ export class BlockManager {
             this.copiedBlocks = [];
             return;
         }
+    }
+    private deleteBlock(): void {
+        store.dispatch('deleteSelectedBlocks');
+        this.calculateVirtualViewportLength();
     }
     private startAutoScroll(direction: Direction): void {
         if (!this.isScrolling) {

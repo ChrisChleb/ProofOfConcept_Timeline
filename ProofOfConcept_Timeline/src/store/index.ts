@@ -158,7 +158,22 @@ const store = createStore({
             
             state.blocks = sortedTactons;
         },
-        deleteBlocks(state: any, trackId: number): void {
+        deleteSelectedBlocks(state: any): void {
+            state.selectedBlocks.forEach((blockSelection: BlockSelection) => {
+                const block = state.blocks[blockSelection.trackId][blockSelection.index];
+                dynamicContainer.removeChild(block.container);
+                block.container.children.forEach((child: Pixi.ContainerChild): void => {
+                    child.removeAllListeners();
+                });
+                block.container.removeAllListeners();
+                block.container.destroy({children: true});
+                
+                state.blocks[blockSelection.trackId].splice(blockSelection.index, 1);
+                state.sorted[blockSelection.trackId] = false;
+            });
+            state.selectedBlocks = [];
+        },
+        deleteBlocksOfTrack(state: any, trackId: number): void {
             if (state.blocks[trackId] == undefined) return;
             state.blocks[trackId].forEach((block: BlockDTO): void => {
                 dynamicContainer.removeChild(block.container);
@@ -312,17 +327,20 @@ const store = createStore({
         sortTactons({ commit }: any): void {
             commit('sortTactons');
         },
-        deleteBlocks({ commit }: any, trackId: number): void {
-            commit('deleteBlocks', trackId);
+        deleteBlocksOfTrack({ commit }: any, trackId: number): void {
+            commit('deleteBlocksOfTrack', trackId);
         },
         deleteAllBlocks({ state, commit }: any): void {
           if (state.blocks) {
               console.log("deleting all blocks");
               Object.keys(state.blocks).forEach((trackIdAsString: string, trackId: number) => {
                   console.log("deleting blocks of track ", trackId);
-                  commit('deleteBlocks', trackId);
+                  commit('deleteBlocksOfTrack', trackId);
               });
           }  
+        },
+        deleteSelectedBlocks({ commit }: any): void {
+            commit('deleteSelectedBlocks');
         },
         updateInitialVirtualViewportWidth({ commit }: any, newWidth: number): void {
             commit('setInitialVirtualViewportWidth', newWidth);

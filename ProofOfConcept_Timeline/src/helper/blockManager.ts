@@ -1203,10 +1203,8 @@ export class BlockManager {
             deltaY -= this.canvasOffset;
         }
 
-        // TODO add vars for min and maxHeight for config
-
         const prevHeight: number = block.rect.height;
-        const newHeight: number = Math.min(Math.max((this.initialBlockHeight + deltaY), 10), 150);
+        const newHeight: number = Math.min(Math.max((this.initialBlockHeight + deltaY), config.minBlockHeight), config.maxBlockHeight);
         const heightChange: number = newHeight - prevHeight;
         const changes: BlockChanges = new BlockChanges();
         changes.height = heightChange;

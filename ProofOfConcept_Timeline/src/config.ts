@@ -17,9 +17,13 @@ const config = {
     scrollBarPassiveAlpha: 0.5,
     // track
     trackHeight: 200,
-    // tactons
+    // blocks
     minTactonWidth: 1,
     resizingHandleWidth: 20,
+    maxBlockHeight: 150,
+    minBlockHeight: 10,
+    // group
+    groupHandleRadius: 8,
     // grid
     pixelsPerSecond: 100,
     minLineDistance: 100,
@@ -36,7 +40,8 @@ const config = {
         trackLineColor: '#777777',
         sliderHandleColor: 'rgba(236,102,12, 1)',
         boundingBoxBorderColor: 'rgba(236,102,12, 1)',
-        boundingBoxColor: 'rgba(236,102,12, 0.1)'
+        boundingBoxColor: 'rgba(236,102,12, 0.1)',
+        groupHandleColor: 'rgba(236,102,12, 1)'
     },
     // playback
     millisecondsPerTick: 30 //quasi bpm

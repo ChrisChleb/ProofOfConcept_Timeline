@@ -110,7 +110,6 @@ const store = createStore({
                     if (dto.rect.width == config.minTactonWidth) {
                         isWidthClipped = true;
                     }
-                    dto.initWidth = dto.rect.width / state.zoomLevel;
                 }
 
                 if (changes.x !) {

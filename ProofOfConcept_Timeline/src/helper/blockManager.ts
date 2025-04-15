@@ -70,15 +70,22 @@ export class CopiedBlockDTO {
         this.initTrackId = trackId;
     }
 }
-export class BlockManager {    
-    private resizeDirection: Direction | null = null;
+export class BlockManager {
+    // cursor
     private initialX: number = 0;
     private initialY: number = 0;
+    
+    // eventHandler
+    private pointerMoveHandler: any = null;
+    private pointerUpHandler: any = null;
+    
+    // resizing
+    private isCollidingOnResize: boolean = false;
     private initialBlockWidth: number = 0;
     private initialBlockHeight: number = 0;
     private initialBlockX: number = 0;
-    private pointerMoveHandler: any = null;
-    private pointerUpHandler: any = null;
+    private resizeDirection: Direction | null = null;
+    private lastValidDeltaX: number = 0;
     
     // collision-detection vars
     private unselectedBorders: number[][] = [];
@@ -111,6 +118,7 @@ export class BlockManager {
     private lastVerticalOffset: number = 0;
     private canvasOffset: number = 0;
     
+    // copy & paste
     private strgDown: boolean = false;
     private copiedBlocks: CopiedBlockDTO[] = [];
     private lastCursorX: number = 0;
@@ -139,7 +147,7 @@ export class BlockManager {
             if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = false;
         });
         
-        // detect copy & paste
+        // detect keys
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
             if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
             if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
@@ -286,8 +294,8 @@ export class BlockManager {
             block.trackId
         );
 
-        leftHandle.on('pointerdown', (event) =>  this.onResizingStartLeft(event, dto));
-        rightHandle.on('pointerdown', (event) =>  this.onResizingStartRight(event, dto));
+        leftHandle.on('pointerdown', (event) =>  this.onAbsoluteResizeStart(event, dto, Direction.LEFT));
+        rightHandle.on('pointerdown', (event) =>  this.onAbsoluteResizeStart(event, dto, Direction.RIGHT));
         topHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, dto, Direction.TOP));
         bottomHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, dto, Direction.BOTTOM));        
         rect.on('pointerdown', (event) => this.onMoveBlock(event, dto));
@@ -923,7 +931,7 @@ export class BlockManager {
         this.lastValidOffset = validOffset;
         this.lastTrackOffset = trackOffset;
         return validOffset;
-    }        
+    }
     private onMoveBlock(event: any, block: BlockDTO): void {
         // select block
         store.dispatch('selectBlock', block);
@@ -996,11 +1004,13 @@ export class BlockManager {
         this.calculateVirtualViewportLength();
         this.currentTacton = null;
     }
-    private onResizingStartLeft(event: any, block: BlockDTO): void {
-        this.resizeDirection = Direction.LEFT;
+    private onAbsoluteResizeStart(event: any, block: BlockDTO, direction: Direction.LEFT | Direction.RIGHT): void {
+        this.resizeDirection = direction;
         this.initialX = event.data.global.x;
         this.initialBlockWidth = block.rect.width;
         this.initialBlockX = block.rect.x;
+        this.isCollidingOnResize = false;
+        
         store.dispatch('setInteractionState', true);
         store.dispatch('selectBlock', block);
 
@@ -1041,22 +1051,44 @@ export class BlockManager {
             // calculate x coordinate of right border
             const newRightX: number = this.initialBlockX + newWidth;
 
-            // check for collision
-            if (store.state.blocks[block.trackId].length > 1) {
-                store.state.blocks[block.trackId].forEach((other: BlockDTO) => {
-                    if (other.rect.uid != block.rect.uid) {
-                        const otherRightX: number = other.rect.x + other.rect.width;
-                        if (newRightX > other.rect.x && prevX < otherRightX) {
-                            newWidth = other.rect.x - prevX;
-                            collided = true;
+            this.isCollidingOnResize = false;
+            if (!this.isCollidingOnResize || deltaX < this.lastValidDeltaX) {
+                this.isCollidingOnResize = false;
+                const selectedTracks: number[] = store.state.selectedBlocks.map((selection: BlockSelection) => selection.trackId);
+                selectedTracks.forEach((trackId: number): void => {
+                    const adjustedDeltaX: number = deltaX / store.state.zoomLevel;
+                    if (store.state.blocks[trackId].length > 1) {
+                        for (let i: number = 0; i < store.state.blocks[trackId].length; i++) {
+                            if (this.isCollidingOnResize) break;
+                            if (store.state.selectedBlocks.some((selection: BlockSelection) => selection.trackId == trackId && selection.index == i)) {
+                                const block = store.state.blocks[trackId][i];
+                                const newWidth: number = Math.max((block.initWidth + adjustedDeltaX), config.minTactonWidth);
+                                const newRightX = block.initX + newWidth;
+
+                                for (let j: number = i + 1; j < store.state.blocks[trackId].length; j++) {
+                                    const other = store.state.blocks[trackId][j];
+                                    const otherX = other.initX;
+                                    if (newRightX > otherX && block.initX < otherX) {
+                                        this.isCollidingOnResize = true;
+                                        const newValidDeltaX: number = (otherX - (block.initX + block.initWidth)) * store.state.zoomLevel;
+                                        this.lastValidDeltaX = Math.max(newValidDeltaX, this.lastValidDeltaX);
+                                        break;
+                                    }
+                                    this.lastValidDeltaX = deltaX;
+                                    this.isCollidingOnResize = false;
+                                }
+                            }
                         }
                     }
                 });
             }
 
-            if (!collided) {
+            // collided
+            if (this.isCollidingOnResize) {
+                newWidth = this.initialBlockWidth + this.lastValidDeltaX;
+            } else {
                 // test for snapping
-                const snappedRightX = this.snapToGrid(newRightX);
+                const snappedRightX: number = this.snapToGrid(newRightX);
                 newWidth = snappedRightX - this.initialBlockX;
             }
         } else {
@@ -1068,23 +1100,42 @@ export class BlockManager {
 
             // calculate new x coordinates of tacton
             newX = this.initialBlockX + deltaX;
-            const newRightX: number = newX + newWidth;
 
             // check for collision
-            if (store.state.blocks[block.trackId].length > 1) {
-                store.state.blocks[block.trackId].forEach((other: BlockDTO): void => {
-                    if (other.rect.uid != block.rect.uid) {
-                        const otherRightX: number = other.rect.x + other.rect.width;
-                        if (newX < otherRightX && newRightX > other.rect.x) {
-                            newX = otherRightX;
-                            newWidth = newRightX - otherRightX;
-                            collided = true;
+            if (!this.isCollidingOnResize || deltaX > this.lastValidDeltaX) {
+                this.isCollidingOnResize = false;
+                const selectedTracks: number[] = store.state.selectedBlocks.map((selection: BlockSelection) => selection.trackId);
+                selectedTracks.forEach((trackId: number): void => {
+                    const adjustedDeltaX: number = deltaX / store.state.zoomLevel;
+                    if (store.state.blocks[trackId].length > 1) {
+                        for (let i: number = 0; i < store.state.blocks[trackId].length; i++) {
+                            if (this.isCollidingOnResize) break;
+                            if (store.state.selectedBlocks.some((selection: BlockSelection) => selection.trackId == trackId && selection.index == i)) {
+                                const currentBlock = store.state.blocks[trackId][i];
+                                const newWidth: number = Math.max((currentBlock.initWidth - adjustedDeltaX), config.minTactonWidth);
+                                const newX: number = currentBlock.initX + adjustedDeltaX;
+                                const newRightX = currentBlock.initX + newWidth;
+                                for (let j: number = i - 1; j >= 0; j--) {
+                                    const other = store.state.blocks[trackId][j];
+                                    const otherRightX = other.initX + other.initWidth;
+                                    if (newX < otherRightX && newRightX > otherRightX) {
+                                        this.isCollidingOnResize = true;
+                                        this.lastValidDeltaX = Math.min((otherRightX - currentBlock.initX) * store.state.zoomLevel, this.lastValidDeltaX);
+                                        break;
+                                    }
+                                    this.lastValidDeltaX = deltaX;
+                                    this.isCollidingOnResize = false;
+                                }
+                            }
                         }
                     }
                 });
             }
 
-            if (!collided) {
+            if (this.isCollidingOnResize) {
+                newX = this.initialBlockX + this.lastValidDeltaX;
+                newWidth = this.initialBlockWidth - this.lastValidDeltaX;
+            } else  {
                 // test for snapping
                 const snappedLeftX = this.snapToGrid(newX);
                 newX = snappedLeftX;
@@ -1112,6 +1163,7 @@ export class BlockManager {
 
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
+            block.initWidth = block.rect.width / store.state.zoomLevel;
         });
         this.calculateVirtualViewportLength();
         this.pointerMoveHandler = null;
@@ -1129,7 +1181,7 @@ export class BlockManager {
         }
         return positionToCheck;
     }
-    private onChangeAmplitude(event: any, block: BlockDTO, direction: Direction): void {
+    private onChangeAmplitude(event: any, block: BlockDTO, direction: Direction.TOP | Direction.BOTTOM): void {
         this.initialY = event.data.global.y;
         this.initialBlockHeight = block.rect.height;
         this.currentTacton = block;

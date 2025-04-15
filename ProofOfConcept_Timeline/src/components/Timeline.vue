@@ -58,7 +58,7 @@ export default defineComponent({
     
     // shift detection for multiselection
     document.addEventListener('keydown', (event: KeyboardEvent) => {      
-      if (event.shiftKey && !store.state.isPressingShift) {
+      if (event.key == "Shift" && !store.state.isPressingShift) {
         store.dispatch('toggleShiftValue');
       }
     });

@@ -5,6 +5,16 @@ import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import store, {BlockChanges, type BlockSelection} from "@/store";
 import {onMounted, watch} from "vue";
+interface GroupBorder {
+    container: Pixi.Container;
+    border: Pixi.Graphics;
+    leftHandle: Pixi.Graphics;
+    rightHandle: Pixi.Graphics;
+    initStartX: number;
+    initWidth: number;
+    initY: number;
+    initHeight: number;
+}
 enum Direction {
     LEFT = 'left',
     RIGHT = 'right',
@@ -87,6 +97,11 @@ export class BlockManager {
     private resizeDirection: Direction | null = null;
     private lastValidDeltaX: number = 0;
     
+    // proportional resize
+    private lastGroupStartX: number = 0;
+    private lastGroupWidth: number = 0;
+    private lastGroupY: number = 0;
+    
     // collision-detection vars
     private unselectedBorders: number[][] = [];
     private selectedBorders: number[][] = [];
@@ -123,6 +138,8 @@ export class BlockManager {
     private copiedBlocks: CopiedBlockDTO[] = [];
     private lastCursorX: number = 0;
     private initYTrackId: number = 0;
+    
+    private groupBorder: GroupBorder | null = null;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
         watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
@@ -140,11 +157,19 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = true;
+            if (event.code == 'ControlLeft' || event.metaKey) {
+                if (!this.strgDown) {
+                    this.drawGroupBorder();
+                    this.strgDown = true;
+                }
+            }
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.metaKey) this.strgDown = false;
+            if (event.code == 'ControlLeft' || event.metaKey) {
+                this.clearGroupBorder();
+                this.strgDown = false;
+            }
         });
         
         // detect keys
@@ -836,6 +861,7 @@ export class BlockManager {
     }    
     
     // TODO snapping is wonky sometimes when using multi-selection --> chooses only the last possible snap
+    // maybe implement this with input {x, width} to get a valid modification for moving and resizing
     private adjustOffset(offset: number, trackOffset: number): number {
         const maxAttempts: number = 10;
         let attemptCount: number = 0;
@@ -983,12 +1009,26 @@ export class BlockManager {
         const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
         changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
         store.dispatch('applyChangesToSelectedBlocks', changes);
+        
+        if (this.groupBorder) {
+            // update groupBorder when changing tracks
+            this.lastGroupStartX += changes.x;
+            this.groupBorder.initY = this.lastGroupY + changes.track * config.trackHeight;
+            this.updateGroupBorder();
+        }
     }
     private onMoveBlockEnd(): void {
         this.stopAutoScroll();
         window.removeEventListener('pointermove', this.pointerMoveHandler);
         window.removeEventListener('pointerup', this.pointerUpHandler);
-        store.dispatch('setInteractionState', false);
+        
+        // only set InteractionState if groupBorder is not active
+        if (this.groupBorder == null) {
+            store.dispatch('setInteractionState', false);
+        } else {
+            this.lastGroupY = this.groupBorder.initY;
+        }
+
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
         this.lastVerticalOffset = store.state.verticalViewportOffset;
@@ -1014,32 +1054,17 @@ export class BlockManager {
         store.dispatch('setInteractionState', true);
         store.dispatch('selectBlock', block);
 
-        this.pointerMoveHandler = (event: any) => this.onResize(event, block);
+        this.pointerMoveHandler = (event: any) => this.onAbsoluteResize(event, block);
         this.pointerUpHandler = () => this.onResizeEnd();
         window.addEventListener('pointermove', this.pointerMoveHandler);
         window.addEventListener('pointerup', this.pointerUpHandler);
     }
-    private onResizingStartRight(event: any, block: BlockDTO): void {
-        this.resizeDirection = Direction.RIGHT;
-        this.initialX = event.data.global.x;
-        this.initialBlockWidth = block.rect.width;
-        this.initialBlockX = block.rect.x;
-        store.dispatch('setInteractionState', true);
-        store.dispatch('selectBlock', block);
-
-        this.pointerMoveHandler = (event: any) => this.onResize(event, block);
-        this.pointerUpHandler = () => this.onResizeEnd();
-        window.addEventListener('pointermove', this.pointerMoveHandler);
-        window.addEventListener('pointerup', this.pointerUpHandler);
-    }
-    private onResize(event: any, block: BlockDTO): void {
+    private onAbsoluteResize(event: any, block: BlockDTO): void {
         const deltaX: number = event.clientX - this.initialX;
         const prevX: number = block.rect.x;
         const prevWidth: number = block.rect.width;
         let newWidth;
         let newX: number;
-
-        let collided: boolean = false;
 
         if (this.resizeDirection === Direction.RIGHT) {
             // calculate new tacton width
@@ -1159,7 +1184,11 @@ export class BlockManager {
         this.resizeDirection = null;
         window.removeEventListener('pointermove', this.pointerMoveHandler);
         window.removeEventListener('pointerup', this.pointerUpHandler);
-        store.dispatch('setInteractionState', false);
+
+        // only set InteractionState if groupBorder is not active
+        if (this.groupBorder == null) {
+            store.dispatch('setInteractionState', false);
+        }
 
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
@@ -1168,6 +1197,197 @@ export class BlockManager {
         this.calculateVirtualViewportLength();
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
+    }
+    private drawGroupBorder(): void {
+        this.clearGroupBorder();        
+        if (store.state.selectedBlocks.length <= 1) return;
+
+        let groupStartX: number = Infinity;
+        let groupEndX: number = -Infinity;
+        let groupWidth: number;
+        let groupLowestTrack: number = Infinity;
+        let groupHighestTrack: number = 0;
+        let maxHeightOfLowestTrack: number = config.minBlockHeight;
+        let maxHeightOfHighestTrack: number = config.minBlockHeight;
+        
+        const selectedBlocks: BlockDTO[] = store.state.selectedBlocks.map((selection: BlockSelection) => {
+            const block = store.state.blocks[selection.trackId][selection.index];
+            
+            // disable handles
+            block.leftHandle.interactive = false;
+            block.rightHandle.interactive = false;
+            block.topHandle.interactive = false;
+            block.bottomHandle.interactive = false;
+            
+            // collect data
+            groupStartX = Math.min(groupStartX, block.rect.x);
+            groupEndX = Math.max(groupEndX, block.rect.x + block.rect. width);
+            groupLowestTrack = Math.min(groupLowestTrack, block.trackId);
+            groupHighestTrack = Math.max(groupHighestTrack, block.trackId);
+            return block;
+        });
+
+        groupWidth = groupEndX - groupStartX;
+        
+        selectedBlocks.forEach((block: BlockDTO): void => {
+           if (block.trackId == groupLowestTrack) {
+               maxHeightOfLowestTrack = Math.max(maxHeightOfLowestTrack, block.rect.height);
+           }
+           
+           if (block.trackId == groupHighestTrack) {
+               maxHeightOfHighestTrack = Math.max(maxHeightOfHighestTrack, block.rect.height);
+           }
+        });               
+        
+        const groupY: number = Math.min(...selectedBlocks.map((b: BlockDTO) => b.rect.y));
+        const groupHeight: number = ((groupHighestTrack - groupLowestTrack) * config.trackHeight) + Math.min(maxHeightOfLowestTrack, maxHeightOfHighestTrack) + (Math.abs(maxHeightOfLowestTrack - maxHeightOfHighestTrack) / 2);
+                
+        this.lastGroupStartX = groupStartX;
+        this.lastGroupWidth = groupWidth;
+        this.lastGroupY = groupY;
+        
+        const borderContainer = new Pixi.Container();
+        const border = new Pixi.Graphics();
+        border.rect(groupStartX, groupY, groupWidth, groupHeight);  
+        border.fill('rgb(0, 0, 0, 0)');
+        border.stroke({width: 2, color: 'rgba(255,0,0,0.5)'});
+        
+        const rightHandle = new Pixi.Graphics();
+        rightHandle.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        rightHandle.fill(config.colors.groupHandleColor);
+        rightHandle.interactive = true;
+        rightHandle.cursor = 'pointer';
+
+        const leftHandle = new Pixi.Graphics();
+        leftHandle.circle(groupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        leftHandle.fill(config.colors.groupHandleColor);
+        leftHandle.interactive = true;
+        leftHandle.cursor = 'pointer';
+        
+        // add eventListeners
+
+        leftHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.LEFT));
+        rightHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.RIGHT));
+        
+        borderContainer.addChild(border);
+        borderContainer.addChild(rightHandle);
+        borderContainer.addChild(leftHandle);
+                
+        this.groupBorder = {
+            container: borderContainer,
+            border: border,
+            rightHandle: rightHandle,
+            leftHandle: leftHandle,
+            initWidth: groupWidth,
+            initStartX: groupStartX,
+            initY: groupY,
+            initHeight: groupHeight
+        }
+        
+        dynamicContainer.addChild(borderContainer);
+        
+        store.dispatch('setInteractionState', true);
+    }
+    private updateGroupBorder(newGroupStartX?: number, newGroupWidth?: number): void {
+        if (this.groupBorder == null) return;        
+        if (!newGroupWidth) newGroupWidth = this.lastGroupWidth;
+        if (!newGroupStartX) newGroupStartX = this.lastGroupStartX;
+        
+        const groupY: number = this.groupBorder.initY;
+        const groupHeight: number = this.groupBorder.initHeight;
+        
+        this.groupBorder.border.clear();
+        this.groupBorder.border.rect(newGroupStartX, groupY, newGroupWidth, groupHeight);
+        this.groupBorder.border.fill('rgb(0, 0, 0, 0)');
+        this.groupBorder.border.stroke({width: 2, color: 'rgba(255,0,0,0.5)'});
+
+        this.groupBorder.rightHandle.clear();
+        this.groupBorder.rightHandle.circle(newGroupStartX + newGroupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        this.groupBorder.rightHandle.fill(config.colors.groupHandleColor);
+
+        this.groupBorder.leftHandle.clear();
+        this.groupBorder.leftHandle.circle(newGroupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        this.groupBorder.leftHandle.fill(config.colors.groupHandleColor);
+        
+        this.lastGroupStartX = newGroupStartX;
+        this.lastGroupWidth = newGroupWidth;
+    }
+    private clearGroupBorder(): void {
+        if (this.groupBorder != null) {
+            dynamicContainer.removeChild(this.groupBorder.container);
+            this.groupBorder.container.destroy({children: true});
+            this.groupBorder = null;
+
+            store.state.selectedBlocks.forEach((selection: BlockSelection) => {
+                const block = store.state.blocks[selection.trackId][selection.index];
+
+                // enable handles
+                block.leftHandle.interactive = true;
+                block.rightHandle.interactive = true;
+                block.topHandle.interactive = true;
+                block.bottomHandle.interactive = true;
+            });
+
+            store.dispatch('setInteractionState', false);
+        }
+    }
+    private onProportionalResizeStart(event: any, direction: Direction.LEFT | Direction.RIGHT): void {
+        if (this.groupBorder == null) return;
+
+        this.resizeDirection = direction;
+        this.initialX = event.data.global.x;
+
+        // need to update initData of groupBorder
+        this.groupBorder.initStartX = this.lastGroupStartX;
+        this.groupBorder.initWidth = this.lastGroupWidth;
+
+        this.pointerMoveHandler = (event: any) => this.onProportionalResize(event);
+        this.pointerUpHandler = () => this.onResizeEnd();
+        window.addEventListener('pointermove', this.pointerMoveHandler);
+        window.addEventListener('pointerup', this.pointerUpHandler);
+    }
+    private onProportionalResize(event: any): void {
+        if (this.groupBorder == null) return;
+        
+        const deltaX: number = event.clientX - this.initialX;
+        const initWidth: number = this.groupBorder.initWidth;
+        const initStartX: number = this.groupBorder.initStartX;
+        
+        let newGroupWidth: number = initWidth;
+        let newGroupStartX: number = initStartX;
+        
+        if (this.resizeDirection === Direction.RIGHT) {
+            newGroupWidth += deltaX;
+        } else {
+            newGroupStartX += deltaX;
+            newGroupWidth -= deltaX;
+            
+            // Optional: verhindern, dass die Gruppe invertiert (also Start > End wird)
+            //if (newGroupWidth < 10) return;
+        }
+        
+        const scale: number = newGroupWidth / initWidth;
+        
+        store.state.selectedBlocks.forEach((selection: BlockSelection, index: number): void => {
+            const block = store.state.blocks[selection.trackId][selection.index];
+            const relX: number = (block.initX * store.state.zoomLevel) - initStartX + config.leftPadding - store.state.horizontalViewportOffset;
+            const newX: number = (newGroupStartX + relX * scale);
+            const newWidth: number = (block.initWidth * store.state.zoomLevel) * scale;
+            
+            // TODO collision detection
+            
+            block.rect.x = newX;
+            block.rect.width = newWidth;
+            
+            block.strokedRect.x = newX;
+            block.strokedRect.width = newWidth;
+        });
+        
+        this.updateGroupBorder(newGroupStartX, newGroupWidth);
+
+        //changes.x = xOffset;
+        //changes.width = widthDelta;
+        //store.dispatch("applyChangesToSelectedBlocks", changes);
     }
 
     // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration

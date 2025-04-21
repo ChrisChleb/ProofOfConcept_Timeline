@@ -574,12 +574,13 @@ export class BlockManager {
             this.minTrackChange = Math.min(...this.validTrackOffsets);
             this.maxTrackChange = Math.max(...this.validTrackOffsets);
 
-            // set initialX for collisionDetection
+            // set vars for collisionDetection
             this.initialX = store.state.currentCursorPosition.x;
-
             this.initialY = store.state.currentCursorPosition.y;
             this.lastCursorX = this.initialX;
 
+            this.updateCopiedBlocks();
+            
             store.dispatch('clearSelection');
         }
     }

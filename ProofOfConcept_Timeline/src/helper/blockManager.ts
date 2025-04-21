@@ -402,11 +402,12 @@ export class BlockManager {
             block.trackId = trackChange + block.initTrackId;
         });
     }
-    private updateHandles(block: BlockDTO): void {
+    private updateBlockInitData(block: BlockDTO): void {
         // update data
         block.initY = block.rect.y;
         block.initX = (block.rect.x + store.state.horizontalViewportOffset - config.leftPadding) / store.state.zoomLevel;
-        
+    }
+    private updateHandles(block: BlockDTO): void {
         // update left handle
         block.leftHandle.clear();
         block.leftHandle.rect(
@@ -515,6 +516,7 @@ export class BlockManager {
             if (!isSelected) {
                 this.updateStroke(block);
             }
+            this.updateBlockInitData(block);
         });
     }
     
@@ -583,11 +585,13 @@ export class BlockManager {
     }
     private pasteSelection(): void {
         const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
+        const addedBlockIds: number[] = [];
         
         // todo quick and dirty fix by toggling shiftValue --> change that and use dedicated function for multiple blockSelection
         store.dispatch('toggleShiftValue');
         copiedBlockData.forEach((blockData: BlockData): void => {
-            const block = this.createBlock(blockData);
+            const block: BlockDTO = this.createBlock(blockData);
+            addedBlockIds.push(block.rect.uid);
             store.dispatch('selectBlock', block);
         });
         store.dispatch('toggleShiftValue');
@@ -595,9 +599,12 @@ export class BlockManager {
         // update blocks, handles and strokes
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
             store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                this.updateBlock(block);
-                this.updateHandles(block);
-                this.updateStroke(block);
+                if (addedBlockIds.some((id: number): boolean => id == block.rect.uid)) {         
+                    this.updateBlock(block);
+                    this.updateHandles(block);
+                    this.updateStroke(block);
+                    this.updateBlockInitData(block);
+                }
             });
         });
         
@@ -705,8 +712,9 @@ export class BlockManager {
         store.dispatch('changeBlockTrack', this.lastTrackOffset);
         
         this.forEachBlock((block: BlockDTO): void => {
-           this.updateHandles(block);
-           this.updateStroke(block);
+            this.updateHandles(block);
+            this.updateStroke(block);
+            this.updateBlockInitData(block);
         });
         
         this.calculateVirtualViewportLength();
@@ -962,6 +970,7 @@ export class BlockManager {
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
             block.initWidth = block.rect.width / store.state.zoomLevel;
+            this.updateBlockInitData(block);
         });
         this.calculateVirtualViewportLength();
         this.pointerMoveHandler = null;
@@ -1003,6 +1012,7 @@ export class BlockManager {
 
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
+            this.updateBlockInitData(block);
         });
         
         this.pointerMoveHandler = null;

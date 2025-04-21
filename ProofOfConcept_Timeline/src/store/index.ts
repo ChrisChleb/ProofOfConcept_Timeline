@@ -383,7 +383,7 @@ const store = createStore({
         clearSelection({ commit }: any): void {
           commit('clearSelection');
         },
-        applyChangesToSelectedBlocks({ state, commit }: any, changes: BlockChanges): void {
+        applyChangesToSelectedBlocks({ commit }: any, changes: BlockChanges): void {
             commit("updateSelectedBlocks", changes);         
         },
         changeBlockTrack({ state, commit }: any, trackChange: number): void {

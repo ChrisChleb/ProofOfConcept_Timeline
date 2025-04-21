@@ -382,6 +382,36 @@ export class BlockManager {
         
         return blockData;
     }
+    private generateThresholds(): void {
+        const scaleFactor: number = Math.max(0, store.state.initialZoomLevel - store.state.zoomLevel) + 1;
+        this.rightThreshold = pixiApp.canvas.width - (config.horizontalScrollThreshold / scaleFactor);
+        this.leftThreshold = config.horizontalScrollThreshold / scaleFactor;
+        this.topThreshold  = this.canvasOffset + config.sliderHeight + config.verticalScrollThreshold;
+        this.bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
+    }
+
+    //*************** Update-Hooks ***************
+
+    // execites callback-function on every selected block
+    private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+                if (isSelected) {
+                    callback(block);
+                }
+            });
+        });
+    }
+
+    // executes callback-function on every block
+    private forEachBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
+            store.state.blocks[trackId].forEach((block: BlockDTO) => {
+                callback(block);
+            });
+        });
+    }
     private updateBlock(block: BlockDTO): void {
         block.rect.width = block.initWidth * store.state.zoomLevel;
         block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
@@ -456,14 +486,7 @@ export class BlockManager {
         block.strokedRect.y = block.rect.y;
         block.strokedRect.height = block.rect.height;
     }
-    private generateThresholds(): void {
-        const scaleFactor: number = Math.max(0, store.state.initialZoomLevel - store.state.zoomLevel) + 1;
-        this.rightThreshold = pixiApp.canvas.width - (config.horizontalScrollThreshold / scaleFactor);
-        this.leftThreshold = config.horizontalScrollThreshold / scaleFactor;
-        this.topThreshold  = this.canvasOffset + config.sliderHeight + config.verticalScrollThreshold;
-        this.bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
-    }
-
+    
     // Updates all blocks, updates strokes of selected blocks (these are visible)
     private onZoomLevelChange(): void {
         this.forEachBlock((block: BlockDTO): void => {
@@ -483,27 +506,6 @@ export class BlockManager {
             if (!isSelected) {
                 this.updateBlock(block);
             }
-        });
-    }
-    
-    // execites callback-function on every selected block
-    private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-                if (isSelected) {
-                    callback(block);
-                }                
-            });
-        });
-    }
-    
-    // executes callback-function on every block
-    private forEachBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-            store.state.blocks[trackId].forEach((block: BlockDTO) => {
-                callback(block);
-            });
         });
     }
 
@@ -1331,7 +1333,6 @@ export class BlockManager {
             });
 
             if (!isAdded) this.selectedTracks.push(block.trackId);
-
         });
 
         this.calculateStickyOffsets();

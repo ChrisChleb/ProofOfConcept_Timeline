@@ -158,7 +158,7 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.metaKey) {
+            if (event.code == 'ControlLeft' || event.code == 'MetaLeft') {
                 if (!this.strgDown) {
                     this.drawGroupBorder();
                     this.strgDown = true;
@@ -167,7 +167,7 @@ export class BlockManager {
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.metaKey) {
+            if (event.code == 'ControlLeft' || event.code == 'MetaLeft') {
                 this.clearGroupBorder();
                 this.strgDown = false;
             }

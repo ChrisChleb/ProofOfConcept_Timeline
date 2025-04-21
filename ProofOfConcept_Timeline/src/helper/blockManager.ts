@@ -189,9 +189,11 @@ export class BlockManager {
         })
         
         // watch currentCursorPosition        
-        watch(() => store.state.currentCursorPosition, (): void => {
+        watch(() => store.state.currentCursorPosition, ({x, y}): void => {
            if (this.copiedBlocks.length > 0) {
                // follow cursor
+               this.scrollViewportHorizontal(x);
+               this.scrollViewportVertical(y);
                this.updateCopiedBlocks();
            } 
         });
@@ -1192,7 +1194,7 @@ export class BlockManager {
         this.currentFactor = 0;
     }
     private autoScroll(): void {
-        if (!this.isScrolling || !this.currentDirection || this.currentTacton == null) return;
+        if (!this.isScrolling || !this.currentDirection) return;
 
         const horizontalScrollSpeed: number = this.currentFactor * config.horizontalScrollSpeed;
         const verticalScrollSpeed : number = this.currentFactor * config.verticalScrollSpeed;

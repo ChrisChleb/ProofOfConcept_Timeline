@@ -22,6 +22,7 @@ const config = {
     resizingHandleWidth: 20,
     maxBlockHeight: 150,
     minBlockHeight: 10,
+    blockHandleIndicatorRadius: 6,
     // group
     groupHandleRadius: 8,
     // grid

@@ -85,48 +85,6 @@ const store = createStore({
             state.blocks[trackId].push(block);
             state.sorted[trackId] = false;
         },
-        updateSelectedBlocks(state: any, changes: BlockChanges): void {
-            state.selectedBlocks.forEach((block: BlockSelection) => {
-                const dto = store.state.blocks[block.trackId][block.index];
-                let isWidthClipped: boolean = false;
-
-                // apply Changes              
-                if (changes.height) {
-                    const newHeight: number = Math.min(Math.max((dto.rect.height + changes.height), 10), 150);
-                    dto.rect.height = newHeight;
-                    const trackOffset: number = config.sliderHeight + config.componentPadding + (dto.trackId * config.trackHeight);
-                    const newY: number = (config.trackHeight / 2) - (newHeight / 2);
-                    dto.rect.y = newY + trackOffset;
-                }
-
-                if (changes.track != null) {
-                    const trackContainerY: number =  (dto.trackId  * config.trackHeight);
-                    const newTrackContainerY: number = ((dto.trackId + changes.track) * config.trackHeight);
-                    dto.rect.y = (newTrackContainerY - trackContainerY) + dto.initY;
-                }
-
-                if (changes.width != null) {
-                    dto.rect.width = Math.max((dto.rect.width + changes.width), config.minTactonWidth);
-                    if (dto.rect.width == config.minTactonWidth) {
-                        isWidthClipped = true;
-                    }
-                }
-
-                if (changes.x !) {
-                    if (isWidthClipped && changes.width) return;
-                    dto.rect.x += changes.x;
-
-                    // mark track as unsorted
-                    state.sorted[dto.trackId] = false;
-                }
-
-                // update stroke
-                dto.strokedRect.x = dto.rect.x;
-                dto.strokedRect.width = dto.rect.width;
-                dto.strokedRect.y = dto.rect.y;
-                dto.strokedRect.height = dto.rect.height;
-            });
-        },
         sortTactons(state: any): void {
             const sortedTactons: Record<number, BlockDTO[]> = {};
             Object.keys(state.blocks).forEach((channel: string, trackId: number): void => {                
@@ -195,17 +153,29 @@ const store = createStore({
         selectBlock(state: any, block: BlockSelection): void {
             state.selectedBlocks.push(block);
             state.blocks[block.trackId][block.index].strokedRect.visible = true;
+            state.blocks[block.trackId][block.index].leftIndicator.visible = true;
+            state.blocks[block.trackId][block.index].rightIndicator.visible = true;
+            state.blocks[block.trackId][block.index].topIndicator.visible = true;
+            state.blocks[block.trackId][block.index].bottomIndicator.visible = true;
         },
         unselectBlock(state: any, block: BlockSelection): void {
           const index: number = state.selectedBlocks.findIndex((selectedBlock: BlockSelection) => selectedBlock.trackId == block.trackId && selectedBlock.index == block.index);
           if (index != -1) {
               state.selectedBlocks.splice(index, 1);
               state.blocks[block.trackId][block.index].strokedRect.visible = false;
+              state.blocks[block.trackId][block.index].leftIndicator.visible = false;
+              state.blocks[block.trackId][block.index].rightIndicator.visible = false;
+              state.blocks[block.trackId][block.index].topIndicator.visible = false;
+              state.blocks[block.trackId][block.index].bottomIndicator.visible = false;
           }
         },
         clearSelection(state: any): void {
           state.selectedBlocks.forEach((block: BlockSelection): void => {
               state.blocks[block.trackId][block.index].strokedRect.visible = false;
+              state.blocks[block.trackId][block.index].leftIndicator.visible = false;
+              state.blocks[block.trackId][block.index].rightIndicator.visible = false;
+              state.blocks[block.trackId][block.index].topIndicator.visible = false;
+              state.blocks[block.trackId][block.index].bottomIndicator.visible = false;
           });
           state.selectedBlocks = [];
         },
@@ -382,9 +352,6 @@ const store = createStore({
         },
         clearSelection({ commit }: any): void {
           commit('clearSelection');
-        },
-        applyChangesToSelectedBlocks({ commit }: any, changes: BlockChanges): void {
-            commit("updateSelectedBlocks", changes);         
         },
         changeBlockTrack({ state, commit }: any, trackChange: number): void {
             state.selectedBlocks.forEach((block: BlockSelection): void => {

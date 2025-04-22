@@ -28,9 +28,13 @@ export class BlockDTO {
     initY: number;
     initWidth: number;
     leftHandle: Graphics;
+    leftIndicator: Graphics;
     rightHandle: Graphics;
+    rightIndicator: Graphics;
     topHandle: Graphics;
+    topIndicator: Graphics;
     bottomHandle: Graphics;
+    bottomIndicator: Graphics;
     container: Pixi.Container;
     trackId: number;
     initTrackId: number;
@@ -38,9 +42,13 @@ export class BlockDTO {
         rect: Graphics,
         strokedRect: Graphics,
         leftHandle: Graphics,
+        leftIndicator: Graphics,
         rightHandle: Graphics,
+        rightIndicator: Graphics,
         topHandle: Graphics,
+        topIndicator: Graphics,
         bottomHandle: Graphics,
+        bottomIndicator: Graphics,
         container: Pixi.Container,
         trackId: number
     ) {
@@ -50,9 +58,13 @@ export class BlockDTO {
         this.initX = rect.x;
         this.initY = rect.y;
         this.leftHandle = leftHandle;
+        this.leftIndicator = leftIndicator;
         this.rightHandle = rightHandle;
+        this.rightIndicator = rightIndicator;
         this.topHandle = topHandle;
+        this.topIndicator = topIndicator;
         this.bottomHandle = bottomHandle;
+        this.bottomIndicator = bottomIndicator;
         this.container = container;
         this.trackId = trackId;
         this.initTrackId = trackId;
@@ -142,6 +154,9 @@ export class BlockManager {
     private initYTrackId: number = 0;
     
     private groupBorder: GroupBorder | null = null;
+    
+    // updateHooks
+    private updated: boolean = false;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
         watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
@@ -222,6 +237,7 @@ export class BlockManager {
                 this.updateBlock(block);
                 this.updateHandles(block);
                 this.updateStroke(block);
+                this.updateIndicators(block);
             });
         });
         
@@ -243,82 +259,81 @@ export class BlockManager {
         const strokedRect: Pixi.Graphics = new Pixi.Graphics();
         strokedRect.rect(0, 0, 1, 1);
         strokedRect.fill(config.colors.selectedBlockColor);
-
-        strokedRect.x = position.x;
-        strokedRect.width = position.width;
-        strokedRect.height = block.intensity * config.blockHeightScaleFactor;
-        strokedRect.y = (config.trackHeight / 2) - (rect.height / 2);
         strokedRect.visible = false;
 
         const leftHandle: Pixi.Graphics = new Pixi.Graphics();
+        const leftIndicator: Graphics = new Pixi.Graphics();
         const rightHandle: Pixi.Graphics = new Pixi.Graphics();
+        const rightIndicator: Graphics = new Pixi.Graphics();
         const topHandle: Pixi.Graphics = new Pixi.Graphics();
+        const topIndicator: Graphics = new Pixi.Graphics();
         const bottomHandle: Pixi.Graphics = new Pixi.Graphics();
+        const bottomIndicator: Graphics = new Pixi.Graphics();
 
         // left handle
-        leftHandle.rect(
-            rect.x - config.resizingHandleWidth,
-            rect.y,
-            config.resizingHandleWidth,
-            rect.height
-        );
-
+        leftHandle.rect(0, 0, 1, 1);
         leftHandle.fill(config.colors.handleColor);
         leftHandle.interactive = true;
         leftHandle.cursor = 'ew-resize';
+        
+        leftIndicator.circle(0, 0, config.blockHandleIndicatorRadius);
+        leftIndicator.cursor = 'pointer';
+        leftIndicator.visible = false;
 
         // right handle
-        rightHandle.rect(
-            rect.x + rect.width,
-            rect.y,
-            config.resizingHandleWidth,
-            rect.height
-        );
-
+        rightHandle.rect(0, 0, 1, 1);
         rightHandle.fill(config.colors.handleColor);
         rightHandle.interactive = true;
         rightHandle.cursor = 'ew-resize';
 
-        // top handle
-        topHandle.rect(
-            rect.x,
-            rect.y - config.resizingHandleWidth,
-            rect.width,
-            config.resizingHandleWidth
-        );
+        rightIndicator.circle(0, 0, config.blockHandleIndicatorRadius);
+        rightIndicator.cursor = 'pointer';
+        rightIndicator.visible = false;
 
+        // top handle
+        topHandle.rect(0, 0, 1, 1);
         topHandle.fill(config.colors.handleColor);
         topHandle.interactive = true;
         topHandle.cursor = 'ns-resize';
 
-        // bottom handle
-        bottomHandle.rect(
-            rect.x,
-            rect.y + rect.height,
-            rect.width,
-            config.resizingHandleWidth
-        );
+        topIndicator.circle(0, 0, config.blockHandleIndicatorRadius);
+        topIndicator.cursor = 'pointer';
+        topIndicator.visible = false;
 
+        // bottom handle
+        bottomHandle.rect(0, 0, 1, 1);
         bottomHandle.fill(config.colors.handleColor);
         bottomHandle.interactive = true;
         bottomHandle.cursor = 'ns-resize';
+
+        bottomIndicator.circle(0, 0, config.blockHandleIndicatorRadius);
+        bottomIndicator.cursor = 'pointer';
+        bottomIndicator.visible = false;
 
         const blockContainer: Pixi.Container = new Pixi.Container();
         blockContainer.addChild(rect);
         blockContainer.addChild(strokedRect);
         blockContainer.addChild(leftHandle);
+        blockContainer.addChild(leftIndicator);
         blockContainer.addChild(rightHandle);
+        blockContainer.addChild(rightIndicator);
         blockContainer.addChild(topHandle);
-        blockContainer.addChild(bottomHandle);  
+        blockContainer.addChild(topIndicator);
+        blockContainer.addChild(bottomHandle);
+        blockContainer.addChild(bottomIndicator);
 
         // assign methods
         const dto: BlockDTO = new BlockDTO(
             rect,
             strokedRect,
             leftHandle,
+            leftIndicator,
             rightHandle,
+            rightIndicator,
             topHandle,
+            topIndicator,
             bottomHandle,
+            bottomIndicator,
             blockContainer,
             block.trackId
         );
@@ -390,9 +405,56 @@ export class BlockManager {
         this.topThreshold  = this.canvasOffset + config.sliderHeight + config.verticalScrollThreshold;
         this.bottomThreshold = window.innerHeight - config.verticalScrollThreshold;
     }
+    private applyChanges(changes: BlockChanges): void {
+        this.forEachSelectedBlock((block: BlockDTO): void => {
+            let isWidthClipped: boolean = false;
+
+            // apply Changes              
+            if (changes.height) {
+                const newHeight: number = Math.min(Math.max((block.rect.height + changes.height), 10), 150);
+                block.rect.height = newHeight;
+                const trackOffset: number = config.sliderHeight + config.componentPadding + (block.trackId * config.trackHeight);
+                const newY: number = (config.trackHeight / 2) - (newHeight / 2);
+                block.rect.y = newY + trackOffset;
+            }
+
+            if (changes.track != null) {
+                const trackContainerY: number =  (block.trackId  * config.trackHeight);
+                const newTrackContainerY: number = ((block.trackId + changes.track) * config.trackHeight);
+                block.rect.y = (newTrackContainerY - trackContainerY) + block.initY;
+            }
+
+            if (changes.width != null) {
+                block.rect.width = Math.max((block.rect.width + changes.width), config.minTactonWidth);
+                if (block.rect.width == config.minTactonWidth) {
+                    isWidthClipped = true;
+                }
+            }
+
+            if (changes.x !) {
+                if (isWidthClipped && changes.width) return;
+                block.rect.x += changes.x;
+
+                // mark track as unsorted
+                store.state.sorted[block.trackId] = false;
+            }
+
+            this.updateStroke(block);
+            this.updateIndicators(block);
+        });
+    }
 
     //*************** Update-Hooks ***************
 
+    // executes callback-function on every block
+    private forEachBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
+            store.state.blocks[trackId].forEach((block: BlockDTO) => {
+                callback(block);
+            });
+        });
+    }
+    
     // execites callback-function on every selected block
     private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
@@ -404,12 +466,15 @@ export class BlockManager {
             });
         });
     }
-
-    // executes callback-function on every block
-    private forEachBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-            store.state.blocks[trackId].forEach((block: BlockDTO) => {
-                callback(block);
+    
+    // execites callback-function on every selected block
+    private forEachUnselectedBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+                if (!isSelected) {
+                    callback(block);
+                }
             });
         });
     }
@@ -487,40 +552,76 @@ export class BlockManager {
         block.strokedRect.y = block.rect.y;
         block.strokedRect.height = block.rect.height;
     }
+    private updateIndicators(block: BlockDTO) {
+        block.leftIndicator.clear();
+        block.leftIndicator.circle(block.rect.x, block.rect.y + block.rect.height/2, config.blockHandleIndicatorRadius);
+        block.leftIndicator.fill(config.colors.groupHandleColor);
+
+        block.rightIndicator.clear();
+        block.rightIndicator.circle(block.rect.x + block.rect.width, block.rect.y + block.rect.height/2, config.blockHandleIndicatorRadius);
+        block.rightIndicator.fill(config.colors.groupHandleColor);
+
+        block.topIndicator.clear();
+        block.topIndicator.circle(block.rect.x + block.rect.width/2, block.rect.y, config.blockHandleIndicatorRadius);
+        block.topIndicator.fill(config.colors.groupHandleColor);
+
+        block.bottomIndicator.clear();
+        block.bottomIndicator.circle(block.rect.x + block.rect.width/2, block.rect.y + block.rect.height, config.blockHandleIndicatorRadius);
+        block.bottomIndicator.fill(config.colors.groupHandleColor);
+    }
+    private updateIndicatorVisibility(block: BlockDTO, isVisible: boolean): void {
+        block.leftIndicator.visible = isVisible;
+        block.rightIndicator.visible = isVisible;
+        block.topIndicator.visible = isVisible;
+        block.bottomIndicator.visible = isVisible;       
+    }
     
     // Updates all blocks, updates strokes of selected blocks (these are visible)
     private onZoomLevelChange(): void {
         this.forEachBlock((block: BlockDTO): void => {
             this.updateBlock(block);
-            const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-            if (isSelected) {
+            if (this.isBlockSelected(block)) {
                 this.updateStroke(block);
+                this.updateIndicators(block);
             }
         });
         this.generateThresholds();
+        this.updated = true;
     }
     
-    // Updates all unselected blocks
+    // Updates all unselected blocks of scrolling, update all blocks if moving slider
     private onHorizontalViewportChange(): void {
-        this.forEachBlock((block: BlockDTO): void => {
-            const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-            if (!isSelected) {
-                this.updateBlock(block);
+        if (!this.updated) {
+            if (this.isScrolling) {
+                // update only blocks that are not selected
+                this.forEachUnselectedBlock((block: BlockDTO) => {
+                    this.updateBlock(block);
+                });
+            } else {
+                // update all blocks
+                this.forEachBlock((block: BlockDTO): void => {
+                    this.updateBlock(block);
+                    if (this.isBlockSelected(block)) {
+                        this.updateStroke(block);
+                        this.updateIndicators(block);
+                    }
+                });
             }
-        });
+        }
+        this.updated = false;
     }
 
-    // Updates all blocks and handles, updates strokes of selected blocks (these are visible)
+    // Updates all handles and initData, updates strokes of not selected blocks (are not visible, so only update once after scaling)
     onSliderScaleEnd(): void {
         this.forEachBlock((block: BlockDTO): void => {
-            this.updateBlock(block);
             this.updateHandles(block);
-            const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-            if (!isSelected) {
+            if (!this.isBlockSelected(block)) {
                 this.updateStroke(block);
+                this.updateIndicators(block);
             }
             this.updateBlockInitData(block);
         });
+        this.updated = false;
     }
     
     //*************** Interactions ***************
@@ -607,6 +708,7 @@ export class BlockManager {
                     this.updateBlock(block);
                     this.updateHandles(block);
                     this.updateStroke(block);
+                    this.updateIndicators(block);
                     this.updateBlockInitData(block);
                 }
             });
@@ -686,7 +788,7 @@ export class BlockManager {
         
         const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
         changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
-        store.dispatch('applyChangesToSelectedBlocks', changes);
+        this.applyChanges(changes);
         
         if (this.groupBorder) {
             // update groupBorder when changing tracks
@@ -718,6 +820,7 @@ export class BlockManager {
         this.forEachBlock((block: BlockDTO): void => {
             this.updateHandles(block);
             this.updateStroke(block);
+            this.updateIndicators(block);
             this.updateBlockInitData(block);
         });
         
@@ -857,8 +960,7 @@ export class BlockManager {
             changes.x = newX - prevX;
         }
         changes.width = newWidth - prevWidth;
-
-        store.dispatch("applyChangesToSelectedBlocks", changes);
+        this.applyChanges(changes);
     }
     private onProportionalResizeStart(event: any, direction: Direction.LEFT | Direction.RIGHT): void {
         if (this.groupBorder == null) return;
@@ -1014,7 +1116,7 @@ export class BlockManager {
         const heightChange: number = newHeight - prevHeight;
         const changes: BlockChanges = new BlockChanges();
         changes.height = heightChange;
-        store.dispatch('applyChangesToSelectedBlocks', changes);
+        this.applyChanges(changes);
     }
     private onChangeAmplitudeEnd(): void {
         window.removeEventListener('pointermove', this.pointerMoveHandler);
@@ -1074,6 +1176,9 @@ export class BlockManager {
     private drawGroupBorder(): void {
         this.clearGroupBorder();
         if (store.state.selectedBlocks.length <= 1) return;
+        
+        // hide indicators
+        this.forEachSelectedBlock((block: BlockDTO) => this.updateIndicatorVisibility(block, false));
 
         let groupStartX: number = Infinity;
         let groupEndX: number = -Infinity;
@@ -1123,7 +1228,7 @@ export class BlockManager {
         const border = new Pixi.Graphics();
         border.rect(groupStartX, groupY, groupWidth, groupHeight);
         border.fill('rgb(0, 0, 0, 0)');
-        border.stroke({width: 2, color: 'rgba(255,0,0,0.5)'});
+        border.stroke({width: 2, color: config.colors.groupHandleColor});
 
         const rightHandle = new Pixi.Graphics();
         rightHandle.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
@@ -1202,6 +1307,12 @@ export class BlockManager {
             });
 
             store.dispatch('setInteractionState', false);
+
+            this.forEachSelectedBlock((block: BlockDTO) => {
+                this.updateStroke(block);
+                this.updateIndicators(block);
+                this.updateIndicatorVisibility(block, true);
+            });
         }
     }
 

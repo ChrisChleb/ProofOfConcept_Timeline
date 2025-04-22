@@ -101,7 +101,8 @@ export class BlockManager {
     private lastGroupStartX: number = 0;
     private lastGroupWidth: number = 0;
     private lastGroupY: number = 0;
-    private lastResizeDirection: Direction | null = null;
+    private isCollidingRight: boolean = false;
+    private isCollidingLeft: boolean = false;
     
     // collision-detection vars
     private unselectedBorders: number[][] = [];
@@ -887,11 +888,11 @@ export class BlockManager {
         
         if (this.resizeDirection === Direction.RIGHT) {
             newGroupWidth += deltaX;
-            isDeltaXValid = deltaX < this.lastValidDeltaX;
+            isDeltaXValid = deltaX < this.lastValidDeltaX || !this.isCollidingRight;
         } else {
             newGroupStartX += deltaX;
             newGroupWidth -= deltaX;
-            isDeltaXValid = deltaX > this.lastValidDeltaX;
+            isDeltaXValid = deltaX > this.lastValidDeltaX || !this.isCollidingLeft;
         }
 
         // check for minSize
@@ -910,7 +911,7 @@ export class BlockManager {
         }
         
         const scale: number = newGroupWidth / initWidth;
-        if (!this.isCollidingOnResize || isDeltaXValid || this.resizeDirection != this.lastResizeDirection) {
+        if (!this.isCollidingOnResize || isDeltaXValid) {
             this.isCollidingOnResize = false;
             store.state.selectedBlocks.forEach((selection: BlockSelection, index: number): void => {
                 if (this.isCollidingOnResize) return;
@@ -921,29 +922,37 @@ export class BlockManager {
                 const newRightX: number = newX + newWidth;
                 
                 store.state.blocks[block.trackId].forEach((other: BlockDTO): void => {
-                   if (other.rect.uid != block.rect.uid) {
-                       const otherRightX: number = other.rect.x + other.rect. width;
-                       if (otherRightX >= newX && otherRightX < newRightX) {
-                           // collision left
-                           this.isCollidingOnResize = true;
-                           
-                           // calculate perfect match
-                           const diff: number = otherRightX - newX;
-                           newGroupStartX += diff;
-                           newGroupWidth -= diff;
-                           this.generatePerfectCollision(newGroupStartX, newGroupWidth);                           
-                           return;
-                       } else if (other.rect.x <= newRightX && other.rect.x > newX) {
-                           // collision right
-                           this.isCollidingOnResize = true;
-                           
-                           // calculate perfect match
-                           const diff: number = (newX + newWidth) - other.rect.x;
-                           newGroupWidth -= diff;
-                           this.generatePerfectCollision(newGroupStartX, newGroupWidth);
-                           return;
-                       }                       
-                   } 
+                    if (!this.isBlockSelected(other)) {
+                        const otherRightX: number = other.rect.x + other.rect. width;
+                        if (otherRightX >= newX && otherRightX < newRightX) {
+                            // collision left
+                            this.isCollidingOnResize = true;
+                            this.isCollidingLeft = true;
+                            
+                            // calculate perfect match
+                            const diff: number = otherRightX - newX;
+                            newGroupStartX += diff;
+                            newGroupWidth -= diff;
+                            this.generatePerfectCollision(newGroupStartX, newGroupWidth);
+                            return;
+                        } else {
+                            this.isCollidingLeft = false;
+                        }
+                        
+                        if (other.rect.x <= newRightX && other.rect.x > newX) {
+                            // collision right
+                            this.isCollidingOnResize = true;
+                            this.isCollidingRight = true;
+                            
+                            // calculate perfect match
+                            const diff: number = (newX + newWidth) - other.rect.x;
+                            newGroupWidth -= diff;
+                            this.generatePerfectCollision(newGroupStartX, newGroupWidth);
+                            return;
+                        } else {
+                            this.isCollidingRight = false;
+                        }                
+                    }
                 });
                 
                 if (!this.isCollidingOnResize) {
@@ -960,7 +969,6 @@ export class BlockManager {
         }
     }
     private onResizeEnd(): void {
-        this.lastResizeDirection = this.resizeDirection;
         this.resizeDirection = null;
         window.removeEventListener('pointermove', this.pointerMoveHandler);
         window.removeEventListener('pointerup', this.pointerUpHandler);
@@ -1024,6 +1032,10 @@ export class BlockManager {
     }
 
     //*************** Helper ***************
+    
+    private isBlockSelected(block: BlockDTO): boolean {
+        return store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+    }
     
     // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration
     private snapToGrid(positionToCheck: number) {

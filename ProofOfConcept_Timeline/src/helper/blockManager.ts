@@ -1536,12 +1536,12 @@ export class BlockManager {
                     if (!isSticking) {
                         for (const lineX of store.state.gridLines) {
                             // left
-                            if (Math.abs(start2 - lineX) < config.moveSnappingRadius) {
+                            if (Math.abs(start2 - lineX) <= config.moveSnappingRadius) {
                                 validOffset = lineX - this.selectedBorders[trackId][i];
                                 break;
                             }
                             // right
-                            if (Math.abs(end2 - lineX) < config.moveSnappingRadius) {
+                            if (Math.abs(end2 - lineX) <= config.moveSnappingRadius) {
                                 validOffset = lineX - this.selectedBorders[trackId][i + 1];
                                 break;
                             }

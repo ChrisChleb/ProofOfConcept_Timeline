@@ -444,40 +444,7 @@ export class BlockManager {
         });
     }
 
-    //*************** Update-Hooks ***************
-
-    // executes callback-function on every block
-    private forEachBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-            store.state.blocks[trackId].forEach((block: BlockDTO) => {
-                callback(block);
-            });
-        });
-    }
-    
-    // execites callback-function on every selected block
-    private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-                if (isSelected) {
-                    callback(block);
-                }
-            });
-        });
-    }
-    
-    // execites callback-function on every selected block
-    private forEachUnselectedBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-                if (!isSelected) {
-                    callback(block);
-                }
-            });
-        });
-    }
+    //*************** Update-Methods ***************
     private updateBlock(block: BlockDTO): void {
         block.rect.width = block.initWidth * store.state.zoomLevel;
         block.rect.x = config.leftPadding + (block.initX * store.state.zoomLevel) - store.state.horizontalViewportOffset;
@@ -486,12 +453,12 @@ export class BlockManager {
         // detect switching tracks
         const currentYTrackId: number = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
         const trackChange: number = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.initYTrackId), this.maxTrackChange));
-        
+
         let diff: number = (store.state.currentCursorPosition.x - this.lastCursorX);
         diff = this.adjustOffset(diff, trackChange);
         this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
             block.rect.x = block.initX + diff;
-            
+
             const trackContainerY: number =  (block.trackId  * config.trackHeight);
             const newTrackContainerY: number = ((block.trackId + trackChange) * config.trackHeight);
             block.rect.y = (newTrackContainerY - trackContainerY) + block.initY;
@@ -573,7 +540,42 @@ export class BlockManager {
         block.leftIndicator.visible = isVisible;
         block.rightIndicator.visible = isVisible;
         block.topIndicator.visible = isVisible;
-        block.bottomIndicator.visible = isVisible;       
+        block.bottomIndicator.visible = isVisible;
+    }
+
+    //*************** Update-Hooks ***************
+
+    // executes callback-function on every block
+    private forEachBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
+            store.state.blocks[trackId].forEach((block: BlockDTO) => {
+                callback(block);
+            });
+        });
+    }
+    
+    // execites callback-function on every selected block
+    private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+                if (isSelected) {
+                    callback(block);
+                }
+            });
+        });
+    }
+    
+    // execites callback-function on every selected block
+    private forEachUnselectedBlock(callback: (block: BlockDTO) => void): void {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
+                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+                if (!isSelected) {
+                    callback(block);
+                }
+            });
+        });
     }
     
     // Updates all blocks, updates strokes of selected blocks (these are visible)
@@ -780,7 +782,7 @@ export class BlockManager {
         let currentYTrackId: number = this.currentTacton.trackId + Math.floor((deltaY - this.currentYAdjustment) / config.trackHeight);
         currentYTrackId = Math.max(0, Math.min(currentYTrackId, store.state.trackCount));
         changes.track = Math.max(this.minTrackChange, Math.min((currentYTrackId - this.currentTacton.trackId), this.maxTrackChange));
-                
+
         // scroll viewport if needed 
         // TODO maybe improve this by using lowest start and highest end position of the whole selection
         this.scrollViewportHorizontal(event.clientX);

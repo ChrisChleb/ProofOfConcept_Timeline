@@ -149,6 +149,7 @@ export class BlockManager {
     
     // copy & paste
     private strgDown: boolean = false;
+    private selectedBlockUids: number[] = [];
     private copiedBlocks: CopiedBlockDTO[] = [];
     private lastCursorX: number = 0;
     private initYTrackId: number = 0;
@@ -631,8 +632,9 @@ export class BlockManager {
         this.clearCopiedBlocks();
         const selectedBlocks: BlockDTO[] = [];
         
-        store.state.selectedBlocks.forEach((selection: BlockSelection) => {
-           selectedBlocks.push(store.state.blocks[selection.trackId][selection.index]); 
+        store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
+           selectedBlocks.push(store.state.blocks[selection.trackId][selection.index]);
+           this.selectedBlockUids.push(selection.uid);
         });
         
         if (selectedBlocks.length > 0) {
@@ -721,6 +723,17 @@ export class BlockManager {
         // remove copies and clear arrays
         this.copiedBlocks.forEach((block: CopiedBlockDTO): void => {
             block.container.destroy({children: true});
+        });
+        
+        // enable handles of previously selected blocks
+        this.forEachBlock((block: BlockDTO): void => {
+            if (this.selectedBlockUids.some((uid: number): boolean => uid == block.rect.uid)) {
+               // enable handles
+               block.leftHandle.interactive = true;
+               block.rightHandle.interactive = true;
+               block.topHandle.interactive = true;
+               block.bottomHandle.interactive = true;
+            }
         });
 
         this.copiedBlocks = [];

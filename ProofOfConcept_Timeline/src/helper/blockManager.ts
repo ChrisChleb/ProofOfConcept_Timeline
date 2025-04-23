@@ -1554,7 +1554,7 @@ export class BlockManager {
         }
 
         if (attemptCount >= maxAttempts) {
-            validOffset = this.lastValidOffset;
+            validOffset = this.getValidStickyOffset(offset, trackOffset, horizontalOffsetDifference);
         }
 
         this.lastValidOffset = validOffset;
@@ -1582,68 +1582,89 @@ export class BlockManager {
         }
         return possibleTrackOffsets;
     }
-    private checkPossibleOffsets(possibleOffsets: number[]): void {
+    private checkPossibleOffsetPerTrack(possibleOffsetPerTrackOffset: number[][]): void {
         this.stickyOffsetsPerTrackOffset.clear();
         this.validTrackOffsets = this.getValidTrackOffsets();
         // iterate over possible trackOffsets e.g. [-1, 0, 1, 2]
         this.validTrackOffsets.forEach((trackOffset: number): void => {
-            let validOffsetsPerTrackOffset: number[] = [];
-            // iterate over possible offsets 
-            possibleOffsets.forEach((offset: number): void => {
+            const validOffsetsPerTrackOffset: number[] = [];
+            // iterate over possible offsets e.g. [71, -248, ...]
+            for (const possibleOffset of possibleOffsetPerTrackOffset[trackOffset]) {
                 let isValid: boolean = true;
-                // add offset to border
-                // check if any of unselectedBorders[current track + trackOffset] is overlapping with adjusted border
-                Object.keys(this.selectedBorders).forEach((trackAsString: string, trackId: number): void => {
-                    for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
-                        let start2: number = this.selectedBorders[trackId][i] + offset;
-                        let end2: number = this.selectedBorders[trackId][i + 1] + offset;
+                // iterate over selected tracks
+                for (const trackAsString of Object.keys(this.selectedBorders)) {
+                    const trackId: number = parseInt(trackAsString);
+                    const selectedBorders: number[] = this.selectedBorders[trackId];
+                    const unselectedBorders: number[] = this.unselectedBorders[trackId + trackOffset];
+                    
+                    // skip empty tracks
+                    if (!selectedBorders || selectedBorders.length === 0) continue;
+                    if (!unselectedBorders) continue;
+
+                    // add offset to border
+                    // check if any of unselectedBorders is overlapping with adjusted border
+                    for (let i = 0; i < selectedBorders.length; i += 2) {
+                        const start2: number = selectedBorders[i] + possibleOffset;
+                        const end2: number = selectedBorders[i + 1] + possibleOffset;
 
                         if (start2 < config.leftPadding) {
                             isValid = false;
                             break;
                         }
 
-                        for (let j = 0; j < this.unselectedBorders[trackId + trackOffset].length; j += 2) {
-                            let start1: number = this.unselectedBorders[trackId + trackOffset][j];
-                            let end1: number = this.unselectedBorders[trackId + trackOffset][j + 1];
-                            if ((end2 > start1 && start2 < end1)) {
+                        for (let j = 0; j < unselectedBorders.length; j += 2) {
+                            const start1: number = unselectedBorders[j];
+                            const end1: number = unselectedBorders[j + 1];
+                            
+                            const variance: number = 0.01
+                            if (end2 > start1 && (start2 + variance) < end1) {
                                 isValid = false;
                                 break;
                             }
                         }
+
+                        if (!isValid) break;
                     }
-                });
+
+                    if (!isValid) break;
+                }
 
                 if (isValid) {
-                    validOffsetsPerTrackOffset.push(offset);
+                    validOffsetsPerTrackOffset.push(possibleOffset);
                 }
-            });
+            }
 
             this.stickyOffsetsPerTrackOffset.set(trackOffset, validOffsetsPerTrackOffset);
         });
     }
     private calculateStickyOffsets(): void {
-        const possibleOffset: number[] = [];
+        const trackOffsets: number[] = this.getValidTrackOffsets();
+        const possibleOffsetPerTrackOffset: number[][] = [];
         for (let trackId = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
             // loop over selectedBorders
             for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
                 // loop over unselected border tracks
-                for (let j = 0; j < this.unselectedBorders.length; j ++) {
+                trackOffsets.forEach((trackOffset: number) => {
+                    const track = trackId + trackOffset;
+                    if (possibleOffsetPerTrackOffset[trackOffset] == undefined) {
+                        possibleOffsetPerTrackOffset[trackOffset] = [];
+                    }
                     // loop over every unselected border block in this track
-                    for (let k = 0; k < this.unselectedBorders[j].length; k += 2 ) {
-                        let start2: number = this.unselectedBorders[j][k];
-                        let end2: number = this.unselectedBorders[j][k + 1];
+                    for (let k = 0; k < this.unselectedBorders[track].length; k += 2 ) {
+                        let start2: number = this.unselectedBorders[track][k];
+                        let end2: number = this.unselectedBorders[track][k + 1];
 
                         // calculate possible offsets         
                         let offsetToStart: number = end2 - this.selectedBorders[trackId][i];
                         let offsetToEnd: number = start2 - this.selectedBorders[trackId][i + 1];
-                        possibleOffset.push(offsetToStart);
-                        possibleOffset.push(offsetToEnd);
+
+                        possibleOffsetPerTrackOffset[trackOffset].push(offsetToStart);
+                        possibleOffsetPerTrackOffset[trackOffset].push(offsetToEnd);
                     }
-                }
+                });
             }
         }
-        this.checkPossibleOffsets(possibleOffset);
+        this.checkPossibleOffsetPerTrack(possibleOffsetPerTrackOffset);
     }
     private getValidStickyOffset(offset: number, trackOffset: number, horizontalOffsetDifference: number): number {
         const possibleOffsets: number[] = this.stickyOffsetsPerTrackOffset.get(trackOffset) || [];

@@ -777,6 +777,14 @@ export class BlockManager {
         this.currentYAdjustment = 0;
         this.lastViewportOffset = store.state.horizontalViewportOffset;
         this.lastTrackOffset = 0;
+
+        // set interactionState to block multiSelection
+        store.dispatch('setInteractionState', true);
+        
+        // return if nothing is selected (e.g. by using multi-selection via shift
+        if (store.state.selectedBlocks.length == 0) {
+            return;
+        }
         
         // calculate and init borders for collision detection
         this.createBorders();
@@ -784,9 +792,6 @@ export class BlockManager {
         // create validTrackOffsets for collisionDetection and change validation
         this.minTrackChange = Math.min(...this.validTrackOffsets);
         this.maxTrackChange = Math.max(...this.validTrackOffsets);
-        
-        // set interactionState to block multiSelection
-        store.dispatch('setInteractionState', true);
         
         // init handlers
         this.pointerMoveHandler = (event: any) => this.moveBlock(event);

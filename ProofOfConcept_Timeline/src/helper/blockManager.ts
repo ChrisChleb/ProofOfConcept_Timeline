@@ -148,6 +148,7 @@ export class BlockManager {
     private canvasOffset: number = 0;
     
     // copy & paste
+    private isMacOS: boolean = false;
     private strgDown: boolean = false;
     private selectedBlockUids: number[] = [];
     private copiedBlocks: CopiedBlockDTO[] = [];
@@ -175,16 +176,27 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.code == 'MetaLeft') {
+            if (event.code == 'ControlLeft' && !this.isMacOS) {
                 if (!this.strgDown) {
                     this.drawGroupBorder();
                     this.strgDown = true;
+                }
+            } else if (event.code == 'MetaLeft') {
+                if (!this.strgDown) {
+                    this.drawGroupBorder();
+                    this.strgDown = true;
+                    if (!this.isMacOS) {
+                        this.isMacOS = true;
+                    }
                 }
             }
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' || event.code == 'MetaLeft') {
+            if (event.code == 'ControlLeft' && !this.isMacOS) {
+                this.clearGroupBorder();
+                this.strgDown = false;
+            } else if (event.code == 'MetaLeft') {
                 this.clearGroupBorder();
                 this.strgDown = false;
             }

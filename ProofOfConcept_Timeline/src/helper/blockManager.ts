@@ -528,13 +528,19 @@ export class BlockManager {
 
         block.bottomHandle.fill(config.colors.handleColor);
     }
+    private updateHandleInteractivity(block: BlockDTO, isInteractive: boolean): void {
+        block.leftHandle.interactive = isInteractive;
+        block.rightHandle.interactive = isInteractive;
+        block.topHandle.interactive = isInteractive;
+        block.bottomHandle.interactive = isInteractive;
+    }
     private updateStroke(block: BlockDTO): void {
         block.strokedRect.x = block.rect.x;
         block.strokedRect.width = block.rect.width;
         block.strokedRect.y = block.rect.y;
         block.strokedRect.height = block.rect.height;
     }
-    private updateIndicators(block: BlockDTO) {
+    private updateIndicators(block: BlockDTO): void {
         block.leftIndicator.clear();
         block.leftIndicator.circle(block.rect.x, block.rect.y + block.rect.height/2, config.blockHandleIndicatorRadius);
         block.leftIndicator.fill(config.colors.groupHandleColor);
@@ -770,8 +776,25 @@ export class BlockManager {
         this.calculateVirtualViewportLength();
     }
     private onMoveBlock(event: any, block: BlockDTO): void {
-        // select block
-        store.dispatch('selectBlock', block);
+        // if groupBorder is active, update
+        if (this.groupBorder) {
+            // dont update, if there will be less then two blocks (requirement for proportional resizing)
+            const isBlockSelected: boolean = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
+            if (store.state.selectedBlocks.length >= 3 || !isBlockSelected) {
+                // select / deselect block
+                store.dispatch('selectBlock', block);
+                
+                if (isBlockSelected) {
+                    this.updateHandleInteractivity(block, true);
+                }
+            }            
+            this.drawGroupBorder();
+        } else {
+            // select block
+            store.dispatch('selectBlock', block);
+        }
+        
+        if (store.state.isPressingShift) return;
         
         // init vars
         this.initialX = event.data.global.x;
@@ -1230,10 +1253,7 @@ export class BlockManager {
             const block = store.state.blocks[selection.trackId][selection.index];
 
             // disable handles
-            block.leftHandle.interactive = false;
-            block.rightHandle.interactive = false;
-            block.topHandle.interactive = false;
-            block.bottomHandle.interactive = false;
+            this.updateHandleInteractivity(block, false);
 
             // collect data
             if (block.rect.x < groupStartX) {

@@ -14,6 +14,8 @@ interface GroupBorder {
     initWidth: number;
     initY: number;
     initHeight: number;
+    firstBlockOfGroup: BlockSelection;
+    lastBlockOfGroup: BlockSelection;
 }
 enum Direction {
     LEFT = 'left',
@@ -601,6 +603,7 @@ export class BlockManager {
             }
         });
         this.generateThresholds();
+        this.updateGroupBorder();        
         this.updated = true;
     }
     
@@ -622,6 +625,7 @@ export class BlockManager {
                     }
                 });
             }
+            this.updateGroupBorder();
         }
         this.updated = false;
     }
@@ -826,7 +830,7 @@ export class BlockManager {
             // update groupBorder when changing tracks
             this.lastGroupStartX += changes.x;
             this.groupBorder.initY = this.lastGroupY + changes.track * config.trackHeight;
-            this.updateGroupBorder();
+            this.resizeGroupBorder();
             this.isCollidingOnResize = false;
         }
     }
@@ -1099,7 +1103,7 @@ export class BlockManager {
                     this.lastValidDeltaX = deltaX;
                 }
             });
-            this.updateGroupBorder(newGroupStartX, newGroupWidth);              
+            this.resizeGroupBorder(newGroupStartX, newGroupWidth);              
         }
     }
     private onResizeEnd(): void {
@@ -1219,6 +1223,8 @@ export class BlockManager {
         let groupHighestTrack: number = 0;
         let maxHeightOfLowestTrack: number = config.minBlockHeight;
         let maxHeightOfHighestTrack: number = config.minBlockHeight;
+        let firstBlockOfGroup;
+        let lastBlockOfGroup;
 
         const selectedBlocks: BlockDTO[] = store.state.selectedBlocks.map((selection: BlockSelection) => {
             const block = store.state.blocks[selection.trackId][selection.index];
@@ -1230,8 +1236,14 @@ export class BlockManager {
             block.bottomHandle.interactive = false;
 
             // collect data
-            groupStartX = Math.min(groupStartX, block.rect.x);
-            groupEndX = Math.max(groupEndX, block.rect.x + block.rect. width);
+            if (block.rect.x < groupStartX) {
+                groupStartX = block.rect.x;
+                firstBlockOfGroup = selection;
+            }            
+            if ((block.rect.x + block.rect. width) > groupEndX) {
+                groupEndX = (block.rect.x + block.rect. width);
+                lastBlockOfGroup = selection;
+            }
             groupLowestTrack = Math.min(groupLowestTrack, block.trackId);
             groupHighestTrack = Math.max(groupHighestTrack, block.trackId);
             return block;
@@ -1291,14 +1303,16 @@ export class BlockManager {
             initWidth: groupWidth,
             initStartX: groupStartX,
             initY: groupY,
-            initHeight: groupHeight
+            initHeight: groupHeight,
+            firstBlockOfGroup: firstBlockOfGroup!,
+            lastBlockOfGroup: lastBlockOfGroup!
         }
 
         dynamicContainer.addChild(borderContainer);
 
         store.dispatch('setInteractionState', true);
     }
-    private updateGroupBorder(newGroupStartX?: number, newGroupWidth?: number): void {
+    private resizeGroupBorder(newGroupStartX?: number, newGroupWidth?: number): void {
         if (this.groupBorder == null) return;
         if (!newGroupWidth) newGroupWidth = this.lastGroupWidth;
         if (!newGroupStartX) newGroupStartX = this.lastGroupStartX;
@@ -1321,6 +1335,20 @@ export class BlockManager {
 
         this.lastGroupStartX = newGroupStartX;
         this.lastGroupWidth = newGroupWidth;
+    }
+    private updateGroupBorder(): void {
+        if (this.groupBorder) {
+            const firstSelection: BlockSelection = this.groupBorder.firstBlockOfGroup;
+            const lastSelection: BlockSelection = this.groupBorder.lastBlockOfGroup;
+
+            const firstBlock = store.state.blocks[firstSelection.trackId][firstSelection.index];
+            const lastBlock = store.state.blocks[lastSelection.trackId][lastSelection.index];
+
+            const newGroupStartX = firstBlock.rect.x;
+            const newGroupEndX = lastBlock.rect.x + lastBlock.rect.width;
+            const newGroupWidth: number = newGroupEndX - newGroupStartX;
+            this.resizeGroupBorder(newGroupStartX, newGroupWidth);
+        }
     }
     private clearGroupBorder(): void {
         if (this.groupBorder != null) {

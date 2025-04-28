@@ -910,6 +910,11 @@ export class BlockManager {
         let newWidth;
         let newX: number;
 
+        // exit, if user is pressing strg (proportional-resizing is active)
+        if (this.strgDown) {
+            return;
+        }
+        
         if (this.resizeDirection === Direction.RIGHT) {
             // calculate new tacton width
             newWidth = Math.max((this.initialBlockWidth + deltaX), config.minTactonWidth);

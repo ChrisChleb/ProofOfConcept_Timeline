@@ -115,8 +115,8 @@ export class BlockManager {
     private lastGroupStartX: number = 0;
     private lastGroupWidth: number = 0;
     private lastGroupY: number = 0;
-    private isCollidingRight: boolean = false;
-    private isCollidingLeft: boolean = false;
+    private lastUidsCollisionLeft: number[] = [];
+    private lastUidsCollisionRight: number[] = [];
     
     // collision-detection vars
     private unselectedBorders: number[][] = [];
@@ -1042,6 +1042,8 @@ export class BlockManager {
         const deltaX: number = event.clientX - this.initialX;
         const initWidth: number = this.groupBorder.initWidth;
         const initStartX: number = this.groupBorder.initStartX;
+        const collisionsLeft: number = this.lastUidsCollisionLeft.length;
+        const collisionsRight: number = this.lastUidsCollisionRight.length;
         
         let newGroupWidth: number = initWidth;
         let newGroupStartX: number = initStartX;
@@ -1049,11 +1051,37 @@ export class BlockManager {
         
         if (this.resizeDirection === Direction.RIGHT) {
             newGroupWidth += deltaX;
-            isDeltaXValid = deltaX < this.lastValidDeltaX || !this.isCollidingRight;
+            
+            isDeltaXValid = collisionsRight == 0;
+
+            if (collisionsRight == 1) {
+                isDeltaXValid = deltaX < this.lastValidDeltaX;
+            }
+
+            if (collisionsLeft == 2) {
+                isDeltaXValid = deltaX > this.lastValidDeltaX;
+            }
+            
+            if (collisionsLeft == 1 && this.lastUidsCollisionLeft[0] != this.groupBorder.firstBlockOfGroup.uid) {
+                isDeltaXValid = deltaX > this.lastValidDeltaX;
+            }
         } else {
             newGroupStartX += deltaX;
             newGroupWidth -= deltaX;
-            isDeltaXValid = deltaX > this.lastValidDeltaX || !this.isCollidingLeft;
+            
+            isDeltaXValid = collisionsLeft == 0;
+            
+            if (collisionsLeft == 1) {
+                isDeltaXValid = deltaX > this.lastValidDeltaX;
+            }
+            
+            if (collisionsRight == 2) {
+                isDeltaXValid = deltaX < this.lastValidDeltaX;
+            }
+            
+            if (collisionsRight == 1 && this.lastUidsCollisionRight[0] != this.groupBorder.lastBlockOfGroup.uid) {
+                isDeltaXValid = deltaX < this.lastValidDeltaX;
+            }
         }
 
         // check for minSize
@@ -1062,71 +1090,68 @@ export class BlockManager {
             newGroupStartX = this.lastGroupStartX;
         }
         
-        // TODO this also is true, when colliding, thus not actually overflowing
         // check for left-overflow
         if (newGroupStartX <= config.leftPadding) {
-            console.log("isOverflowing");
             const overflow: number = config.leftPadding - newGroupStartX;
             newGroupStartX += overflow;
             newGroupWidth -= overflow;
         }
         
         const scale: number = newGroupWidth / initWidth;
-        if (!this.isCollidingOnResize || isDeltaXValid) {
-            this.isCollidingOnResize = false;
-            store.state.selectedBlocks.forEach((selection: BlockSelection, index: number): void => {
-                if (this.isCollidingOnResize) return;
-                const block = store.state.blocks[selection.trackId][selection.index];
+        const uidsCollisionLeft: number[] = [];
+        const uidsCollisionRight: number[] = [];
+        
+        for (const selection of store.state.selectedBlocks) {
+            // calculate new block parameters
+            const block = store.state.blocks[selection.trackId][selection.index];
+            const newBlockParameters: {x: number, width: number} = this.calculateNewBlockParameters(block, newGroupStartX, scale);
+            const newX: number = newBlockParameters.x;
+            const newWidth: number = newBlockParameters.width;
+            const newRightX: number = newX + newWidth;
+
+            // check for collisions
+            for (const other of store.state.blocks[selection.trackId]) {
+                if (this.isBlockSelected(other)) continue;
+
+                const otherRightX: number = other.rect.x + other.rect. width;
+                if (otherRightX >= newX && otherRightX < newRightX) {
+                    // collision left
+                    uidsCollisionLeft.push(selection.uid);
+                    
+                    // calculate diff and new group parameters
+                    const diff: number = otherRightX - newX;
+                    newGroupStartX += diff;
+                    newGroupWidth -= diff;
+                }
+
+                if (other.rect.x <= newRightX && other.rect.x > newX) {
+                    // collision right
+                    uidsCollisionRight.push(selection.uid);
+                    
+                    // calculate diff and new group parameters
+                    const diff: number = (newX + newWidth) - other.rect.x;
+                    newGroupWidth -= diff;
+                }
+            }
+        }
+        
+        if (isDeltaXValid) {
+            const scale: number = newGroupWidth / this.groupBorder.initWidth;
+            this.forEachSelectedBlock((block: BlockDTO): void => {
                 const newBlockParameters: {x: number, width: number} = this.calculateNewBlockParameters(block, newGroupStartX, scale);
                 const newX: number = newBlockParameters.x;
                 const newWidth: number = newBlockParameters.width;
-                const newRightX: number = newX + newWidth;
-                
-                store.state.blocks[block.trackId].forEach((other: BlockDTO): void => {
-                    if (!this.isBlockSelected(other)) {
-                        const otherRightX: number = other.rect.x + other.rect. width;
-                        if (otherRightX >= newX && otherRightX < newRightX) {
-                            // collision left
-                            this.isCollidingOnResize = true;
-                            this.isCollidingLeft = true;
-                            
-                            // calculate perfect match
-                            const diff: number = otherRightX - newX;
-                            newGroupStartX += diff;
-                            newGroupWidth -= diff;
-                            this.generatePerfectCollision(newGroupStartX, newGroupWidth);
-                            return;
-                        } else {
-                            this.isCollidingLeft = false;
-                        }
-                        
-                        if (other.rect.x <= newRightX && other.rect.x > newX) {
-                            // collision right
-                            this.isCollidingOnResize = true;
-                            this.isCollidingRight = true;
-                            
-                            // calculate perfect match
-                            const diff: number = (newX + newWidth) - other.rect.x;
-                            newGroupWidth -= diff;
-                            this.generatePerfectCollision(newGroupStartX, newGroupWidth);
-                            return;
-                        } else {
-                            this.isCollidingRight = false;
-                        }                
-                    }
-                });
-                
-                if (!this.isCollidingOnResize) {
-                    block.rect.x = newX;
-                    block.rect.width = newWidth;
-    
-                    block.strokedRect.x = newX;
-                    block.strokedRect.width = newWidth;
-    
-                    this.lastValidDeltaX = deltaX;
-                }
+
+                block.rect.x = newX;
+                block.rect.width = newWidth;
+
+                block.strokedRect.x = newX;
+                block.strokedRect.width = newWidth;
             });
-            this.resizeGroupBorder(newGroupStartX, newGroupWidth);              
+            this.resizeGroupBorder(newGroupStartX, newGroupWidth);
+            this.lastValidDeltaX = deltaX;
+            this.lastUidsCollisionRight = uidsCollisionRight;
+            this.lastUidsCollisionLeft = uidsCollisionLeft;
         }
     }
     private onResizeEnd(): void {
@@ -1193,7 +1218,6 @@ export class BlockManager {
     }
 
     //*************** Helper ***************
-    
     private isBlockSelected(block: BlockDTO): boolean {
         return store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
     }
@@ -1215,22 +1239,6 @@ export class BlockManager {
         const newX: number = (newGroupStartX + relX * scale);
         const newWidth: number = (block.initWidth * store.state.zoomLevel) * scale;
         return {x: newX, width: newWidth};
-    }
-    private generatePerfectCollision(newGroupStartX: number, newGroupWidth: number): void {
-        if (this.groupBorder == null) return;
-        const scale: number = newGroupWidth / this.groupBorder.initWidth;
-        store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
-            const block = store.state.blocks[selection.trackId][selection.index];
-            const newBlockParameters: {x: number, width: number} = this.calculateNewBlockParameters(block, newGroupStartX, scale);
-            const newX: number = newBlockParameters.x;
-            const newWidth: number = newBlockParameters.width;
-
-            block.rect.x = newX;
-            block.rect.width = newWidth;
-
-            block.strokedRect.x = newX;
-            block.strokedRect.width = newWidth;
-        });
     }
     private drawGroupBorder(): void {
         this.clearGroupBorder();

@@ -1,15 +1,17 @@
 import type {BlockData} from "@/parser/instructionParser";
-import type {Graphics} from "pixi.js";
+import type {Graphics, Container} from "pixi.js";
 import * as Pixi from "pixi.js";
 import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import store, {BlockChanges, type BlockSelection} from "@/store";
 import {onMounted, watch} from "vue";
 interface GroupBorder {
-    container: Pixi.Container;
-    border: Pixi.Graphics;
-    leftHandle: Pixi.Graphics;
-    rightHandle: Pixi.Graphics;
+    container: Container;
+    border: Graphics;
+    leftHandle: Graphics;
+    leftIndicator: Graphics;
+    rightHandle: Graphics;
+    rightIndicator: Graphics;
     initStartX: number;
     initWidth: number;
     initY: number;
@@ -1296,23 +1298,31 @@ export class BlockManager {
         this.lastGroupWidth = groupWidth;
         this.lastGroupY = groupY;
 
-        const borderContainer = new Pixi.Container();
-        const border = new Pixi.Graphics();
+        const borderContainer: Container = new Pixi.Container();
+        const border: Graphics = new Pixi.Graphics();
         border.rect(groupStartX, groupY, groupWidth, groupHeight);
         border.fill('rgb(0, 0, 0, 0)');
         border.stroke({width: 2, color: config.colors.groupHandleColor});
 
-        const rightHandle = new Pixi.Graphics();
-        rightHandle.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
-        rightHandle.fill(config.colors.groupHandleColor);
+        const rightHandle: Graphics = new Pixi.Graphics();
+        rightHandle.rect(groupStartX + groupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        rightHandle.fill(config.colors.handleColor);
         rightHandle.interactive = true;
-        rightHandle.cursor = 'pointer';
+        rightHandle.cursor = 'ew-resize';
+        
+        const rightIndicator: Graphics = new Pixi.Graphics();
+        rightIndicator.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        rightIndicator.fill(config.colors.groupHandleColor);
 
-        const leftHandle = new Pixi.Graphics();
-        leftHandle.circle(groupStartX, groupY + groupHeight/2, config.groupHandleRadius);
-        leftHandle.fill(config.colors.groupHandleColor);
+        const leftHandle: Graphics = new Pixi.Graphics();
+        leftHandle.rect(groupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        leftHandle.fill(config.colors.handleColor);
         leftHandle.interactive = true;
-        leftHandle.cursor = 'pointer';
+        leftHandle.cursor = 'ew-resize';
+
+        const leftIndicator: Graphics = new Pixi.Graphics();
+        leftIndicator.circle(groupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        leftIndicator.fill(config.colors.groupHandleColor);
 
         // add eventListeners
 
@@ -1321,13 +1331,17 @@ export class BlockManager {
 
         borderContainer.addChild(border);
         borderContainer.addChild(rightHandle);
+        borderContainer.addChild(rightIndicator);
         borderContainer.addChild(leftHandle);
+        borderContainer.addChild(leftIndicator);
 
         this.groupBorder = {
             container: borderContainer,
             border: border,
             rightHandle: rightHandle,
+            rightIndicator: rightIndicator,
             leftHandle: leftHandle,
+            leftIndicator: leftIndicator,
             initWidth: groupWidth,
             initStartX: groupStartX,
             initY: groupY,
@@ -1354,12 +1368,20 @@ export class BlockManager {
         this.groupBorder.border.stroke({width: 2, color: 'rgba(255,0,0,0.5)'});
 
         this.groupBorder.rightHandle.clear();
-        this.groupBorder.rightHandle.circle(newGroupStartX + newGroupWidth, groupY + groupHeight/2, config.groupHandleRadius);
-        this.groupBorder.rightHandle.fill(config.colors.groupHandleColor);
+        this.groupBorder.rightHandle.rect(newGroupStartX + newGroupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        this.groupBorder.rightHandle.fill(config.colors.handleColor);
+        
+        this.groupBorder.rightIndicator.clear();
+        this.groupBorder.rightIndicator.circle(newGroupStartX + newGroupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        this.groupBorder.rightIndicator.fill(config.colors.groupHandleColor);
 
         this.groupBorder.leftHandle.clear();
-        this.groupBorder.leftHandle.circle(newGroupStartX, groupY + groupHeight/2, config.groupHandleRadius);
-        this.groupBorder.leftHandle.fill(config.colors.groupHandleColor);
+        this.groupBorder.leftHandle.rect(newGroupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        this.groupBorder.leftHandle.fill(config.colors.handleColor);
+        
+        this.groupBorder.leftIndicator.clear();
+        this.groupBorder.leftIndicator.circle(newGroupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        this.groupBorder.leftIndicator.fill(config.colors.groupHandleColor);
 
         this.lastGroupStartX = newGroupStartX;
         this.lastGroupWidth = newGroupWidth;

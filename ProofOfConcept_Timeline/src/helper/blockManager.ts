@@ -161,6 +161,13 @@ export class BlockManager {
     
     private groupBorder: GroupBorder | null = null;
     
+    // multi selection
+    private isSelecting: boolean = false;
+    private isMouseDragging: boolean = false;
+    private selectionStart = { x: 0, y: 0 };
+    private selectionEnd = { x: 0, y: 0 };
+    private selectedBlocks: BlockSelection[] = [];
+    
     // updateHooks
     private updated: boolean = false;
     constructor() {
@@ -180,6 +187,7 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
+            // detect STRG or Meta
             if (event.code == 'ControlLeft' && !this.isMacOS) {
                 if (!this.strgDown) {
                     this.drawGroupBorder();
@@ -194,6 +202,16 @@ export class BlockManager {
                     }
                 }
             }
+
+            if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
+            if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
+            if (event.code == 'Escape') this.clearCopiedBlocks();
+            if (event.code == 'Delete') this.deleteBlock();
+
+            // detect shift
+            if (event.key == "Shift" && !store.state.isPressingShift) {
+                store.dispatch('toggleShiftValue');
+            }
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
@@ -204,22 +222,42 @@ export class BlockManager {
                 this.clearGroupBorder();
                 this.strgDown = false;
             }
-        });
-        
-        // detect keys
-        document.addEventListener('keydown', (event: KeyboardEvent): void => {
-            if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
-            if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
-            if (event.code == 'Escape') this.clearCopiedBlocks();
-            if (event.code == 'Delete') this.deleteBlock();
+
+            if (event.key == "Shift" && store.state.isPressingShift) {
+                store.dispatch('toggleShiftValue');
+            }
         });
         
         // paste on click
         pixiApp.canvas.addEventListener('mousedown', () => {
             if (!store.state.isInteracting) {
                 this.pasteSelection();
-            }           
-        })
+            }
+        });
+
+        // multiselection by dragging
+        pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
+            if (this.isSelecting) return;
+            if (event.button === 0 && !store.state.isInteracting) {
+                this.isMouseDragging = true;
+                this.selectionStart = { x: event.clientX, y: event.clientY };
+                this.selectionEnd = { ...this.selectionStart };
+                this.drawSelectionBox();
+            }
+        });
+
+        pixiApp.canvas.addEventListener('mousemove', (event: MouseEvent) => {
+            if (!this.isMouseDragging) return;
+            this.selectionEnd = { x: event.clientX, y: event.clientY };
+            this.drawSelectionBox();
+        });
+
+        pixiApp.canvas.addEventListener('mouseup', (event: MouseEvent) => {
+            if (event.button !== 0 || !this.isMouseDragging) return;
+            this.isMouseDragging = false;
+            this.removeSelectionBox();
+            this.selectRectanglesWithin();
+        });
         
         // watch currentCursorPosition        
         watch(() => store.state.currentCursorPosition, ({x, y}): void => {
@@ -795,8 +833,14 @@ export class BlockManager {
             // select block
             store.dispatch('selectBlock', block);
         }
-        
-        if (store.state.isPressingShift) return;
+
+        // early exit if user is pressing shift --> multi-selection
+        if (store.state.isPressingShift) {
+            this.isSelecting = true;
+            this.pointerUpHandler = () => this.onSelectingEnd();
+            window.addEventListener('pointerup', this.pointerUpHandler);
+            return;
+        }
         
         // init vars
         this.initialX = event.data.global.x;
@@ -887,6 +931,10 @@ export class BlockManager {
         
         this.calculateVirtualViewportLength();
         this.currentTacton = null;
+    }
+    private onSelectingEnd(): void {
+        this.isSelecting = false;
+        window.removeEventListener('pointerup', this.pointerUpHandler);
     }
     private onAbsoluteResizeStart(event: any, block: BlockDTO, direction: Direction.LEFT | Direction.RIGHT): void {
         this.resizeDirection = direction;
@@ -1193,6 +1241,11 @@ export class BlockManager {
         window.addEventListener('pointerup', this.pointerUpHandler);
     }
     private changeAmplitude(event: any, block: BlockDTO, direction: Direction): void {
+        // exit, if user is pressing strg (proportional-resizing is active)
+        if (this.strgDown) {
+            return;
+        }
+        
         let deltaY: number = 0;
         if (direction == Direction.TOP) {
             deltaY = (this.initialY - event.clientY);
@@ -1212,7 +1265,11 @@ export class BlockManager {
     private onChangeAmplitudeEnd(): void {
         window.removeEventListener('pointermove', this.pointerMoveHandler);
         window.removeEventListener('pointerup', this.pointerUpHandler);
-        store.dispatch('setInteractionState', false);
+
+        // only set InteractionState if groupBorder is not active
+        if (this.groupBorder == null) {
+            store.dispatch('setInteractionState', false);
+        }
 
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
@@ -1793,5 +1850,62 @@ export class BlockManager {
             }
         }
         return bestOffset;
+    }
+
+    //******* multi-selection *******
+    private drawSelectionBox(): void {
+        const selectionBox = document.getElementById('selection-box') || this.createSelectionBox();
+        const { x, y, width, height } = this.getBoundingBox();
+        selectionBox.style.left = `${x}px`;
+        selectionBox.style.top = `${y}px`;
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+    }
+    private createSelectionBox(): HTMLElement {
+        const box = document.createElement('div');
+        box.id = 'selection-box';
+        box.style.position = 'absolute';
+        box.style.border = '1px solid';
+        box.style.borderColor = config.colors.boundingBoxBorderColor;
+        box.style.background = config.colors.boundingBoxColor;
+        box.style.pointerEvents = 'none';
+        box.style.userSelect = 'none';
+        document.body.appendChild(box);
+        return box;
+    }
+    private removeSelectionBox(): void {
+        const box = document.getElementById('selection-box');
+        if (box) box.remove();
+    }
+    private selectRectanglesWithin(): void {
+        this.selectedBlocks.length = 0;
+        let { x, y, width, height } = this.getBoundingBox();
+
+        // need to adjust coordinates, to be in canvas
+        y -= this.canvasOffset
+        // adjust for scrolling
+        y -= dynamicContainer.y;
+
+        // calculate tracks to check --> only check tracks that could contain selection
+        const startTrack = Math.floor(y / config.trackHeight);
+        const endTrack = Math.floor((y+height)/config.trackHeight);
+        for (let trackId = startTrack; trackId <= endTrack; trackId++) {
+            const blocks = store.state.blocks[trackId];
+            if (!blocks) continue;
+            blocks.forEach((block: BlockDTO, index: number) => {
+                if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && block.rect.y <= (y + height) && block.rect.y + block.rect.height >= y) {
+                    const selection: BlockSelection = {trackId: trackId, index: index, uid: block.rect.uid};
+                    this.selectedBlocks.push(selection);
+                }
+            });
+        }
+        store.dispatch('onSelectBlocks', this.selectedBlocks);
+    }
+    private getBoundingBox() {
+        const x = Math.min(this.selectionStart.x, this.selectionEnd.x);
+        const y = Math.min(this.selectionStart.y, this.selectionEnd.y);
+        const width = Math.abs(this.selectionStart.x - this.selectionEnd.x);
+        const height = Math.abs(this.selectionStart.y - this.selectionEnd.y);
+        return { x, y, width, height };
     }
 }

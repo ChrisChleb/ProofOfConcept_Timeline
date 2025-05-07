@@ -116,6 +116,13 @@ const store = createStore({
             state.blocks = sortedTactons;
         },
         deleteSelectedBlocks(state: any): void {
+            state.selectedBlocks.sort((a: BlockSelection, b: BlockSelection): number => {
+                if (a.trackId !== b.trackId) {
+                    return a.trackId - b.trackId;
+                }
+                return b.index - a.index; 
+            });
+            
             state.selectedBlocks.forEach((blockSelection: BlockSelection) => {
                 const block = state.blocks[blockSelection.trackId][blockSelection.index];
                 dynamicContainer.removeChild(block.container);

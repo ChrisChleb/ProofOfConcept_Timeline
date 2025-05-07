@@ -785,12 +785,8 @@ export class BlockManager {
     
     // TODO maybe split selection and border rendering, as rendering border only relies on what blocks are selected + group detection
     private handleSelection(toSelect: BlockDTO | BlockSelection[]): void {
-        console.log(store.state.groups);
-        
         if (Array.isArray(toSelect)) {
-            console.log("Array");
             if (!store.state.isPressingShift) {
-                console.log("no shift");
                 this.forEachSelectedBlock((block: BlockDTO): void => {
                     block.strokedRect.visible = false;
                    this.updateIndicatorVisibility(block, false);
@@ -801,7 +797,6 @@ export class BlockManager {
             
             // detect groups
             const foundGroupIds: number[] = [];
-            console.log("groups ", foundGroupIds);
             toSelect.forEach((selection: BlockSelection): void => {
                 const block: BlockDTO = store.state.blocks[selection.trackId][selection.index];
                 if (block.groupId) {
@@ -832,10 +827,8 @@ export class BlockManager {
                 const selectionIndex: number = store.state.selectedBlocks.findIndex((selection: BlockSelection): boolean => selection.uid === toSelect.rect.uid);
                 const selection: BlockSelection = {trackId: toSelect.trackId, index: index, uid: toSelect.rect.uid};
                 if (selectionIndex == -1) {
-                    console.log("not selected");
                     // block is not selected
                     if (!store.state.isPressingShift) {
-                        console.log("not pressing shift");
                         // clear selection
                         this.forEachSelectedBlock((block: BlockDTO): void => {
                            block.strokedRect.visible = false;
@@ -847,15 +840,12 @@ export class BlockManager {
 
                     // check for group
                     if (toSelect.groupId == null) {
-                        console.log("no group");
                         // add block to selection
-                        // TODO somehow this adds blocks to the group, if creating group and then selecting other blocks via shift
                         store.dispatch('selectBlock', selection);
 
                         toSelect.strokedRect.visible = true;
                         this.updateIndicatorVisibility(toSelect, true);
                     } else {
-                        console.log("group");
                         this.createGroupBorder(toSelect.groupId, store.state.groups.get(toSelect.groupId));                        
                         store.state.groups.get(toSelect.groupId).forEach((selection: BlockSelection): void => {
                             const block = store.state.blocks[selection.trackId][selection.index];
@@ -864,19 +854,13 @@ export class BlockManager {
                         });
                     }
                 } else {
-
-                    console.log("already selected");
                     // block already selected
                     if (store.state.isPressingShift) {
-                        console.log("is pressing shift");
                         if (toSelect.groupId != null) {
-                            console.log("group");
                             // TODO optimize
                             
                             // remove from store
-                            console.log(store.state.groups.get(toSelect.groupId));
                             store.state.groups.get(toSelect.groupId)!.forEach((selection: BlockSelection): void => {
-                                console.log(selection);
                                 const block = store.state.blocks[selection.trackId][selection.index];
                                 const selectionIndex: number = store.state.selectedBlocks.findIndex((other: BlockSelection): boolean => other.uid === selection.uid);
                                 store.dispatch('unselectBlock', selectionIndex);
@@ -886,7 +870,6 @@ export class BlockManager {
                             // remove groupBorder
                             this.clearGroupBorder(toSelect.groupId);
                         } else {
-                            console.log("no group");
                             // remove block from selection
                             store.dispatch('unselectBlock', selectionIndex);
                             toSelect.strokedRect.visible = false;
@@ -896,10 +879,6 @@ export class BlockManager {
                 }
             }
         }
-        
-        console.log("renderedGroupBorders", this.renderedGroupBorders);
-        console.log("groups", store.state.groups);
-        console.log("selected ", store.state.selectedBlocks);
     }
     private copySelection(): void {
         this.clearCopiedBlocks();
@@ -1549,7 +1528,6 @@ export class BlockManager {
                 hasNewBlocks = true;
             }
         }
-        console.log("grouping blocks");
         if (!hasNewBlocks) {
             // ungroup
             
@@ -1580,19 +1558,21 @@ export class BlockManager {
                 this.clearGroupBorder(groupId);
                 store.state.groups.delete(groupId);
             });
-
+            
             groupId = store.state.selectedBlocks[0].uid;
-            this.forEachSelectedBlock((block: BlockDTO): void => {
-                block.groupId = groupId;
+            const blocksOfGroup: BlockSelection[] = [];
+            
+            store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
+               const block = store.state.blocks[selection.trackId][selection.index];
+               block.groupId = groupId;
+               blocksOfGroup.push(selection);
             });
-            store.dispatch('groupSelectedBlocks', groupId);
+            
+            store.dispatch('addGroup', {groupId: groupId, selection: blocksOfGroup});
 
             this.clearSelectionBorder();
             this.createGroupBorder(groupId, store.state.selectedBlocks);
         }
-
-        console.log("groups", store.state.groups);
-        console.log("selected ", store.state.selectedBlocks);
     }
 
     //*************** Helper ***************

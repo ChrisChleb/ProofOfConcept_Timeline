@@ -257,10 +257,6 @@ const store = createStore({
         setCurrentCursorPosition(state: any, newPosition: {x: number, y: number}): void {
             state.currentCursorPosition = newPosition;
         },
-        groupSelectedBlocks(state: any, groupId: number): void {
-            state.groups.set(groupId, state.selectedBlocks);
-            console.log("set")
-        },
         ungroupSelectedBlocks(state: any, groupId: number): void {
             state.groups.delete(groupId);
         },
@@ -310,9 +306,7 @@ const store = createStore({
         },
         deleteAllBlocks({ state, commit }: any): void {
           if (state.blocks) {
-              console.log("deleting all blocks");
               Object.keys(state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-                  console.log("deleting blocks of track ", trackId);
                   commit('deleteBlocksOfTrack', trackId);
               });
           }  
@@ -354,9 +348,6 @@ const store = createStore({
         },
         updateCurrentCursorPosition({ commit }: any, newPosition: {x: number, y: number}): void {
             commit('setCurrentCursorPosition', newPosition);
-        },
-        groupSelectedBlocks({ commit }: any, groupId: number): void {
-            commit('groupSelectedBlocks', groupId);
         },
         addGroup({ commit }: any, groupData: {groupId: number, selection: BlockSelection[]}): void {
             commit('addGroup', groupData);

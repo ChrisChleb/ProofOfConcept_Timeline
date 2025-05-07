@@ -1438,7 +1438,6 @@ export class BlockManager {
 
         // update borderData
         this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
-            console.log("updating borderData");
             borderData.initStartX = borderData.lastStartX;
             borderData.initWidth = borderData.lastWidth;
         });

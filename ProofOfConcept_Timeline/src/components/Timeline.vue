@@ -40,12 +40,7 @@ export default defineComponent({
       lastHorizontalViewportOffset: 0
     };
   },
-  created() {
-    let isDragging = false;
-    let selectionStart = { x: 0, y: 0 };
-    let selectionEnd = { x: 0, y: 0 };
-    const selectedBlocks: BlockSelection[] = [];
-    
+  created() {    
     // load storedSequences from localstorage
     const storedSequencesStr = localStorage.getItem(storageKey);
     if (storedSequencesStr != null) {
@@ -54,20 +49,6 @@ export default defineComponent({
 
     this.selectedJson = this.jsonData[0];
     this.loadFile();
-    const store = useStore();
-    
-    // shift detection for multiselection
-    document.addEventListener('keydown', (event: KeyboardEvent) => {      
-      if (event.shiftKey && !store.state.isPressingShift) {
-        store.dispatch('toggleShiftValue');
-      }
-    });
-    
-    document.addEventListener('keyup', (event: KeyboardEvent) => {    
-      if (event.key == "Shift" && store.state.isPressingShift) {
-        store.dispatch('toggleShiftValue');
-      }
-    });
 
     document.addEventListener('keypress', (event: KeyboardEvent) => {
       if (event.code === 'Space') {
@@ -78,84 +59,6 @@ export default defineComponent({
         }
       }
     });
-    
-    // multiselection by dragging
-    pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
-      if (event.button === 0 && !store.state.isInteracting) {
-        isDragging = true;
-        selectionStart = { x: event.clientX, y: event.clientY };
-        selectionEnd = { ...selectionStart };
-        drawSelectionBox();
-      }
-    });
-    
-    pixiApp.canvas.addEventListener('mousemove', (event: MouseEvent) => {
-      if (!isDragging) return;
-      selectionEnd = { x: event.clientX, y: event.clientY };
-      drawSelectionBox();
-    });
-
-    pixiApp.canvas.addEventListener('mouseup', (event: MouseEvent) => {
-      if (event.button !== 0 || !isDragging) return;
-      isDragging = false;
-      removeSelectionBox();
-      selectRectanglesWithin();
-    });
-    function drawSelectionBox(): void {
-      const selectionBox = document.getElementById('selection-box') || createSelectionBox();
-      const { x, y, width, height } = getBoundingBox();
-      selectionBox.style.left = `${x}px`;
-      selectionBox.style.top = `${y}px`;
-      selectionBox.style.width = `${width}px`;
-      selectionBox.style.height = `${height}px`;
-    }
-    function createSelectionBox(): HTMLElement {
-      const box = document.createElement('div');
-      box.id = 'selection-box';
-      box.style.position = 'absolute';
-      box.style.border = '1px solid';
-      box.style.borderColor = config.colors.boundingBoxBorderColor;
-      box.style.background = config.colors.boundingBoxColor;
-      box.style.pointerEvents = 'none';
-      box.style.userSelect = 'none';
-      document.body.appendChild(box);
-      return box;
-    }
-    function removeSelectionBox(): void {
-      const box = document.getElementById('selection-box');
-      if (box) box.remove();
-    }    
-    function selectRectanglesWithin(): void {
-      selectedBlocks.length = 0;
-      let { x, y, width, height } = getBoundingBox();
-      
-      // need to adjust coordinates, to be in canvas
-      y -= pixiApp.canvas.getBoundingClientRect().top;
-      // adjust for scrolling
-      y -= dynamicContainer.y;
-      
-      // calculate tracks to check --> only check tracks that could contain selection
-      const startTrack = Math.floor(y / config.trackHeight);
-      const endTrack = Math.floor((y+height)/config.trackHeight);
-      for (let trackId = startTrack; trackId <= endTrack; trackId++) {
-        const blocks = store.state.blocks[trackId];
-        if (!blocks) continue;        
-        blocks.forEach((block: BlockDTO, index: number) => {
-          if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && block.rect.y <= (y + height) && block.rect.y + block.rect.height >= y) {
-            const selection: BlockSelection = {trackId: trackId, index: index, uid: block.rect.uid};
-            selectedBlocks.push(selection);
-          }
-        });
-      }
-      store.dispatch('onSelectBlocks', selectedBlocks);
-    }
-    function getBoundingBox() {
-      const x = Math.min(selectionStart.x, selectionEnd.x);
-      const y = Math.min(selectionStart.y, selectionEnd.y);
-      const width = Math.abs(selectionStart.x - selectionEnd.x);
-      const height = Math.abs(selectionStart.y - selectionEnd.y);
-      return { x, y, width, height };
-    }
   },
   mounted() {
     const visibleHeight = window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight - config.componentPadding;
@@ -189,7 +92,7 @@ export default defineComponent({
         store.state.blockManager.createBlocksFromData(this.blocks);
       } else {
         store.state.blockManager.createBlocksFromData(this.blocks);
-      }      
+      }
       
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);

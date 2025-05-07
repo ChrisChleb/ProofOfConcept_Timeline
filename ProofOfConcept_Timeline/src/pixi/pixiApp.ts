@@ -7,6 +7,7 @@ await pixiApp.init({
     background: '#ffffff',
     height: window.innerHeight,
     width: window.innerWidth,
+    antialias: true
 });
 
 export const staticContainer: Pixi.Container = new Pixi.Container();

@@ -63,10 +63,12 @@ export default defineComponent({
     });
 
     window.addEventListener('pointerup', () => {
-      store.dispatch('setInteractionState', false);
-      isDragging = false;
-      scrollBar.alpha = config.scrollBarPassiveAlpha;
-      initialScrollY = scrollBar.y;
+      if (isDragging) {
+        store.dispatch('setInteractionState', false);
+        isDragging = false;
+        scrollBar.alpha = config.scrollBarPassiveAlpha;
+        initialScrollY = scrollBar.y;
+      }
     });
     
     pixiApp.canvas.addEventListener('wheel', (event: WheelEvent) => {

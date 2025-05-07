@@ -12,7 +12,7 @@ export class Instruction {
         if (data.wait) this.wait = new Wait(data.wait);
     }
 }
-export class SetParameter {
+class SetParameter {
     channels: number[];
     intensity: number;
     startTime: number;
@@ -22,7 +22,7 @@ export class SetParameter {
         this.startTime = data.startTime;
     }
 }
-export class Wait {
+class Wait {
     miliseconds: number;
 
     constructor(data: any) {
@@ -85,7 +85,6 @@ export class InstructionParser {
                 currentTime += instruction.wait.miliseconds;
             }
         });
-
         return blocks;
     }
     public parseBlocksToInstructions(): Instruction[] {

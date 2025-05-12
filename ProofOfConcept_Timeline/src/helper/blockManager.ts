@@ -1630,6 +1630,13 @@ export class BlockManager {
         this.clearSelectionBorder();
         if (store.state.selectedBlocks.length <= 1) return;
         
+        if (this.renderedGroupBorders.size == 1) {
+            // there is only one group active, check if only members of this group are selected
+            const iterator: MapIterator<number> = this.renderedGroupBorders.keys();
+            const groupId: number | undefined = iterator.next().value;            
+            if (store.state.groups.get(groupId).length == store.state.selectedBlocks.length) return;
+        }
+        
         // hide indicators
         this.forEachSelectedBlock((block: BlockDTO) => this.updateIndicatorVisibility(block, false));
         this.renderedGroupBorders.forEach((borderData: GroupBorderData): void => {

@@ -953,6 +953,10 @@ export class BlockManager {
             if (this.selectionBorder != null) {
                 this.clearSelectionBorder();
             }
+            
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number) => {
+               this.clearGroupBorder(groupId); 
+            });
         }
     }
     private pasteSelection(): void {

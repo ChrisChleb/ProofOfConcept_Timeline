@@ -1404,6 +1404,20 @@ export class BlockManager {
         }
         
         if (isDeltaXValid) {
+            
+            // snapping
+            if (this.resizeDirection === Direction.RIGHT) {
+                newGroupWidth = this.snapToGrid(newGroupStartX + newGroupWidth) - newGroupStartX;
+            } else {
+                const snappedGroupStartX = this.snapToGrid(newGroupStartX);
+                if (snappedGroupStartX != newGroupStartX) {
+                    const diff: number = initStartX - snappedGroupStartX;
+                    newGroupWidth = initWidth + diff;
+                }
+                
+                newGroupStartX = snappedGroupStartX;
+            }
+            
             const scale: number = newGroupWidth / borderData.initWidth;
             
             // update blocks

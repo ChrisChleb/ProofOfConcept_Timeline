@@ -574,7 +574,7 @@ export class BlockManager {
         });
         
         this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
-           this.updateGroup(groupId, true); 
+           this.updateGroup(groupId, true);
         });
     }
 
@@ -1004,8 +1004,6 @@ export class BlockManager {
             this.copiedBlocks = [];
             return;
         }
-        
-        // TODO reselect blocks
     }
     private deleteBlock(): void {
         store.dispatch('deleteSelectedBlocks');
@@ -1014,7 +1012,6 @@ export class BlockManager {
     private onMoveBlock(event: any, block: BlockDTO): void {
         // if groupBorder is active, update
         if (this.selectionBorder) {
-            console.log("selection border");
             // dont update, if there will be less then two blocks (requirement for proportional resizing)
             const isBlockSelected: boolean = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
             if (store.state.selectedBlocks.length >= 3 || !isBlockSelected) {
@@ -1427,10 +1424,12 @@ export class BlockManager {
                 this.updateGroup(groupId, !this.strgDown);
             });
             
-            this.resizeSelectionBorder(borderData, newGroupStartX, newGroupWidth);
-            this.lastValidDeltaX = deltaX;
-            this.lastUidsCollisionRight = uidsCollisionRight;
-            this.lastUidsCollisionLeft = uidsCollisionLeft;
+            if (groupId == undefined) {
+                this.resizeSelectionBorder(borderData, newGroupStartX, newGroupWidth);
+                this.lastValidDeltaX = deltaX;
+                this.lastUidsCollisionRight = uidsCollisionRight;
+                this.lastUidsCollisionLeft = uidsCollisionLeft; 
+            }
         }
     }
     private onResizeEnd(): void {
@@ -1915,9 +1914,11 @@ export class BlockManager {
         bottomIndicator.fill(config.colors.groupHandleColor);
         
         // add eventListeners
-
         leftHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.LEFT, groupId));
         rightHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.RIGHT, groupId));
+        const block = store.state.blocks[firstBlockOfGroup!.trackId][firstBlockOfGroup!.index];
+        topHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.TOP));
+        bottomHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.BOTTOM));
 
         borderContainer.addChild(border);
         borderContainer.addChild(rightHandle);
@@ -1956,24 +1957,12 @@ export class BlockManager {
         this.renderedGroupBorders.set(groupId, groupBorder);
 
         dynamicContainer.addChild(borderContainer);
-        //store.dispatch('setInteractionState', true);
     }
     private clearGroupBorder(groupId?: number): void {
         if (groupId != undefined) {
             const borderData: GroupBorderData = this.renderedGroupBorders.get(groupId)!;
             dynamicContainer.removeChild(borderData.container);
             borderData.container.destroy({children: true});
-
-            // enable handles
-/*            store.state.groups.get(groupId).forEach((selection: BlockSelection) => {
-                const block = store.state.blocks[selection.trackId][selection.index];
-                block.leftHandle.interactive = true;
-                block.rightHandle.interactive = true;
-                block.topHandle.interactive = true;
-                block.bottomHandle.interactive = true;
-            });*/
-
-            //store.dispatch('setInteractionState', false);          
             this.renderedGroupBorders.delete(groupId);
         } else {
             // clear all
@@ -1990,7 +1979,6 @@ export class BlockManager {
                     block.bottomHandle.interactive = true;
                 });
 
-                //store.dispatch('setInteractionState', false);          
                 this.renderedGroupBorders.delete(groupId);
             });
         }
@@ -2001,12 +1989,17 @@ export class BlockManager {
         const firstBlock: BlockDTO = store.state.blocks[borderData.firstBlockOfGroup.trackId][borderData.firstBlockOfGroup.index];
         const lastBlock: BlockDTO = store.state.blocks[borderData.lastBlockOfGroup.trackId][borderData.lastBlockOfGroup.index];
         const topBlock: BlockDTO = store.state.blocks[borderData.topBlockOfGroup.trackId][borderData.topBlockOfGroup.index];
+        const bottomBlock: BlockDTO = store.state.blocks[borderData.bottomBlockOfGroup.trackId][borderData.bottomBlockOfGroup.index];
         const groupStartX: number = firstBlock.rect.x;
         const groupEndX: number = lastBlock.rect.x + lastBlock.rect.width;
         const groupWidth: number = groupEndX - groupStartX;
         const groupY: number = topBlock.rect.y
-        const groupHeight: number = borderData.initHeight
-                
+        const groupHighestTrack: number = bottomBlock.trackId;
+        const groupLowestTrack: number = topBlock.trackId;
+        const maxHeightOfHighestTrack: number = bottomBlock.rect.height;
+        const maxHeightOfLowestTrack: number = topBlock.rect.height;
+        const groupHeight: number = ((groupHighestTrack - groupLowestTrack) * config.trackHeight) + Math.min(maxHeightOfLowestTrack, maxHeightOfHighestTrack) + (Math.abs(maxHeightOfLowestTrack - maxHeightOfHighestTrack) / 2);
+        
         borderData.border.clear();
         borderData.border.rect(groupStartX, groupY, groupWidth, groupHeight);
         borderData.border.fill('rgb(0, 0, 0, 0)');

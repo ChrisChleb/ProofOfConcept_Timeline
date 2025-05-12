@@ -248,14 +248,11 @@ export class BlockManager {
         });
         
         // paste on click
-        pixiApp.canvas.addEventListener('mousedown', () => {
+        pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
             if (!store.state.isInteracting) {
                 this.pasteSelection();
             }
-        });
 
-        // multiselection by dragging
-        pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
             if (this.isSelecting) return;
             if (event.button === 0 && !store.state.isInteracting) {
                 this.isMouseDragging = true;

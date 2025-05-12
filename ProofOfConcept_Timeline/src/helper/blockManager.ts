@@ -1581,6 +1581,20 @@ export class BlockManager {
     }
 
     //*************** Helper ***************
+    private onGroupResize(event: any, direction: Direction.LEFT | Direction.RIGHT, groupId: number): void {
+        // check, if only the group is selected, or other blocks | groups
+        const groupData = store.state.groups.get(groupId);
+        const borderData: GroupBorderData | undefined = this.renderedGroupBorders.get(groupId);
+        
+        if (groupData == undefined || borderData == undefined) return;
+        
+        if (groupData.length == store.state.selectedBlocks.length) {
+            this.onProportionalResizeStart(event, direction, groupId)
+        } else {
+            const blockOfGroup: BlockSelection = borderData.firstBlockOfGroup;
+            this.onAbsoluteResizeStart(event, store.state.blocks[blockOfGroup.trackId][blockOfGroup.index], direction);
+        }
+    }
     private isBlockSelected(block: BlockDTO): boolean {
         return store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
     }
@@ -1914,8 +1928,8 @@ export class BlockManager {
         bottomIndicator.fill(config.colors.groupHandleColor);
         
         // add eventListeners
-        leftHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.LEFT, groupId));
-        rightHandle.on('pointerdown', (event) =>  this.onProportionalResizeStart(event, Direction.RIGHT, groupId));
+        leftHandle.on('pointerdown', (event) =>  this.onGroupResize(event, Direction.LEFT, groupId));
+        rightHandle.on('pointerdown', (event) =>  this.onGroupResize(event, Direction.RIGHT, groupId));
         const block = store.state.blocks[firstBlockOfGroup!.trackId][firstBlockOfGroup!.index];
         topHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.TOP));
         bottomHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.BOTTOM));

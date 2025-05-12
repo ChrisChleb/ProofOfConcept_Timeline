@@ -220,6 +220,10 @@ export class BlockManager {
                 event.preventDefault();
                 this.groupBlocks();
             }
+            if (this.strgDown && (event.code == 'KeyS')) {
+                event.preventDefault();
+                store.dispatch('toggleSnappingState');
+            }
             if (event.code == 'Escape') this.clearCopiedBlocks();
             if (event.code == 'Delete') this.deleteBlock();
 
@@ -1615,6 +1619,7 @@ export class BlockManager {
     
     // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration
     private snapToGrid(positionToCheck: number) {
+        if (!store.state.isSnappingActive) return positionToCheck;
         const snapRadius: number = config.resizingSnappingRadius;
         const gridLines = store.state.gridLines;
         for (const gridX of gridLines) {
@@ -2296,7 +2301,7 @@ export class BlockManager {
                     }
 
                     // snapping if no collision was detected
-                    if (!isSticking) {
+                    if (!isSticking && store.state.isSnappingActive) {
                         for (const lineX of store.state.gridLines) {
                             // left
                             if (Math.abs(start2 - lineX) <= config.moveSnappingRadius) {

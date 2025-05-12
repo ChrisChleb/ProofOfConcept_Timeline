@@ -37,7 +37,8 @@ const store = createStore({
         isInteracting: false,
         isPressingShift: false,
         blockManager: null as BlockManager | null,
-        currentCursorPosition: {x: 0, y: 0}
+        currentCursorPosition: {x: 0, y: 0},
+        isSnappingActive: false
     },
     mutations: {
         setBlockManager(state: any, manager: BlockManager): void {
@@ -262,6 +263,9 @@ const store = createStore({
         },
         addGroup(state: any, groupData: {groupId: number, selection: BlockSelection[]}): void {
             state.groups.set(groupData.groupId, groupData.selection);
+        },
+        toggleSnappingState(state: any): void {
+            state.isSnappingActive = !state.isSnappingActive;
         }
     },
     actions: {
@@ -351,6 +355,9 @@ const store = createStore({
         },
         addGroup({ commit }: any, groupData: {groupId: number, selection: BlockSelection[]}): void {
             commit('addGroup', groupData);
+        },
+        toggleSnappingState({ commit }: any): void {
+            commit('toggleSnappingState');
         }
     },
     getters: {
@@ -369,7 +376,8 @@ const store = createStore({
         selectedBlocks: (state: any) => state.selectedBlocks,
         isInteracting: (state: any) => state.isInteracting,
         isPressingShift: (state: any) => state.isPressingShift,
-        currentCursorPosition: (state: any) => state.currentCursorPosition
+        currentCursorPosition: (state: any) => state.currentCursorPosition,
+        isSnappingActive: (state: any) => state.isSnappingActive
     }
 });
 export default store;

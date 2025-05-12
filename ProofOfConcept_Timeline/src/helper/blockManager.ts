@@ -940,18 +940,28 @@ export class BlockManager {
             this.lastCursorX = this.initialX;
 
             this.updateCopiedBlocks();
+
+            // unselect copied blocks
+            this.forEachSelectedBlock((block: BlockDTO): void => {
+                this.updateIndicatorVisibility(block, false);
+                block.strokedRect.visible = false;
+            });
             
             store.dispatch('clearSelection');
+            
+            if (this.selectionBorder != null) {
+                this.clearSelectionBorder();
+            }
         }
     }
     private pasteSelection(): void {
+        if (this.copiedBlocks.length == 0) return;
         const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
         const addedBlockIds: number[] = [];
         
         copiedBlockData.forEach((blockData: BlockData): void => {
             const block: BlockDTO = this.createBlock(blockData);
             addedBlockIds.push(block.rect.uid);
-            store.dispatch('selectBlock', block);
         });
         
         // update blocks, handles and strokes

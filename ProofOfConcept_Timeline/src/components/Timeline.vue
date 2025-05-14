@@ -38,7 +38,8 @@ export default defineComponent({
       dialog: ref(false),
       instructionParser: new InstructionParser(),
       lastHorizontalViewportOffset: 0,
-      isSnappingActive: false
+      isSnappingActive: false,
+      isEditable: false
     };
   },
   created() {    
@@ -102,6 +103,9 @@ export default defineComponent({
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);
       console.debug("blocks: ", this.blocks);
+      
+      this.isEditable = false;
+      this.toggleEditState();
     },
     exportJson() {
       const instructions: Instruction[] = this.instructionParser.parseBlocksToInstructions();
@@ -208,6 +212,9 @@ export default defineComponent({
     },
     changeSnappingMode() {
       store.dispatch('toggleSnappingState');
+    },
+    toggleEditState() {
+      store.dispatch('toggleEditState', this.isEditable);
     }
   },
   components: {
@@ -234,7 +241,12 @@ export default defineComponent({
     <v-btn @click="changeTrackCount(-1)">Remove Track</v-btn>
     <v-btn @click="dialog = true">Open Visualization</v-btn>
     <v-btn @click="exportJson">Save Sequence</v-btn>
-    <v-checkbox-btn v-model="isSnappingActive" label="Snapping" @click="changeSnappingMode"></v-checkbox-btn>
+    <v-layout class="flex-0-1">
+      <v-checkbox-btn v-model="isSnappingActive" label="Snapping" @click="changeSnappingMode"></v-checkbox-btn>
+    </v-layout>
+    <v-layout class="flex-0-1">
+      <v-checkbox-btn v-model="isEditable" label="Edit" @change="toggleEditState"></v-checkbox-btn>
+    </v-layout>
   </div>
   <Slider :is-playback-active="isPlaying"></Slider>
   <ScrollBar></ScrollBar>

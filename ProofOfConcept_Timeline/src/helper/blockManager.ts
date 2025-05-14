@@ -4,7 +4,8 @@ import * as Pixi from "pixi.js";
 import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import store, {BlockChanges, type BlockSelection} from "@/store";
-import {onMounted, watch} from "vue";
+import {inject, onMounted, watch} from "vue";
+import type {SnackbarData} from "@/components/Snackbar.vue";
 interface SelectionBorderData {
     container: Container;
     border: Graphics;
@@ -178,12 +179,27 @@ export class BlockManager {
     // groups
     private renderedGroupBorders: Map<number, GroupBorderData> = new Map<number, GroupBorderData>();
     
+    private showSnackbar = inject('showSnackbar') as (data: SnackbarData) => void;
+    
     // updateHooks
     private updated: boolean = false;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
-        watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
-
+        watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));  
+        watch(() => store.state.currentCursorPosition, ({x, y}): void => {
+            if (this.copiedBlocks.length > 0) {
+                // follow cursor
+                this.scrollViewportHorizontal(x);
+                this.scrollViewportVertical(y);
+                this.updateCopiedBlocks();
+            }
+        });
+        watch(() => store.state.trackCount, (value, oldValue): void => {
+            // update maxTrackChange
+            this.maxTrackChange += (oldValue + value);
+        });
+        watch(() => store.state.isEditable, this.handleEditMode.bind(this));
+        
         onMounted((): void => {
             this.canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
         });
@@ -197,6 +213,7 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
+            if (!store.state.isEditable) return;
             // detect STRG or Meta
             if (event.code == 'ControlLeft' && !this.isMacOS) {
                 // TODO if selection is group, return
@@ -234,6 +251,7 @@ export class BlockManager {
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
+            if (!store.state.isEditable) return;
             if ((event.code == 'ControlLeft' && !this.isMacOS) || event.code == 'MetaLeft') {
                 this.strgDown = false;
                 this.clearSelectionBorder();
@@ -279,22 +297,16 @@ export class BlockManager {
             this.selectRectanglesWithin();
         });
         
-        // watch currentCursorPosition        
-        watch(() => store.state.currentCursorPosition, ({x, y}): void => {
-           if (this.copiedBlocks.length > 0) {
-               // follow cursor
-               this.scrollViewportHorizontal(x);
-               this.scrollViewportVertical(y);
-               this.updateCopiedBlocks();
-           } 
-        });
-        
-        watch(() => store.state.trackCount, (value, oldValue): void => {
-            // update maxTrackChange
-            this.maxTrackChange += (oldValue + value);
-        });
+        // init as not editable
+        this.handleEditMode(false);
     }    
     createBlocksFromData(blockData: BlockData[]): void {
+        // clear rendered borders
+        this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+            this.clearGroupBorder(groupId);
+        });
+        this.clearSelectionBorder();
+        
         // clear stored blocks
         store.dispatch('deleteAllBlocks');
         
@@ -703,15 +715,6 @@ export class BlockManager {
         store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
            callback(store.state.blocks[selection.trackId][selection.index]);
         });
-        
-/*        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {                
-                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-                if (isSelected) {
-                    callback(block);
-                }
-            });
-        });*/
     }
     
     // execites callback-function on every selected block
@@ -786,6 +789,16 @@ export class BlockManager {
     
     // TODO maybe split selection and border rendering, as rendering border only relies on what blocks are selected + group detection
     private handleSelection(toSelect: BlockDTO | BlockSelection[]): void {
+        if (!store.state.isEditable) {
+            this.showSnackbar({
+                message: 'This file is currently read-only. Enable edit mode to make changes.',
+                color: 'warning',
+                icon: 'mdi-lead-pencil',
+                timer: 4000
+            });
+            return;
+        }
+        
         if (Array.isArray(toSelect)) {
             if (!store.state.isPressingShift) {
                 this.forEachSelectedBlock((block: BlockDTO): void => {
@@ -2507,5 +2520,33 @@ export class BlockManager {
         const width = Math.abs(this.selectionStart.x - this.selectionEnd.x);
         const height = Math.abs(this.selectionStart.y - this.selectionEnd.y);
         return { x, y, width, height };
+    }
+
+    //******* edit-mode *******
+    private handleEditMode(isEditable: boolean): void {
+        if (!store.state.isEditable) {
+            // disable handles, if selected, remove selection
+            this.forEachBlock((block: BlockDTO): void => {
+                this.updateHandleInteractivity(block, false);
+                if (this.isBlockSelected(block)) {
+                    this.updateIndicatorVisibility(block, false);
+                    block.strokedRect.visible = false;
+                }
+                block.rect.interactive = false;
+            });
+
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+                this.clearGroupBorder(groupId);
+            });
+            this.clearSelectionBorder();
+            store.dispatch('clearSelection');
+            this.strgDown = false;
+        } else {
+            // enable handles
+            this.forEachBlock((block: BlockDTO): void => {
+                this.updateHandleInteractivity(block, true);
+                block.rect.interactive = true;
+            });
+        }
     }
 }

@@ -38,7 +38,8 @@ const store = createStore({
         isPressingShift: false,
         blockManager: null as BlockManager | null,
         currentCursorPosition: {x: 0, y: 0},
-        isSnappingActive: false
+        isSnappingActive: false,
+        isEditable: false
     },
     mutations: {
         setBlockManager(state: any, manager: BlockManager): void {
@@ -266,6 +267,9 @@ const store = createStore({
         },
         toggleSnappingState(state: any): void {
             state.isSnappingActive = !state.isSnappingActive;
+        },
+        toggleEditState(state: any, isEditable: boolean): void {
+            state.isEditable = isEditable;
         }
     },
     actions: {
@@ -358,6 +362,9 @@ const store = createStore({
         },
         toggleSnappingState({ commit }: any): void {
             commit('toggleSnappingState');
+        },
+        toggleEditState({ commit }: any, isEditable: boolean): void {
+            commit('toggleEditState', isEditable);
         }
     },
     getters: {
@@ -377,7 +384,8 @@ const store = createStore({
         isInteracting: (state: any) => state.isInteracting,
         isPressingShift: (state: any) => state.isPressingShift,
         currentCursorPosition: (state: any) => state.currentCursorPosition,
-        isSnappingActive: (state: any) => state.isSnappingActive
+        isSnappingActive: (state: any) => state.isSnappingActive,
+        isEditable: (state: any) => state.isEditable
     }
 });
 export default store;

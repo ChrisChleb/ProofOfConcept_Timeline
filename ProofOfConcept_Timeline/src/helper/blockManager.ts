@@ -222,7 +222,6 @@ export class BlockManager {
             if (!store.state.isEditable) return;
             // detect STRG or Meta
             if (event.code == 'ControlLeft' && !this.isMacOS) {
-                // TODO if selection is group, return
                 if (!this.strgDown) {
                     this.drawSelectionBorder();
                     this.strgDown = true;
@@ -794,8 +793,6 @@ export class BlockManager {
     }
     
     //*************** Interactions ***************
-    
-    // TODO maybe split selection and border rendering, as rendering border only relies on what blocks are selected + group detection
     private handleSelection(toSelect: BlockDTO | BlockSelection[]): void {
         if (!store.state.isEditable) {
             this.showSnackbar({
@@ -879,8 +876,6 @@ export class BlockManager {
                     // block already selected
                     if (store.state.isPressingShift) {
                         if (toSelect.groupId != null) {
-                            // TODO optimize
-                            
                             // remove from store
                             store.state.groups.get(toSelect.groupId)!.forEach((selection: BlockSelection): void => {
                                 const block = store.state.blocks[selection.trackId][selection.index];
@@ -911,7 +906,6 @@ export class BlockManager {
            this.selectedBlockUids.push(selection.uid);
         });
         
-        // TODO if group is copied, paste as group
         // copy blocks
         if (selectedBlocks.length > 0) {
             const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(selectedBlocks);

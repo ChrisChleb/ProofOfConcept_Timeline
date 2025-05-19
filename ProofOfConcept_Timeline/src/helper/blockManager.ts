@@ -31,6 +31,10 @@ interface GroupBorderData extends SelectionBorderData {
     topBlockOfGroup: BlockSelection;
     bottomBlockOfGroup: BlockSelection;
 }
+
+interface CopiedBlockData extends BlockData {
+    groupId?: number;
+}
 enum Direction {
     LEFT = 'left',
     RIGHT = 'right',
@@ -54,7 +58,7 @@ export class BlockDTO {
     container: Pixi.Container;
     trackId: number;
     initTrackId: number;
-    groupId: number | null = null;
+    groupId?: number;
     constructor(
         rect: Graphics,
         strokedRect: Graphics,
@@ -87,7 +91,7 @@ export class BlockDTO {
         this.initTrackId = trackId;
     }
 }
-export class CopiedBlockDTO {
+class CopiedBlockDTO {
     rect: Graphics;
     initX: number;
     initY: number;
@@ -95,10 +99,12 @@ export class CopiedBlockDTO {
     container: Pixi.Container;
     trackId: number;
     initTrackId: number;
+    groupId?: number;
     constructor(
         rect: Graphics,
         container: Pixi.Container,
-        trackId: number
+        trackId: number,
+        groupId?: number
     ) {
         this.rect = rect;
         this.initX = rect.x;
@@ -107,6 +113,7 @@ export class CopiedBlockDTO {
         this.container = container;
         this.trackId = trackId;
         this.initTrackId = trackId;
+        this.groupId = groupId;
     }
 }
 export class BlockManager {
@@ -235,7 +242,7 @@ export class BlockManager {
             if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
             if (this.strgDown && (event.code == 'KeyG')) {
                 event.preventDefault();
-                this.groupBlocks();
+                this.groupSelectedBlocks();
             }
             if (this.strgDown && (event.code == 'KeyS')) {
                 event.preventDefault();
@@ -494,7 +501,7 @@ export class BlockManager {
         dynamicContainer.addChild(blockContainer);
         return dto;
     }
-    private createCopiedBLock(block: BlockData): CopiedBlockDTO {
+    private createCopiedBLock(block: CopiedBlockData): CopiedBlockDTO {
         const rect: Pixi.Graphics = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.copyColor);
@@ -511,7 +518,8 @@ export class BlockManager {
         return new CopiedBlockDTO(
             rect,
             blockContainer,
-            block.trackId
+            block.trackId,
+            block.groupId
         );
     }
     private calculatePosition(tacton: BlockData): {x: number, width: number} {
@@ -522,8 +530,8 @@ export class BlockManager {
             width: ((tacton.endTime - tacton.startTime) / totalDuration) * timelineWidth
         };
     }
-    private createBlockDataFromBlocks(blocks: BlockDTO[] | CopiedBlockDTO[]): BlockData[] {
-        const blockData: BlockData[] = [];
+    private createBlockDataFromBlocks(blocks: BlockDTO[] | CopiedBlockDTO[]): CopiedBlockData[] {
+        const blockData: CopiedBlockData[] = [];
         const timelineWidth: number = pixiApp.canvas.width;
         const totalDuration: number = (timelineWidth / config.pixelsPerSecond) * 1000;
         
@@ -538,7 +546,8 @@ export class BlockManager {
                 trackId: block.trackId,
                 startTime: startTime,
                 endTime: endTime,
-                intensity: intensity
+                intensity: intensity,
+                groupId: block.groupId
             });
         });
         
@@ -710,14 +719,14 @@ export class BlockManager {
         });
     }
     
-    // execites callback-function on every selected block
+    // executes callback-function on every selected block
     private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
         store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
            callback(store.state.blocks[selection.trackId][selection.index]);
         });
     }
     
-    // execites callback-function on every selected block
+    // executes callback-function on every selected block
     private forEachUnselectedBlock(callback: (block: BlockDTO) => void): void {
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
             store.state.blocks[trackId].forEach((block: BlockDTO): void => {
@@ -903,14 +912,14 @@ export class BlockManager {
            this.selectedBlockUids.push(selection.uid);
         });
         
+        // TODO if group is copied, paste as group
+        // copy blocks
         if (selectedBlocks.length > 0) {
+            const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
             let lowestXofCopies: number = Infinity;
-            const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
             copiedBlockData.forEach((blockData: BlockData): void => {
                 const block: CopiedBlockDTO = this.createCopiedBLock(blockData)
-
                 if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
-
                 this.copiedBlocks.push(block);
                 dynamicContainer.addChild(block.container);
             });
@@ -974,12 +983,50 @@ export class BlockManager {
     }
     private pasteSelection(): void {
         if (this.copiedBlocks.length == 0) return;
-        const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
+        const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
         const addedBlockIds: number[] = [];
         
-        copiedBlockData.forEach((blockData: BlockData): void => {
-            const block: BlockDTO = this.createBlock(blockData);
-            addedBlockIds.push(block.rect.uid);
+        // separate by groupId
+        const groupedCopiedBlockData: Map<number | undefined, CopiedBlockData[]> = new Map<number | undefined, CopiedBlockData[]>();
+
+        for (const block of copiedBlockData) {
+            const key: number | undefined = block.groupId;
+            if (!groupedCopiedBlockData.has(key)) {
+                groupedCopiedBlockData.set(key, []);
+            }
+            groupedCopiedBlockData.get(key)!.push(block);
+        }
+        
+        groupedCopiedBlockData.forEach((copiedBlockData: CopiedBlockData[], oldGroupId: number | undefined): void => {
+            if (oldGroupId == undefined) {
+                // blocks were not grouped
+                copiedBlockData.forEach((blockData: CopiedBlockData): void => {
+                    const block: BlockDTO = this.createBlock(blockData);
+                    addedBlockIds.push(block.rect.uid);
+                });
+            } else {
+                // blockd were grouped
+                let groupId: number | undefined;
+                const groupSelectionData: BlockSelection[] = [];
+                
+                // create new blocks
+                copiedBlockData.forEach((blockData: CopiedBlockData): void => {
+                    // create block
+                    const block: BlockDTO = this.createBlock(blockData);
+
+                    if (groupId == undefined) {
+                        groupId = block.rect.uid;
+                    }
+                    block.groupId = groupId;       
+                    
+                    addedBlockIds.push(block.rect.uid);
+                    // 0 is used as dummy index, after adding all copied blocks, the stored data is sorted, thus updating the indices to the correct values
+                    groupSelectionData.push({trackId: block.trackId, index: 0, uid: block.rect.uid});
+                });
+                
+                // create group
+                store.dispatch('addGroup', {groupId: groupId, selection: groupSelectionData});
+            }
         });
         
         // update blocks, handles and strokes
@@ -1544,7 +1591,7 @@ export class BlockManager {
         this.pointerUpHandler = null;
         this.currentTacton = null;
     }
-    private groupBlocks(): void {
+    private groupSelectedBlocks(): void {
         if (store.state.selectedBlocks.length <= 1) return;        
         let groupId: number;    
         let hasNewBlocks: boolean = true;
@@ -1574,10 +1621,9 @@ export class BlockManager {
             // get groupId
             const groupId: number = foundGroupIds[0];
             
-            // activate block-strokes, handles and indicators
+            // remove groupId from blocks
             this.forEachSelectedBlock((block: BlockDTO): void => {
-               //this.updateIndicatorVisibility(block, true);
-               block.groupId = null;
+               block.groupId = undefined;
             });
             
             // clear border

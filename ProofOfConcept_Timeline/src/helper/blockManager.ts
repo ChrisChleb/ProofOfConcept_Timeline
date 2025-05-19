@@ -31,7 +31,6 @@ interface GroupBorderData extends SelectionBorderData {
     topBlockOfGroup: BlockSelection;
     bottomBlockOfGroup: BlockSelection;
 }
-
 interface CopiedBlockData extends BlockData {
     groupId?: number;
 }
@@ -1153,16 +1152,18 @@ export class BlockManager {
         this.scrollViewportHorizontal(event.clientX);
         this.scrollViewportVertical(event.clientY);
         
-        const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
-        changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
-        this.applyChanges(changes);
-        
-        if (this.selectionBorder != null) {
-            // update selectionBorder
-            this.selectionBorder.lastStartX += changes.x;
-            this.selectionBorder.initY = this.selectionBorder.lastY + changes.track * config.trackHeight;
-            this.resizeSelectionBorder(this.selectionBorder);
-            this.isCollidingOnResize = false;
+        if (!this.isScrolling) {
+            const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
+            changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
+            this.applyChanges(changes);
+
+            if (this.selectionBorder != null) {
+                // update selectionBorder
+                this.selectionBorder.lastStartX += changes.x;
+                this.selectionBorder.initY = this.selectionBorder.lastY + changes.track * config.trackHeight;
+                this.resizeSelectionBorder(this.selectionBorder);
+                this.isCollidingOnResize = false;
+            }
         }
     }
     private onMoveBlockEnd(): void {
@@ -1679,8 +1680,6 @@ export class BlockManager {
     private isBlockSelected(block: BlockDTO): boolean {
         return store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
     }
-    
-    // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration
     private snapToGrid(positionToCheck: number) {
         if (!store.state.isSnappingActive) return positionToCheck;
         const snapRadius: number = config.resizingSnappingRadius;
@@ -2191,6 +2190,13 @@ export class BlockManager {
                 store.dispatch('updateHorizontalViewportOffset', newOffset);
             }
         }
+        
+        if (this.currentDirection == Direction.LEFT || this.currentDirection == Direction.RIGHT) {
+            const changes: BlockChanges = new BlockChanges();
+            const adjustedDeltaX: number = this.adjustOffset(this.lastValidOffset, this.lastTrackOffset);
+            changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton!.rect.x;
+            this.applyChanges(changes);
+        }
 
         requestAnimationFrame(() => this.autoScroll());
     }
@@ -2299,9 +2305,6 @@ export class BlockManager {
         let validOffset: number = offset;
         let hasCollision: boolean = true;
         let isSticking: boolean = false;
-        
-        // skip validation while scrolling
-        //if (this.isScrolling) return this.lastValidOffset;
 
         // calculate offsetDifference to adjust borders
         const horizontalOffsetDifference: number = store.state.horizontalViewportOffset - this.lastViewportOffset;
@@ -2328,8 +2331,8 @@ export class BlockManager {
                 for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
                     let start2: number = this.selectedBorders[trackId][i] + validOffset;
                     let end2: number = this.selectedBorders[trackId][i + 1] + validOffset;
-                    if (start2 < config.leftPadding) {
-                        validOffset = this.lastValidOffset;
+                    if ((start2 + store.state.horizontalViewportOffset) < config.leftPadding) {
+                        validOffset = this.getValidStickyOffset(offset, trackOffset, horizontalOffsetDifference);
                         isSticking = true;
                         break;
                     }
@@ -2477,6 +2480,7 @@ export class BlockManager {
                     const track = trackId + trackOffset;
                     if (possibleOffsetPerTrackOffset[trackOffset] == undefined) {
                         possibleOffsetPerTrackOffset[trackOffset] = [];
+                        possibleOffsetPerTrackOffset[trackOffset].push(48 - this.selectedBorders[trackId][0]);
                     }
                     // loop over every unselected border block in this track
                     for (let k = 0; k < this.unselectedBorders[track].length; k += 2 ) {

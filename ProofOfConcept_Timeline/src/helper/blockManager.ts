@@ -906,6 +906,8 @@ export class BlockManager {
            this.selectedBlockUids.push(selection.uid);
         });
         
+        let maxTrackId: number = -Infinity;
+        let minTrackId: number = Infinity;
         // copy blocks
         if (selectedBlocks.length > 0) {
             const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
@@ -915,18 +917,16 @@ export class BlockManager {
                 if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
                 this.copiedBlocks.push(block);
                 dynamicContainer.addChild(block.container);
+                
+                if (block.trackId > maxTrackId) maxTrackId = block.trackId;
+                if (block.trackId < minTrackId) minTrackId = block.trackId;
             });
 
             const offset: number = store.state.currentCursorPosition.x - lowestXofCopies;
 
             this.initYTrackId = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
             this.initYTrackId = Math.max(0, Math.min(this.initYTrackId, store.state.trackCount));
-            let trackChange: number = this.initYTrackId - this.copiedBlocks[0].trackId;
-
-            // validate trackChange
-            const maxTrackId: number = this.copiedBlocks.reduce((prev: CopiedBlockDTO, current: CopiedBlockDTO): CopiedBlockDTO => {
-                return (prev && prev.trackId > current.trackId) ? prev : current;
-            }).trackId;
+            let trackChange: number = this.initYTrackId - minTrackId;
 
             if (maxTrackId + trackChange > store.state.trackCount) {
                 trackChange = store.state.trackCount - maxTrackId;

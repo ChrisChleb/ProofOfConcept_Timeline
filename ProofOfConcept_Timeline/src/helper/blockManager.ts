@@ -2290,10 +2290,8 @@ export class BlockManager {
 
         this.calculateStickyOffsets();
     }
-
-    // TODO snapping is wonky sometimes when using multi-selection --> chooses only the last possible snap
-    // maybe implement this with input {x, width} to get a valid modification for moving and resizing
     private adjustOffset(offset: number, trackOffset: number): number {
+        const possibleSnaps: {x: number, dist: number}[] = [];
         const maxAttempts: number = 10;
         let attemptCount: number = 0;
         let validOffset: number = offset;
@@ -2311,7 +2309,6 @@ export class BlockManager {
         while (hasCollision && attemptCount < maxAttempts) {
             hasCollision = false;
             attemptCount++;
-
             for (let trackId: number = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
                 // calculate correct trackId
                 let adjustedTrack: number = trackId + trackOffset;
@@ -2365,18 +2362,23 @@ export class BlockManager {
                         for (const lineX of store.state.gridLines) {
                             // left
                             if (Math.abs(start2 - lineX) <= config.moveSnappingRadius) {
-                                validOffset = lineX - this.selectedBorders[trackId][i];
-                                break;
+                                possibleSnaps.push({x: lineX - this.selectedBorders[trackId][i], dist: start2 - lineX});
                             }
                             // right
                             if (Math.abs(end2 - lineX) <= config.moveSnappingRadius) {
-                                validOffset = lineX - this.selectedBorders[trackId][i + 1];
-                                break;
+                                possibleSnaps.push({x: lineX - this.selectedBorders[trackId][i + 1], dist: end2 - lineX});
                             }
                         }
                     }
                 }
             }
+        }
+        
+        // no collision, choose gridLine for snapping
+        if (!isSticking && possibleSnaps.length >= 1) {
+            validOffset = possibleSnaps.reduce((prev, curr) =>
+                curr.dist < prev.dist ? curr : prev
+            ).x;            
         }
 
         if (attemptCount >= maxAttempts) {

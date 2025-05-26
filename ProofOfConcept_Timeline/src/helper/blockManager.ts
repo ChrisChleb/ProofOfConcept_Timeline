@@ -4,8 +4,9 @@ import * as Pixi from "pixi.js";
 import config from "@/config";
 import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
 import store, {BlockChanges, type BlockSelection} from "@/store";
-import {onMounted, watch} from "vue";
-interface GroupBorder {
+import {inject, onMounted, watch} from "vue";
+import type {SnackbarData} from "@/components/Snackbar.vue";
+interface SelectionBorderData {
     container: Container;
     border: Graphics;
     leftHandle: Graphics;
@@ -13,11 +14,25 @@ interface GroupBorder {
     rightHandle: Graphics;
     rightIndicator: Graphics;
     initStartX: number;
+    lastStartX: number;
     initWidth: number;
+    lastWidth: number;
     initY: number;
+    lastY: number;
     initHeight: number;
     firstBlockOfGroup: BlockSelection;
     lastBlockOfGroup: BlockSelection;
+}
+interface GroupBorderData extends SelectionBorderData {
+    topHandle: Graphics;
+    topIndicator: Graphics;
+    bottomHandle: Graphics;
+    bottomIndicator: Graphics;
+    topBlockOfGroup: BlockSelection;
+    bottomBlockOfGroup: BlockSelection;
+}
+interface CopiedBlockData extends BlockData {
+    groupId?: number;
 }
 enum Direction {
     LEFT = 'left',
@@ -42,6 +57,7 @@ export class BlockDTO {
     container: Pixi.Container;
     trackId: number;
     initTrackId: number;
+    groupId?: number;
     constructor(
         rect: Graphics,
         strokedRect: Graphics,
@@ -74,7 +90,7 @@ export class BlockDTO {
         this.initTrackId = trackId;
     }
 }
-export class CopiedBlockDTO {
+class CopiedBlockDTO {
     rect: Graphics;
     initX: number;
     initY: number;
@@ -82,10 +98,12 @@ export class CopiedBlockDTO {
     container: Pixi.Container;
     trackId: number;
     initTrackId: number;
+    groupId?: number;
     constructor(
         rect: Graphics,
         container: Pixi.Container,
-        trackId: number
+        trackId: number,
+        groupId?: number
     ) {
         this.rect = rect;
         this.initX = rect.x;
@@ -94,6 +112,7 @@ export class CopiedBlockDTO {
         this.container = container;
         this.trackId = trackId;
         this.initTrackId = trackId;
+        this.groupId = groupId;
     }
 }
 export class BlockManager {
@@ -114,9 +133,7 @@ export class BlockManager {
     private lastValidDeltaX: number = 0;
     
     // proportional resize
-    private lastGroupStartX: number = 0;
-    private lastGroupWidth: number = 0;
-    private lastGroupY: number = 0;
+    private selectionBorder: SelectionBorderData | null = null;
     private lastUidsCollisionLeft: number[] = [];
     private lastUidsCollisionRight: number[] = [];
     
@@ -159,21 +176,36 @@ export class BlockManager {
     private lastCursorX: number = 0;
     private initYTrackId: number = 0;
     
-    private groupBorder: GroupBorder | null = null;
-    
     // multi selection
     private isSelecting: boolean = false;
     private isMouseDragging: boolean = false;
     private selectionStart = { x: 0, y: 0 };
     private selectionEnd = { x: 0, y: 0 };
-    private selectedBlocks: BlockSelection[] = [];
+    
+    // groups
+    private renderedGroupBorders: Map<number, GroupBorderData> = new Map<number, GroupBorderData>();
+    
+    private showSnackbar = inject('showSnackbar') as (data: SnackbarData) => void;
     
     // updateHooks
     private updated: boolean = false;
     constructor() {
         watch(() => store.state.zoomLevel, this.onZoomLevelChange.bind(this));
-        watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));
-
+        watch(() => store.state.horizontalViewportOffset, this.onHorizontalViewportChange.bind(this));  
+        watch(() => store.state.currentCursorPosition, ({x, y}): void => {
+            if (this.copiedBlocks.length > 0) {
+                // follow cursor
+                this.scrollViewportHorizontal(x);
+                this.scrollViewportVertical(y);
+                this.updateCopiedBlocks();
+            }
+        });
+        watch(() => store.state.trackCount, (value, oldValue): void => {
+            // update maxTrackChange
+            this.maxTrackChange += (oldValue + value);
+        });
+        watch(() => store.state.isEditable, this.handleEditMode.bind(this));
+        
         onMounted((): void => {
             this.canvasOffset = pixiApp.canvas.getBoundingClientRect().top;
         });
@@ -187,15 +219,16 @@ export class BlockManager {
         
         // detect strg
         document.addEventListener('keydown', (event: KeyboardEvent): void => {
+            if (!store.state.isEditable) return;
             // detect STRG or Meta
             if (event.code == 'ControlLeft' && !this.isMacOS) {
                 if (!this.strgDown) {
-                    this.drawGroupBorder();
+                    this.drawSelectionBorder();
                     this.strgDown = true;
                 }
             } else if (event.code == 'MetaLeft') {
                 if (!this.strgDown) {
-                    this.drawGroupBorder();
+                    this.drawSelectionBorder();
                     this.strgDown = true;
                     if (!this.isMacOS) {
                         this.isMacOS = true;
@@ -205,6 +238,14 @@ export class BlockManager {
 
             if (this.strgDown && (event.code == 'KeyC')) this.copySelection();
             if (this.strgDown && (event.code == 'KeyV')) this.pasteSelection();
+            if (this.strgDown && (event.code == 'KeyG')) {
+                event.preventDefault();
+                this.groupSelectedBlocks();
+            }
+            if (this.strgDown && (event.code == 'KeyS')) {
+                event.preventDefault();
+                store.dispatch('toggleSnappingState');
+            }
             if (event.code == 'Escape') this.clearCopiedBlocks();
             if (event.code == 'Delete') this.deleteBlock();
 
@@ -215,12 +256,17 @@ export class BlockManager {
         });
         
         document.addEventListener('keyup', (event: KeyboardEvent): void => {
-            if (event.code == 'ControlLeft' && !this.isMacOS) {
-                this.clearGroupBorder();
+            if (!store.state.isEditable) return;
+            if ((event.code == 'ControlLeft' && !this.isMacOS) || event.code == 'MetaLeft') {
                 this.strgDown = false;
-            } else if (event.code == 'MetaLeft') {
-                this.clearGroupBorder();
-                this.strgDown = false;
+                this.clearSelectionBorder();
+                this.forEachSelectedBlock((block: BlockDTO): void => {
+                    if (block.groupId != null) return;
+                    this.updateHandles(block);
+                    this.updateIndicators(block);
+                    this.updateIndicatorVisibility(block, true);
+                    this.updateHandleInteractivity(block, true);
+                });
             }
 
             if (event.key == "Shift" && store.state.isPressingShift) {
@@ -229,14 +275,11 @@ export class BlockManager {
         });
         
         // paste on click
-        pixiApp.canvas.addEventListener('mousedown', () => {
+        pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
             if (!store.state.isInteracting) {
                 this.pasteSelection();
             }
-        });
 
-        // multiselection by dragging
-        pixiApp.canvas.addEventListener('mousedown', (event: MouseEvent) => {
             if (this.isSelecting) return;
             if (event.button === 0 && !store.state.isInteracting) {
                 this.isMouseDragging = true;
@@ -259,22 +302,16 @@ export class BlockManager {
             this.selectRectanglesWithin();
         });
         
-        // watch currentCursorPosition        
-        watch(() => store.state.currentCursorPosition, ({x, y}): void => {
-           if (this.copiedBlocks.length > 0) {
-               // follow cursor
-               this.scrollViewportHorizontal(x);
-               this.scrollViewportVertical(y);
-               this.updateCopiedBlocks();
-           } 
-        });
-        
-        watch(() => store.state.trackCount, (value, oldValue): void => {
-            // update maxTrackChange
-            this.maxTrackChange += (oldValue + value);
-        });
+        // init as not editable
+        this.handleEditMode(false);
     }    
     createBlocksFromData(blockData: BlockData[]): void {
+        // clear rendered borders
+        this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+            this.clearGroupBorder(groupId);
+        });
+        this.clearSelectionBorder();
+        
         // clear stored blocks
         store.dispatch('deleteAllBlocks');
         
@@ -286,14 +323,73 @@ export class BlockManager {
             this.createBlock(block);
         });
         
-        // update blocks, handles and strokes
+        // detect blocks with dist == 0 and create group        
+        const variance: number = 0.05
+        // iterate over tracks
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                this.updateBlock(block);
-                this.updateHandles(block);
-                this.updateStroke(block);
-                this.updateIndicators(block);
+            // iterate over blocks per track
+            let before: BlockDTO | null = null;
+            let detectedGroups: {groupId: number, selection: BlockSelection[]}[] = [];
+            let currentDetectedGroup: {groupId: number, selection: BlockSelection[]} | null = null;
+            store.state.blocks[trackId].forEach((block: BlockDTO, index: number): void => {
+                if (before == null) {
+                    // first block of track
+                    before = block;
+                } else {
+                    const endOfBefore: number = before.rect.x + before.rect.width;
+                    if (block.rect.x - endOfBefore <= variance) {
+                        // group detected
+                        if (currentDetectedGroup == null) {
+                            // first of group
+                            
+                            // create group
+                            currentDetectedGroup = {groupId: before.rect.uid, selection: []};
+                            
+                            // add before and current block
+                            currentDetectedGroup.selection.push({trackId: trackId, index: index - 1, uid: before.rect.uid});
+                            currentDetectedGroup.selection.push({trackId: trackId, index: index, uid: block.rect.uid});
+                            
+                            // add groupId to blocks
+                            store.state.blocks[trackId][index - 1].groupId = currentDetectedGroup.groupId;
+                            store.state.blocks[trackId][index].groupId = currentDetectedGroup.groupId;
+                        } else {
+                            // add to current group
+                            currentDetectedGroup.selection.push({trackId: trackId, index: index, uid: block.rect.uid});
+                            
+                            // add groupId to block
+                            store.state.blocks[trackId][index].groupId = currentDetectedGroup.groupId;
+                        }
+                    } else {
+                        if (currentDetectedGroup != null) {
+                            // end of current group - push groupData
+                            detectedGroups.push(currentDetectedGroup);
+                            currentDetectedGroup = null;
+                        }
+                    }
+                    
+                    // last block of track - push detected groups
+                    if (store.state.blocks[trackId][index + 1] == undefined) {
+                        if (currentDetectedGroup != null) {
+                            detectedGroups.push(currentDetectedGroup);
+                        }
+                    }
+                    before = block;
+                }
             });
+            
+            if (detectedGroups.length > 0) {
+                detectedGroups.forEach((groupData: {groupId: number, selection: BlockSelection[]}) => {
+                    store.dispatch('addGroup', groupData);
+                });
+            }
+        });
+        
+        // update blocks, handles and strokes
+        this.forEachBlock((block: BlockDTO): void => {
+            this.updateBlock(block);
+            this.updateHandles(block);
+            this.updateStroke(block);
+            this.updateIndicators(block);
         });
         
         store.dispatch('getLastBlockPosition');
@@ -403,7 +499,7 @@ export class BlockManager {
         dynamicContainer.addChild(blockContainer);
         return dto;
     }
-    private createCopiedBLock(block: BlockData): CopiedBlockDTO {
+    private createCopiedBLock(block: CopiedBlockData): CopiedBlockDTO {
         const rect: Pixi.Graphics = new Pixi.Graphics();
         rect.rect(0, 0, 1, 1);
         rect.fill(config.colors.copyColor);
@@ -420,7 +516,8 @@ export class BlockManager {
         return new CopiedBlockDTO(
             rect,
             blockContainer,
-            block.trackId
+            block.trackId,
+            block.groupId
         );
     }
     private calculatePosition(tacton: BlockData): {x: number, width: number} {
@@ -431,8 +528,8 @@ export class BlockManager {
             width: ((tacton.endTime - tacton.startTime) / totalDuration) * timelineWidth
         };
     }
-    private createBlockDataFromBlocks(blocks: BlockDTO[] | CopiedBlockDTO[]): BlockData[] {
-        const blockData: BlockData[] = [];
+    private createBlockDataFromBlocks(blocks: BlockDTO[] | CopiedBlockDTO[]): CopiedBlockData[] {
+        const blockData: CopiedBlockData[] = [];
         const timelineWidth: number = pixiApp.canvas.width;
         const totalDuration: number = (timelineWidth / config.pixelsPerSecond) * 1000;
         
@@ -447,7 +544,8 @@ export class BlockManager {
                 trackId: block.trackId,
                 startTime: startTime,
                 endTime: endTime,
-                intensity: intensity
+                intensity: intensity,
+                groupId: block.groupId
             });
         });
         
@@ -496,6 +594,10 @@ export class BlockManager {
 
             this.updateStroke(block);
             this.updateIndicators(block);
+        });
+        
+        this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+           this.updateGroup(groupId, true);
         });
     }
 
@@ -608,26 +710,21 @@ export class BlockManager {
 
     // executes callback-function on every block
     private forEachBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-            store.state.blocks[trackId].forEach((block: BlockDTO) => {
+        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
+            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
                 callback(block);
             });
         });
     }
     
-    // execites callback-function on every selected block
+    // executes callback-function on every selected block
     private forEachSelectedBlock(callback: (block: BlockDTO) => void): void {
-        Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
-            store.state.blocks[trackId].forEach((block: BlockDTO): void => {
-                const isSelected = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
-                if (isSelected) {
-                    callback(block);
-                }
-            });
+        store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
+           callback(store.state.blocks[selection.trackId][selection.index]);
         });
     }
     
-    // execites callback-function on every selected block
+    // executes callback-function on every selected block
     private forEachUnselectedBlock(callback: (block: BlockDTO) => void): void {
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
             store.state.blocks[trackId].forEach((block: BlockDTO): void => {
@@ -649,7 +746,10 @@ export class BlockManager {
             }
         });
         this.generateThresholds();
-        this.updateGroupBorder();        
+        this.updateSelectionBorder();
+        this.renderedGroupBorders.forEach((groupBorder: GroupBorderData, groupId: number) => {
+            this.updateGroup(groupId, true);
+        });
         this.updated = true;
     }
     
@@ -671,7 +771,10 @@ export class BlockManager {
                     }
                 });
             }
-            this.updateGroupBorder();
+            this.updateSelectionBorder();
+            this.renderedGroupBorders.forEach((groupBorder: GroupBorderData, groupId: number) => {
+                this.updateGroup(groupId, true);    
+            });            
         }
         this.updated = false;
     }
@@ -690,6 +793,110 @@ export class BlockManager {
     }
     
     //*************** Interactions ***************
+    private handleSelection(toSelect: BlockDTO | BlockSelection[]): void {
+        if (!store.state.isEditable) {
+            this.showSnackbar({
+                message: 'This file is currently read-only. Enable edit mode to make changes.',
+                color: 'warning',
+                icon: 'mdi-lead-pencil',
+                timer: 4000
+            });
+            return;
+        }
+        
+        if (Array.isArray(toSelect)) {
+            if (!store.state.isPressingShift) {
+                this.forEachSelectedBlock((block: BlockDTO): void => {
+                    block.strokedRect.visible = false;
+                   this.updateIndicatorVisibility(block, false);
+                });
+                store.dispatch('clearSelection');
+                this.clearGroupBorder();
+            }
+            
+            // detect groups
+            const foundGroupIds: number[] = [];
+            toSelect.forEach((selection: BlockSelection): void => {
+                const block: BlockDTO = store.state.blocks[selection.trackId][selection.index];
+                if (block.groupId) {
+                    // save groupId
+                    if (!foundGroupIds.some((groupId: number): boolean => groupId == block.groupId)) {
+                        foundGroupIds.push(block.groupId);
+                    }
+                } else {
+                    // select, if not grouped
+                    block.strokedRect.visible = true;
+                    this.updateIndicatorVisibility(block, true);
+                    store.dispatch('selectBlock', selection);
+                }
+            });
+            
+            foundGroupIds.forEach((groupId: number): void => {
+                this.createGroupBorder(groupId, store.state.groups.get(groupId));
+                store.state.groups.get(groupId).forEach((selection: BlockSelection): void => {
+                    const block = store.state.blocks[selection.trackId][selection.index];
+                    block.strokedRect.visible = true;
+                    store.dispatch('selectBlock', selection);
+                });
+            });
+        } else {
+            // check if selected or not
+            const index: number = store.state.blocks[toSelect.trackId].findIndex((other: BlockDTO): boolean => other.rect.uid === toSelect.rect.uid);
+            if (index !== -1) {
+                const selectionIndex: number = store.state.selectedBlocks.findIndex((selection: BlockSelection): boolean => selection.uid === toSelect.rect.uid);
+                const selection: BlockSelection = {trackId: toSelect.trackId, index: index, uid: toSelect.rect.uid};
+                if (selectionIndex == -1) {
+                    // block is not selected
+                    if (!store.state.isPressingShift) {
+                        // clear selection
+                        this.forEachSelectedBlock((block: BlockDTO): void => {
+                           block.strokedRect.visible = false;
+                           this.updateIndicatorVisibility(block, false);
+                        });
+                        store.dispatch('clearSelection');
+                        this.clearGroupBorder();
+                    }
+
+                    // check for group
+                    if (toSelect.groupId == null) {
+                        // add block to selection
+                        store.dispatch('selectBlock', selection);
+
+                        toSelect.strokedRect.visible = true;
+                        this.updateIndicatorVisibility(toSelect, true);
+                    } else {
+                        this.createGroupBorder(toSelect.groupId, store.state.groups.get(toSelect.groupId));                        
+                        store.state.groups.get(toSelect.groupId).forEach((selection: BlockSelection): void => {
+                            const block = store.state.blocks[selection.trackId][selection.index];
+                            block.strokedRect.visible = true;
+                            store.dispatch('selectBlock', selection);
+                        });
+                    }
+                } else {
+                    // block already selected
+                    if (store.state.isPressingShift) {
+                        if (toSelect.groupId != null) {
+                            // remove from store
+                            store.state.groups.get(toSelect.groupId)!.forEach((selection: BlockSelection): void => {
+                                const block = store.state.blocks[selection.trackId][selection.index];
+                                const selectionIndex: number = store.state.selectedBlocks.findIndex((other: BlockSelection): boolean => other.uid === selection.uid);
+                                store.dispatch('unselectBlock', selectionIndex);
+                                block.strokedRect.visible = false;
+                            });
+                            
+                            // remove groupBorder
+                            this.clearGroupBorder(toSelect.groupId);
+                        } else {
+                            // remove block from selection
+                            store.dispatch('unselectBlock', selectionIndex);
+                            toSelect.strokedRect.visible = false;
+                            this.updateIndicatorVisibility(toSelect, false);
+                        }
+                    }
+                }
+            }
+        }
+    }
     private copySelection(): void {
         this.clearCopiedBlocks();
         const selectedBlocks: BlockDTO[] = [];
@@ -699,28 +906,27 @@ export class BlockManager {
            this.selectedBlockUids.push(selection.uid);
         });
         
+        let maxTrackId: number = -Infinity;
+        let minTrackId: number = Infinity;
+        // copy blocks
         if (selectedBlocks.length > 0) {
+            const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
             let lowestXofCopies: number = Infinity;
-            const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(selectedBlocks);
             copiedBlockData.forEach((blockData: BlockData): void => {
                 const block: CopiedBlockDTO = this.createCopiedBLock(blockData)
-
                 if (block.rect.x < lowestXofCopies) lowestXofCopies = block.rect.x;
-
                 this.copiedBlocks.push(block);
                 dynamicContainer.addChild(block.container);
+                
+                if (block.trackId > maxTrackId) maxTrackId = block.trackId;
+                if (block.trackId < minTrackId) minTrackId = block.trackId;
             });
 
             const offset: number = store.state.currentCursorPosition.x - lowestXofCopies;
 
             this.initYTrackId = Math.floor(Math.max(0, (store.state.currentCursorPosition.y - dynamicContainer.y - this.canvasOffset - config.sliderHeight - config.componentPadding)) / config.trackHeight);
             this.initYTrackId = Math.max(0, Math.min(this.initYTrackId, store.state.trackCount));
-            let trackChange: number = this.initYTrackId - this.copiedBlocks[0].trackId;
-
-            // validate trackChange
-            const maxTrackId: number = this.copiedBlocks.reduce((prev: CopiedBlockDTO, current: CopiedBlockDTO): CopiedBlockDTO => {
-                return (prev && prev.trackId > current.trackId) ? prev : current;
-            }).trackId;
+            let trackChange: number = this.initYTrackId - minTrackId;
 
             if (maxTrackId + trackChange > store.state.trackCount) {
                 trackChange = store.state.trackCount - maxTrackId;
@@ -750,22 +956,71 @@ export class BlockManager {
             this.lastCursorX = this.initialX;
 
             this.updateCopiedBlocks();
+
+            // unselect copied blocks
+            this.forEachSelectedBlock((block: BlockDTO): void => {
+                this.updateIndicatorVisibility(block, false);
+                block.strokedRect.visible = false;
+            });
             
             store.dispatch('clearSelection');
+            
+            if (this.selectionBorder != null) {
+                this.clearSelectionBorder();
+            }
+            
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number) => {
+               this.clearGroupBorder(groupId); 
+            });
         }
     }
     private pasteSelection(): void {
-        const copiedBlockData: BlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
+        if (this.copiedBlocks.length == 0) return;
+        const copiedBlockData: CopiedBlockData[] = this.createBlockDataFromBlocks(this.copiedBlocks);
         const addedBlockIds: number[] = [];
         
-        // todo quick and dirty fix by toggling shiftValue --> change that and use dedicated function for multiple blockSelection
-        store.dispatch('toggleShiftValue');
-        copiedBlockData.forEach((blockData: BlockData): void => {
-            const block: BlockDTO = this.createBlock(blockData);
-            addedBlockIds.push(block.rect.uid);
-            store.dispatch('selectBlock', block);
+        // separate by groupId
+        const groupedCopiedBlockData: Map<number | undefined, CopiedBlockData[]> = new Map<number | undefined, CopiedBlockData[]>();
+
+        for (const block of copiedBlockData) {
+            const key: number | undefined = block.groupId;
+            if (!groupedCopiedBlockData.has(key)) {
+                groupedCopiedBlockData.set(key, []);
+            }
+            groupedCopiedBlockData.get(key)!.push(block);
+        }
+        
+        groupedCopiedBlockData.forEach((copiedBlockData: CopiedBlockData[], oldGroupId: number | undefined): void => {
+            if (oldGroupId == undefined) {
+                // blocks were not grouped
+                copiedBlockData.forEach((blockData: CopiedBlockData): void => {
+                    const block: BlockDTO = this.createBlock(blockData);
+                    addedBlockIds.push(block.rect.uid);
+                });
+            } else {
+                // blockd were grouped
+                let groupId: number | undefined;
+                const groupSelectionData: BlockSelection[] = [];
+                
+                // create new blocks
+                copiedBlockData.forEach((blockData: CopiedBlockData): void => {
+                    // create block
+                    const block: BlockDTO = this.createBlock(blockData);
+
+                    if (groupId == undefined) {
+                        groupId = block.rect.uid;
+                    }
+                    block.groupId = groupId;       
+                    
+                    addedBlockIds.push(block.rect.uid);
+                    // 0 is used as dummy index, after adding all copied blocks, the stored data is sorted, thus updating the indices to the correct values
+                    groupSelectionData.push({trackId: block.trackId, index: 0, uid: block.rect.uid});
+                });
+                
+                // create group
+                store.dispatch('addGroup', {groupId: groupId, selection: groupSelectionData});
+            }
         });
-        store.dispatch('toggleShiftValue');
         
         // update blocks, handles and strokes
         Object.keys(store.state.blocks).forEach((trackIdAsString: string, trackId: number): void => {
@@ -817,21 +1072,21 @@ export class BlockManager {
     }
     private onMoveBlock(event: any, block: BlockDTO): void {
         // if groupBorder is active, update
-        if (this.groupBorder) {
+        if (this.selectionBorder) {
             // dont update, if there will be less then two blocks (requirement for proportional resizing)
             const isBlockSelected: boolean = store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
             if (store.state.selectedBlocks.length >= 3 || !isBlockSelected) {
                 // select / deselect block
-                store.dispatch('selectBlock', block);
+                this.handleSelection(block);
                 
                 if (isBlockSelected) {
                     this.updateHandleInteractivity(block, true);
                 }
-            }            
-            this.drawGroupBorder();
+            }
+            this.drawSelectionBorder();
         } else {
             // select block
-            store.dispatch('selectBlock', block);
+            this.handleSelection(block);
         }
 
         // early exit if user is pressing shift --> multi-selection
@@ -891,35 +1146,43 @@ export class BlockManager {
         this.scrollViewportHorizontal(event.clientX);
         this.scrollViewportVertical(event.clientY);
         
-        const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
-        changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
-        this.applyChanges(changes);
-        
-        if (this.groupBorder) {
-            // update groupBorder when changing tracks
-            this.lastGroupStartX += changes.x;
-            this.groupBorder.initY = this.lastGroupY + changes.track * config.trackHeight;
-            this.resizeGroupBorder();
-            this.isCollidingOnResize = false;
+        if (!this.isScrolling) {
+            const adjustedDeltaX: number = this.adjustOffset(deltaX, changes.track);
+            changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton.rect.x;
+            this.applyChanges(changes);
+
+            if (this.selectionBorder != null) {
+                // update selectionBorder
+                this.selectionBorder.lastStartX += changes.x;
+                this.selectionBorder.initY = this.selectionBorder.lastY + changes.track * config.trackHeight;
+                this.resizeSelectionBorder(this.selectionBorder);
+                this.isCollidingOnResize = false;
+            }
         }
     }
     private onMoveBlockEnd(): void {
+        if (this.currentTacton == null) return;
         this.stopAutoScroll();
         window.removeEventListener('pointermove', this.pointerMoveHandler);
         window.removeEventListener('pointerup', this.pointerUpHandler);
-        
-        // only set InteractionState if groupBorder is not active
-        if (this.groupBorder == null) {
-            store.dispatch('setInteractionState', false);
-        } else {
-            this.lastGroupY = this.groupBorder.initY;
-        }
 
+        let borderData: SelectionBorderData | null = this.selectionBorder;
+        
+        if (borderData == null) {
+            // only set InteractionState if groupBorder (from proportional resizing) is not active
+            store.dispatch('setInteractionState', false);
+        }        
+        if (borderData == null && this.currentTacton.groupId != null) {
+            borderData = this.renderedGroupBorders.get(this.currentTacton.groupId)!;
+        }
+        if (borderData != null) {
+            borderData.lastY = borderData.initY;
+        }
+        
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
         this.lastVerticalOffset = store.state.verticalViewportOffset;
-
-        if (this.currentTacton == null) return;
+        
         store.dispatch('changeBlockTrack', this.lastTrackOffset);
         
         this.forEachBlock((block: BlockDTO): void => {
@@ -944,7 +1207,7 @@ export class BlockManager {
         this.isCollidingOnResize = false;
         
         store.dispatch('setInteractionState', true);
-        store.dispatch('selectBlock', block);
+        this.handleSelection(block);
 
         this.pointerMoveHandler = (event: any) => this.onAbsoluteResize(event, block);
         this.pointerUpHandler = () => this.onResizeEnd();
@@ -1076,27 +1339,40 @@ export class BlockManager {
         changes.width = newWidth - prevWidth;
         this.applyChanges(changes);
     }
-    private onProportionalResizeStart(event: any, direction: Direction.LEFT | Direction.RIGHT): void {
-        if (this.groupBorder == null) return;
-
-        this.resizeDirection = direction;
-        this.initialX = event.data.global.x;
+    private onProportionalResizeStart(event: any, direction: Direction.LEFT | Direction.RIGHT, groupId?: number): void {
+        let borderData: SelectionBorderData | null = this.selectionBorder;
+        if (borderData == null && groupId != null) {
+            borderData = this.renderedGroupBorders.get(groupId)!;
+        }
+        if (borderData == null) {
+            return;
+        }
 
         // need to update initData of groupBorder
-        this.groupBorder.initStartX = this.lastGroupStartX;
-        this.groupBorder.initWidth = this.lastGroupWidth;
+        borderData.initStartX = borderData.lastStartX;
+        borderData.initWidth = borderData.lastWidth;
 
-        this.pointerMoveHandler = (event: any) => this.onProportionalResize(event);
+        this.resizeDirection = direction;
+        this.initialX = event.data.global.x;        
+        
+        this.pointerMoveHandler = (event: any) => this.onProportionalResize(event, groupId);
         this.pointerUpHandler = () => this.onResizeEnd();
         window.addEventListener('pointermove', this.pointerMoveHandler);
         window.addEventListener('pointerup', this.pointerUpHandler);
+        store.dispatch('setInteractionState', true);
     }
-    private onProportionalResize(event: any): void {
-        if (this.groupBorder == null) return;
+    private onProportionalResize(event: any, groupId?: number): void {
+        let borderData: SelectionBorderData | null = this.selectionBorder;
+        if (borderData == null && groupId != null) {
+            borderData = this.renderedGroupBorders.get(groupId)!;
+        }
+        if (borderData == null) {
+            return;
+        }
         
         const deltaX: number = event.clientX - this.initialX;
-        const initWidth: number = this.groupBorder.initWidth;
-        const initStartX: number = this.groupBorder.initStartX;
+        const initWidth: number = borderData.initWidth;
+        const initStartX: number = borderData.initStartX;
         const collisionsLeft: number = this.lastUidsCollisionLeft.length;
         const collisionsRight: number = this.lastUidsCollisionRight.length;
         
@@ -1117,7 +1393,7 @@ export class BlockManager {
                 isDeltaXValid = deltaX > this.lastValidDeltaX;
             }
             
-            if (collisionsLeft == 1 && this.lastUidsCollisionLeft[0] != this.groupBorder.firstBlockOfGroup.uid) {
+            if (collisionsLeft == 1 && this.lastUidsCollisionLeft[0] != borderData.firstBlockOfGroup.uid) {
                 isDeltaXValid = deltaX > this.lastValidDeltaX;
             }
         } else {
@@ -1134,7 +1410,7 @@ export class BlockManager {
                 isDeltaXValid = deltaX < this.lastValidDeltaX;
             }
             
-            if (collisionsRight == 1 && this.lastUidsCollisionRight[0] != this.groupBorder.lastBlockOfGroup.uid) {
+            if (collisionsRight == 1 && this.lastUidsCollisionRight[0] != borderData.lastBlockOfGroup.uid) {
                 isDeltaXValid = deltaX < this.lastValidDeltaX;
             }
         }
@@ -1142,7 +1418,7 @@ export class BlockManager {
         // check for minSize
         if (newGroupWidth < 1){
             newGroupWidth = 1;
-            newGroupStartX = this.lastGroupStartX;
+            newGroupStartX = borderData.lastStartX;
         }
         
         // check for left-overflow
@@ -1191,7 +1467,23 @@ export class BlockManager {
         }
         
         if (isDeltaXValid) {
-            const scale: number = newGroupWidth / this.groupBorder.initWidth;
+            
+            // snapping
+            if (this.resizeDirection === Direction.RIGHT) {
+                newGroupWidth = this.snapToGrid(newGroupStartX + newGroupWidth) - newGroupStartX;
+            } else {
+                const snappedGroupStartX = this.snapToGrid(newGroupStartX);
+                if (snappedGroupStartX != newGroupStartX) {
+                    const diff: number = initStartX - snappedGroupStartX;
+                    newGroupWidth = initWidth + diff;
+                }
+                
+                newGroupStartX = snappedGroupStartX;
+            }
+            
+            const scale: number = newGroupWidth / borderData.initWidth;
+            
+            // update blocks
             this.forEachSelectedBlock((block: BlockDTO): void => {
                 const newBlockParameters: {x: number, width: number} = this.calculateNewBlockParameters(block, newGroupStartX, scale);
                 const newX: number = newBlockParameters.x;
@@ -1203,10 +1495,18 @@ export class BlockManager {
                 block.strokedRect.x = newX;
                 block.strokedRect.width = newWidth;
             });
-            this.resizeGroupBorder(newGroupStartX, newGroupWidth);
-            this.lastValidDeltaX = deltaX;
-            this.lastUidsCollisionRight = uidsCollisionRight;
-            this.lastUidsCollisionLeft = uidsCollisionLeft;
+            
+            // update groups
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+                this.updateGroup(groupId, !this.strgDown);
+            });
+            
+            if (groupId == undefined) {
+                this.resizeSelectionBorder(borderData, newGroupStartX, newGroupWidth);
+                this.lastValidDeltaX = deltaX;
+                this.lastUidsCollisionRight = uidsCollisionRight;
+                this.lastUidsCollisionLeft = uidsCollisionLeft; 
+            }
         }
     }
     private onResizeEnd(): void {
@@ -1215,10 +1515,16 @@ export class BlockManager {
         window.removeEventListener('pointerup', this.pointerUpHandler);
 
         // only set InteractionState if groupBorder is not active
-        if (this.groupBorder == null) {
+        if (this.selectionBorder == null) {
             store.dispatch('setInteractionState', false);
         }
 
+        // update borderData
+        this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+            borderData.initStartX = borderData.lastStartX;
+            borderData.initWidth = borderData.lastWidth;
+        });
+        
         this.forEachSelectedBlock((block: BlockDTO): void => {
             this.updateHandles(block);
             block.initWidth = block.rect.width / store.state.zoomLevel;
@@ -1233,7 +1539,7 @@ export class BlockManager {
         this.initialBlockHeight = block.rect.height;
         this.currentTacton = block;
         store.dispatch('setInteractionState', true);
-        store.dispatch('selectBlock', block);
+        this.handleSelection(block);
 
         this.pointerMoveHandler = (event: any) => this.changeAmplitude(event, block, direction);
         this.pointerUpHandler = () => this.onChangeAmplitudeEnd();
@@ -1267,7 +1573,7 @@ export class BlockManager {
         window.removeEventListener('pointerup', this.pointerUpHandler);
 
         // only set InteractionState if groupBorder is not active
-        if (this.groupBorder == null) {
+        if (this.selectionBorder == null) {
             store.dispatch('setInteractionState', false);
         }
 
@@ -1280,14 +1586,96 @@ export class BlockManager {
         this.pointerUpHandler = null;
         this.currentTacton = null;
     }
+    private groupSelectedBlocks(): void {
+        if (store.state.selectedBlocks.length <= 1) return;        
+        let groupId: number;    
+        let hasNewBlocks: boolean = true;
+        const foundGroupIds: number[] = [];
+        
+        if (store.state.groups.size > 0) {
+            hasNewBlocks = false;
+            
+            // get all groupIds of selection
+            this.forEachSelectedBlock((block: BlockDTO): void => {
+                if (block.groupId) {
+                    if (!foundGroupIds.some((groupId: number): boolean => groupId == block.groupId)) {
+                        foundGroupIds.push(block.groupId);
+                    }
+                } else {
+                    hasNewBlocks = true;
+                }
+            });
+            
+            if (foundGroupIds.length > 1) {                
+                hasNewBlocks = true;
+            }
+        }
+        if (!hasNewBlocks) {
+            // ungroup
+            
+            // get groupId
+            const groupId: number = foundGroupIds[0];
+            
+            // remove groupId from blocks
+            this.forEachSelectedBlock((block: BlockDTO): void => {
+               block.groupId = undefined;
+            });
+            
+            // clear border
+            this.clearGroupBorder(groupId);
+            
+            // remove group from store
+            store.state.groups.delete(groupId);
+            
+            // create selection border
+            this.drawSelectionBorder();
+            
+            return;
+        } else {
+            // create new group
+            
+            // remove existing groups from store and clear border
+            foundGroupIds.forEach((groupId: number): void => {
+                this.clearGroupBorder(groupId);
+                store.state.groups.delete(groupId);
+            });
+            
+            groupId = store.state.selectedBlocks[0].uid;
+            const blocksOfGroup: BlockSelection[] = [];
+            
+            store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
+               const block = store.state.blocks[selection.trackId][selection.index];
+               block.groupId = groupId;
+               blocksOfGroup.push(selection);
+            });
+            
+            store.dispatch('addGroup', {groupId: groupId, selection: blocksOfGroup});
+
+            this.clearSelectionBorder();
+            this.createGroupBorder(groupId, store.state.selectedBlocks);
+        }
+    }
 
     //*************** Helper ***************
+    private onGroupResize(event: any, direction: Direction.LEFT | Direction.RIGHT, groupId: number): void {
+        // check, if only the group is selected, or other blocks | groups
+        const groupData = store.state.groups.get(groupId);
+        const borderData: GroupBorderData | undefined = this.renderedGroupBorders.get(groupId);
+        
+        if (groupData == undefined || borderData == undefined) return;
+        
+        if (groupData.length == store.state.selectedBlocks.length) {
+            this.onProportionalResizeStart(event, direction, groupId)
+        } else {
+            const blockOfGroup: BlockSelection = borderData.firstBlockOfGroup;
+            this.onAbsoluteResizeStart(event, store.state.blocks[blockOfGroup.trackId][blockOfGroup.index], direction);
+        }
+    }
     private isBlockSelected(block: BlockDTO): boolean {
         return store.state.selectedBlocks.some((selection: BlockSelection): boolean => selection.uid == block.rect.uid);
     }
-    
-    // TODO maybe boost performance by passing an array of numbers, to check multiple positions in one iteration
     private snapToGrid(positionToCheck: number) {
+        if (!store.state.isSnappingActive) return positionToCheck;
         const snapRadius: number = config.resizingSnappingRadius;
         const gridLines = store.state.gridLines;
         for (const gridX of gridLines) {
@@ -1298,18 +1686,44 @@ export class BlockManager {
         return positionToCheck;
     }
     private calculateNewBlockParameters(block: BlockDTO, newGroupStartX: number, scale: number): {x: number, width: number} {
-        if (this.groupBorder == null) return {x: NaN, width: NaN};
-        const relX: number = (block.initX * store.state.zoomLevel) - this.groupBorder.initStartX + config.leftPadding - store.state.horizontalViewportOffset;
+        let borderData: SelectionBorderData | null = this.selectionBorder;
+        
+        if (borderData == null && block.groupId != null) {
+            borderData = this.renderedGroupBorders.get(block.groupId)!;
+        }
+
+        if (borderData == null) {
+            return {x: NaN, width: NaN};
+        }
+            
+        const relX: number = (block.initX * store.state.zoomLevel) - borderData.initStartX + config.leftPadding - store.state.horizontalViewportOffset;
         const newX: number = (newGroupStartX + relX * scale);
         const newWidth: number = (block.initWidth * store.state.zoomLevel) * scale;
         return {x: newX, width: newWidth};
     }
-    private drawGroupBorder(): void {
-        this.clearGroupBorder();
+    private drawSelectionBorder(): void {
+        this.clearSelectionBorder();
         if (store.state.selectedBlocks.length <= 1) return;
+        
+        if (this.renderedGroupBorders.size == 1) {
+            // there is only one group active, check if only members of this group are selected
+            const iterator: MapIterator<number> = this.renderedGroupBorders.keys();
+            const groupId: number | undefined = iterator.next().value;            
+            if (store.state.groups.get(groupId).length == store.state.selectedBlocks.length) return;
+        }
         
         // hide indicators
         this.forEachSelectedBlock((block: BlockDTO) => this.updateIndicatorVisibility(block, false));
+        this.renderedGroupBorders.forEach((borderData: GroupBorderData): void => {
+            borderData.rightHandle.visible = false;
+            borderData.rightIndicator.visible = false;
+            borderData.leftHandle.visible = false;
+            borderData.leftIndicator.visible = false;
+            borderData.topHandle!.visible = false;
+            borderData.topIndicator!.visible = false;
+            borderData.bottomHandle!.visible = false;
+            borderData.bottomIndicator!.visible = false;
+        });
 
         let groupStartX: number = Infinity;
         let groupEndX: number = -Infinity;
@@ -1318,10 +1732,11 @@ export class BlockManager {
         let groupHighestTrack: number = 0;
         let maxHeightOfLowestTrack: number = config.minBlockHeight;
         let maxHeightOfHighestTrack: number = config.minBlockHeight;
-        let firstBlockOfGroup;
-        let lastBlockOfGroup;
-
-        const selectedBlocks: BlockDTO[] = store.state.selectedBlocks.map((selection: BlockSelection) => {
+        let firstBlockOfGroup: BlockSelection;
+        let lastBlockOfGroup: BlockSelection;
+        let topBlockOfGroup: BlockSelection;
+        
+        store.state.selectedBlocks.forEach((selection: BlockSelection): void => {
             const block = store.state.blocks[selection.trackId][selection.index];
 
             // disable handles
@@ -1336,29 +1751,41 @@ export class BlockManager {
                 groupEndX = (block.rect.x + block.rect. width);
                 lastBlockOfGroup = selection;
             }
-            groupLowestTrack = Math.min(groupLowestTrack, block.trackId);
-            groupHighestTrack = Math.max(groupHighestTrack, block.trackId);
-            return block;
-        });
-
-        groupWidth = groupEndX - groupStartX;
-
-        selectedBlocks.forEach((block: BlockDTO): void => {
-            if (block.trackId == groupLowestTrack) {
+            if (groupLowestTrack >= block.trackId) {
+                groupLowestTrack = block.trackId;
+                if (maxHeightOfLowestTrack < block.rect.height) {
+                    maxHeightOfLowestTrack = block.rect.height;
+                }
+            }
+            
+            if (groupHighestTrack <= block.trackId) {
+                groupHighestTrack = block.trackId;
+                if (maxHeightOfHighestTrack < block.rect.height) {
+                    maxHeightOfHighestTrack = block.rect.height;
+                }
+            }
+            
+            //
+            if (block.trackId < groupLowestTrack) {
+                groupLowestTrack = block.trackId;
+                maxHeightOfLowestTrack = block.rect.height;
+                topBlockOfGroup = selection;
+            } else if (block.trackId === groupLowestTrack) {
                 maxHeightOfLowestTrack = Math.max(maxHeightOfLowestTrack, block.rect.height);
+                topBlockOfGroup = selection;
             }
 
-            if (block.trackId == groupHighestTrack) {
+            if (block.trackId > groupHighestTrack) {
+                groupHighestTrack = block.trackId;
+                maxHeightOfHighestTrack = block.rect.height;
+            } else if (block.trackId === groupHighestTrack) {
                 maxHeightOfHighestTrack = Math.max(maxHeightOfHighestTrack, block.rect.height);
             }
         });
-
-        const groupY: number = Math.min(...selectedBlocks.map((b: BlockDTO) => b.rect.y));
+        
+        groupWidth = groupEndX - groupStartX;
+        const groupY: number = store.state.blocks[topBlockOfGroup!.trackId][topBlockOfGroup!.index].rect.y;
         const groupHeight: number = ((groupHighestTrack - groupLowestTrack) * config.trackHeight) + Math.min(maxHeightOfLowestTrack, maxHeightOfHighestTrack) + (Math.abs(maxHeightOfLowestTrack - maxHeightOfHighestTrack) / 2);
-
-        this.lastGroupStartX = groupStartX;
-        this.lastGroupWidth = groupWidth;
-        this.lastGroupY = groupY;
 
         const borderContainer: Container = new Pixi.Container();
         const border: Graphics = new Pixi.Graphics();
@@ -1397,7 +1824,7 @@ export class BlockManager {
         borderContainer.addChild(leftHandle);
         borderContainer.addChild(leftIndicator);
 
-        this.groupBorder = {
+        this.selectionBorder = {
             container: borderContainer,
             border: border,
             rightHandle: rightHandle,
@@ -1405,53 +1832,55 @@ export class BlockManager {
             leftHandle: leftHandle,
             leftIndicator: leftIndicator,
             initWidth: groupWidth,
+            lastWidth: groupWidth,
             initStartX: groupStartX,
+            lastStartX: groupStartX,
             initY: groupY,
+            lastY: groupY,
             initHeight: groupHeight,
             firstBlockOfGroup: firstBlockOfGroup!,
-            lastBlockOfGroup: lastBlockOfGroup!
+            lastBlockOfGroup: lastBlockOfGroup!,
         }
 
         dynamicContainer.addChild(borderContainer);
 
         store.dispatch('setInteractionState', true);
     }
-    private resizeGroupBorder(newGroupStartX?: number, newGroupWidth?: number): void {
-        if (this.groupBorder == null) return;
-        if (!newGroupWidth) newGroupWidth = this.lastGroupWidth;
-        if (!newGroupStartX) newGroupStartX = this.lastGroupStartX;
+    private resizeSelectionBorder(borderData: SelectionBorderData, newGroupStartX?: number, newGroupWidth?: number): void {
+        if (!newGroupWidth) newGroupWidth = borderData.lastWidth;
+        if (!newGroupStartX) newGroupStartX = borderData.lastStartX;
 
-        const groupY: number = this.groupBorder.initY;
-        const groupHeight: number = this.groupBorder.initHeight;
+        const groupY: number = borderData.initY;
+        const groupHeight: number = borderData.initHeight;
 
-        this.groupBorder.border.clear();
-        this.groupBorder.border.rect(newGroupStartX, groupY, newGroupWidth, groupHeight);
-        this.groupBorder.border.fill('rgb(0, 0, 0, 0)');
-        this.groupBorder.border.stroke({width: 2, color: 'rgba(255,0,0,0.5)'});
+        borderData.border.clear();
+        borderData.border.rect(newGroupStartX, groupY, newGroupWidth, groupHeight);
+        borderData.border.fill('rgb(0, 0, 0, 0)');
+        borderData.border.stroke({width: 2, color: config.colors.groupHandleColor});
 
-        this.groupBorder.rightHandle.clear();
-        this.groupBorder.rightHandle.rect(newGroupStartX + newGroupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
-        this.groupBorder.rightHandle.fill(config.colors.handleColor);
-        
-        this.groupBorder.rightIndicator.clear();
-        this.groupBorder.rightIndicator.circle(newGroupStartX + newGroupWidth, groupY + groupHeight/2, config.groupHandleRadius);
-        this.groupBorder.rightIndicator.fill(config.colors.groupHandleColor);
+        borderData.rightHandle.clear();
+        borderData.rightHandle.rect(newGroupStartX + newGroupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        borderData.rightHandle.fill(config.colors.handleColor);
 
-        this.groupBorder.leftHandle.clear();
-        this.groupBorder.leftHandle.rect(newGroupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
-        this.groupBorder.leftHandle.fill(config.colors.handleColor);
-        
-        this.groupBorder.leftIndicator.clear();
-        this.groupBorder.leftIndicator.circle(newGroupStartX, groupY + groupHeight/2, config.groupHandleRadius);
-        this.groupBorder.leftIndicator.fill(config.colors.groupHandleColor);
+        borderData.rightIndicator.clear();
+        borderData.rightIndicator.circle(newGroupStartX + newGroupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        borderData.rightIndicator.fill(config.colors.groupHandleColor);
 
-        this.lastGroupStartX = newGroupStartX;
-        this.lastGroupWidth = newGroupWidth;
+        borderData.leftHandle.clear();
+        borderData.leftHandle.rect(newGroupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        borderData.leftHandle.fill(config.colors.handleColor);
+
+        borderData.leftIndicator.clear();
+        borderData.leftIndicator.circle(newGroupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        borderData.leftIndicator.fill(config.colors.groupHandleColor);
+
+        borderData.lastStartX = newGroupStartX;
+        borderData.lastWidth = newGroupWidth;
     }
-    private updateGroupBorder(): void {
-        if (this.groupBorder) {
-            const firstSelection: BlockSelection = this.groupBorder.firstBlockOfGroup;
-            const lastSelection: BlockSelection = this.groupBorder.lastBlockOfGroup;
+    private updateSelectionBorder(): void {
+        if (this.selectionBorder) {
+            const firstSelection: BlockSelection = this.selectionBorder.firstBlockOfGroup;
+            const lastSelection: BlockSelection = this.selectionBorder.lastBlockOfGroup;
 
             const firstBlock = store.state.blocks[firstSelection.trackId][firstSelection.index];
             const lastBlock = store.state.blocks[lastSelection.trackId][lastSelection.index];
@@ -1459,35 +1888,257 @@ export class BlockManager {
             const newGroupStartX = firstBlock.rect.x;
             const newGroupEndX = lastBlock.rect.x + lastBlock.rect.width;
             const newGroupWidth: number = newGroupEndX - newGroupStartX;
-            this.resizeGroupBorder(newGroupStartX, newGroupWidth);
+            this.resizeSelectionBorder(this.selectionBorder, newGroupStartX, newGroupWidth);
         }
     }
-    private clearGroupBorder(): void {
-        if (this.groupBorder != null) {
-            dynamicContainer.removeChild(this.groupBorder.container);
-            this.groupBorder.container.destroy({children: true});
-            this.groupBorder = null;
-
-            store.state.selectedBlocks.forEach((selection: BlockSelection) => {
-                const block = store.state.blocks[selection.trackId][selection.index];
-
-                // enable handles
-                block.leftHandle.interactive = true;
-                block.rightHandle.interactive = true;
-                block.topHandle.interactive = true;
-                block.bottomHandle.interactive = true;
+    private clearSelectionBorder(): void{
+        if (this.selectionBorder != null) {
+            dynamicContainer.removeChild(this.selectionBorder.container);
+            this.selectionBorder.container.destroy({children: true});
+            this.selectionBorder = null;
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+                this.updateGroup(groupId, true);
+                borderData.rightHandle.visible = true;
+                borderData.rightIndicator.visible = true;
+                borderData.leftHandle.visible = true;
+                borderData.leftIndicator.visible = true;
+                borderData.topHandle!.visible = true;
+                borderData.topIndicator!.visible = true;
+                borderData.bottomHandle!.visible = true;
+                borderData.bottomIndicator!.visible = true;
             });
 
             store.dispatch('setInteractionState', false);
+        }
+    }
+    private createGroupBorder(groupId: number, groupSelection: BlockSelection[]): void {
+        let groupStartX: number = Infinity;
+        let groupEndX: number = -Infinity;
+        let groupWidth: number;
+        let groupLowestTrack: number = Infinity;
+        let groupHighestTrack: number = 0;
+        let maxHeightOfLowestTrack: number = config.minBlockHeight;
+        let maxHeightOfHighestTrack: number = config.minBlockHeight;
+        let firstBlockOfGroup: BlockSelection;
+        let lastBlockOfGroup: BlockSelection;
+        let topBlockOfGroup: BlockSelection;
+        let bottomBlockOfGroup: BlockSelection;
+        
+        groupSelection.forEach((selection: BlockSelection): void => {
+            const block = store.state.blocks[selection.trackId][selection.index];
 
-            this.forEachSelectedBlock((block: BlockDTO) => {
-                this.updateStroke(block);
-                this.updateIndicators(block);
-                this.updateIndicatorVisibility(block, true);
+            // disable handles
+            this.updateHandleInteractivity(block, false);
+
+            // collect data
+            if (block.rect.x < groupStartX) {
+                groupStartX = block.rect.x;
+                firstBlockOfGroup = selection;
+            }
+            if ((block.rect.x + block.rect. width) > groupEndX) {
+                groupEndX = (block.rect.x + block.rect. width);
+                lastBlockOfGroup = selection;
+            }
+            
+            if (block.trackId < groupLowestTrack) {
+                groupLowestTrack = block.trackId;
+                maxHeightOfLowestTrack = block.rect.height;
+                topBlockOfGroup = selection;
+            } else if (block.trackId === groupLowestTrack) {
+                maxHeightOfLowestTrack = Math.max(maxHeightOfLowestTrack, block.rect.height);
+                topBlockOfGroup = selection;
+            }
+            
+            if (block.trackId > groupHighestTrack) {
+                groupHighestTrack = block.trackId;
+                maxHeightOfHighestTrack = block.rect.height;
+                bottomBlockOfGroup = selection;
+            } else if (block.trackId === groupHighestTrack) {
+                maxHeightOfHighestTrack = Math.max(maxHeightOfHighestTrack, block.rect.height);
+                bottomBlockOfGroup = selection;
+            }
+        });
+
+        groupWidth = groupEndX - groupStartX;   
+        const groupY: number = store.state.blocks[topBlockOfGroup!.trackId][topBlockOfGroup!.index].rect.y;
+        const groupHeight: number = ((groupHighestTrack - groupLowestTrack) * config.trackHeight) + Math.min(maxHeightOfLowestTrack, maxHeightOfHighestTrack) + (Math.abs(maxHeightOfLowestTrack - maxHeightOfHighestTrack) / 2);
+
+        const borderContainer: Container = new Pixi.Container();
+        const border: Graphics = new Pixi.Graphics();
+        border.rect(groupStartX, groupY, groupWidth, groupHeight);
+        border.fill('rgb(0, 0, 0, 0)');
+        border.stroke({width: 2, color: config.colors.groupHandleColor});
+
+        const rightHandle: Graphics = new Pixi.Graphics();
+        rightHandle.rect(groupStartX + groupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        rightHandle.fill(config.colors.handleColor);
+        rightHandle.interactive = true;
+        rightHandle.cursor = 'ew-resize';
+
+        const rightIndicator: Graphics = new Pixi.Graphics();
+        rightIndicator.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+        rightIndicator.fill(config.colors.groupHandleColor);
+
+        const leftHandle: Graphics = new Pixi.Graphics();
+        leftHandle.rect(groupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+        leftHandle.fill(config.colors.handleColor);
+        leftHandle.interactive = true;
+        leftHandle.cursor = 'ew-resize';
+
+        const leftIndicator: Graphics = new Pixi.Graphics();
+        leftIndicator.circle(groupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+        leftIndicator.fill(config.colors.groupHandleColor);
+
+        const topHandle: Graphics = new Pixi.Graphics();
+        topHandle.rect(groupStartX, groupY - (config.resizingHandleWidth / 2), groupWidth, config.resizingHandleWidth);
+        topHandle.fill(config.colors.handleColor);
+        topHandle.interactive = true;
+        topHandle.cursor = 'ns-resize';
+
+        const topIndicator: Graphics = new Pixi.Graphics();
+        topIndicator.circle(groupStartX + (groupWidth / 2), groupY, config.groupHandleRadius);
+        topIndicator.fill(config.colors.groupHandleColor);
+
+        const bottomHandle: Graphics = new Pixi.Graphics();
+        bottomHandle.rect(groupStartX, groupY + groupHeight - (config.resizingHandleWidth / 2), groupWidth, config.resizingHandleWidth);
+        bottomHandle.fill(config.colors.handleColor);
+        bottomHandle.interactive = true;
+        bottomHandle.cursor = 'ns-resize';
+
+        const bottomIndicator: Graphics = new Pixi.Graphics();
+        bottomIndicator.circle(groupStartX + (groupWidth / 2), groupY + groupHeight, config.groupHandleRadius);
+        bottomIndicator.fill(config.colors.groupHandleColor);
+        
+        // add eventListeners
+        leftHandle.on('pointerdown', (event) =>  this.onGroupResize(event, Direction.LEFT, groupId));
+        rightHandle.on('pointerdown', (event) =>  this.onGroupResize(event, Direction.RIGHT, groupId));
+        const block = store.state.blocks[firstBlockOfGroup!.trackId][firstBlockOfGroup!.index];
+        topHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.TOP));
+        bottomHandle.on('pointerdown', (event) => this.onChangeAmplitude(event, block, Direction.BOTTOM));
+
+        borderContainer.addChild(border);
+        borderContainer.addChild(rightHandle);
+        borderContainer.addChild(rightIndicator);
+        borderContainer.addChild(leftHandle);
+        borderContainer.addChild(leftIndicator);
+        borderContainer.addChild(topHandle);
+        borderContainer.addChild(topIndicator);
+        borderContainer.addChild(bottomHandle);
+        borderContainer.addChild(bottomIndicator);
+
+        const groupBorder: GroupBorderData = {
+            container: borderContainer,
+            border: border,
+            rightHandle: rightHandle,
+            rightIndicator: rightIndicator,
+            leftHandle: leftHandle,
+            leftIndicator: leftIndicator,
+            topHandle: topHandle,
+            topIndicator: topIndicator,
+            bottomHandle: bottomHandle,
+            bottomIndicator: bottomIndicator,
+            initWidth: groupWidth,
+            lastWidth: groupWidth,
+            lastStartX: groupStartX,
+            initStartX: groupStartX,
+            initY: groupY,
+            lastY: groupY,
+            initHeight: groupHeight,
+            firstBlockOfGroup: firstBlockOfGroup!,
+            lastBlockOfGroup: lastBlockOfGroup!,
+            topBlockOfGroup: topBlockOfGroup!,
+            bottomBlockOfGroup: bottomBlockOfGroup!
+        }
+        
+        this.renderedGroupBorders.set(groupId, groupBorder);
+
+        dynamicContainer.addChild(borderContainer);
+    }
+    private clearGroupBorder(groupId?: number): void {
+        if (groupId != undefined) {
+            const borderData: GroupBorderData = this.renderedGroupBorders.get(groupId)!;
+            dynamicContainer.removeChild(borderData.container);
+            borderData.container.destroy({children: true});
+            this.renderedGroupBorders.delete(groupId);
+        } else {
+            // clear all
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+                dynamicContainer.removeChild(borderData.container);
+                borderData.container.destroy({children: true});
+                
+                // enable handles
+                store.state.groups.get(groupId).forEach((selection: BlockSelection) => {
+                    const block = store.state.blocks[selection.trackId][selection.index];
+                    block.leftHandle.interactive = true;
+                    block.rightHandle.interactive = true;
+                    block.topHandle.interactive = true;
+                    block.bottomHandle.interactive = true;
+                });
+
+                this.renderedGroupBorders.delete(groupId);
             });
         }
     }
+    private updateGroup(groupId: number, updateHandles: boolean = false): void {
+        const borderData: GroupBorderData = this.renderedGroupBorders.get(groupId)!;
 
+        const firstBlock: BlockDTO = store.state.blocks[borderData.firstBlockOfGroup.trackId][borderData.firstBlockOfGroup.index];
+        const lastBlock: BlockDTO = store.state.blocks[borderData.lastBlockOfGroup.trackId][borderData.lastBlockOfGroup.index];
+        const topBlock: BlockDTO = store.state.blocks[borderData.topBlockOfGroup.trackId][borderData.topBlockOfGroup.index];
+        const bottomBlock: BlockDTO = store.state.blocks[borderData.bottomBlockOfGroup.trackId][borderData.bottomBlockOfGroup.index];
+        const groupStartX: number = firstBlock.rect.x;
+        const groupEndX: number = lastBlock.rect.x + lastBlock.rect.width;
+        const groupWidth: number = groupEndX - groupStartX;
+        const groupY: number = topBlock.rect.y
+        const groupHighestTrack: number = bottomBlock.trackId;
+        const groupLowestTrack: number = topBlock.trackId;
+        const maxHeightOfHighestTrack: number = bottomBlock.rect.height;
+        const maxHeightOfLowestTrack: number = topBlock.rect.height;
+        const groupHeight: number = ((groupHighestTrack - groupLowestTrack) * config.trackHeight) + Math.min(maxHeightOfLowestTrack, maxHeightOfHighestTrack) + (Math.abs(maxHeightOfLowestTrack - maxHeightOfHighestTrack) / 2);
+        
+        borderData.border.clear();
+        borderData.border.rect(groupStartX, groupY, groupWidth, groupHeight);
+        borderData.border.fill('rgb(0, 0, 0, 0)');
+        borderData.border.stroke({width: 2, color: config.colors.groupHandleColor});
+        
+        if (updateHandles) {
+            borderData.rightHandle.clear();
+            borderData.rightHandle.rect(groupStartX + groupWidth - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+            borderData.rightHandle.fill(config.colors.handleColor);
+
+            borderData.rightIndicator.clear();
+            borderData.rightIndicator.circle(groupStartX + groupWidth, groupY + groupHeight/2, config.groupHandleRadius);
+            borderData.rightIndicator.fill(config.colors.groupHandleColor);
+
+            borderData.leftHandle.clear();
+            borderData.leftHandle.rect(groupStartX - (config.resizingHandleWidth / 2), groupY, config.resizingHandleWidth, groupHeight);
+            borderData.leftHandle.fill(config.colors.handleColor);
+
+            borderData.leftIndicator.clear();
+            borderData.leftIndicator.circle(groupStartX, groupY + groupHeight/2, config.groupHandleRadius);
+            borderData.leftIndicator.fill(config.colors.groupHandleColor);
+
+            borderData.topHandle!.clear();
+            borderData.topHandle!.rect(groupStartX, groupY - (config.resizingHandleWidth / 2), groupWidth, config.resizingHandleWidth);
+            borderData.topHandle!.fill(config.colors.handleColor);
+
+            borderData.topIndicator!.clear();
+            borderData.topIndicator!.circle(groupStartX + (groupWidth / 2), groupY, config.groupHandleRadius);
+            borderData.topIndicator!.fill(config.colors.groupHandleColor);
+
+            borderData.bottomHandle!.clear();
+            borderData.bottomHandle!.rect(groupStartX, groupY + groupHeight - (config.resizingHandleWidth / 2), groupWidth, config.resizingHandleWidth);
+            borderData.bottomHandle!.fill(config.colors.handleColor);
+
+            borderData.bottomIndicator!.clear();
+            borderData.bottomIndicator!.circle(groupStartX + (groupWidth / 2), groupY + groupHeight, config.groupHandleRadius);
+            borderData.bottomIndicator!.fill(config.colors.groupHandleColor);
+        }
+        
+        borderData.lastStartX = groupStartX;
+        borderData.lastWidth = groupWidth;
+    }
+    
     //******* scroll viewport when block is at border-regions *******
     private startAutoScroll(direction: Direction): void {
         if (!this.isScrolling) {
@@ -1532,6 +2183,13 @@ export class BlockManager {
                 const newOffset = store.state.horizontalViewportOffset + horizontalScrollSpeed;
                 store.dispatch('updateHorizontalViewportOffset', newOffset);
             }
+        }
+        
+        if (this.currentDirection == Direction.LEFT || this.currentDirection == Direction.RIGHT) {
+            const changes: BlockChanges = new BlockChanges();
+            const adjustedDeltaX: number = this.adjustOffset(this.lastValidOffset, this.lastTrackOffset);
+            changes.x = (this.initialBlockX + adjustedDeltaX) - this.currentTacton!.rect.x;
+            this.applyChanges(changes);
         }
 
         requestAnimationFrame(() => this.autoScroll());
@@ -1632,17 +2290,13 @@ export class BlockManager {
 
         this.calculateStickyOffsets();
     }
-
-    // TODO snapping is wonky sometimes when using multi-selection --> chooses only the last possible snap
-    // maybe implement this with input {x, width} to get a valid modification for moving and resizing
     private adjustOffset(offset: number, trackOffset: number): number {
+        const possibleSnaps: {x: number, dist: number}[] = [];
         const maxAttempts: number = 10;
         let attemptCount: number = 0;
         let validOffset: number = offset;
         let hasCollision: boolean = true;
         let isSticking: boolean = false;
-        // skip validation while scrolling
-        if (this.isScrolling) return this.lastValidOffset;
 
         // calculate offsetDifference to adjust borders
         const horizontalOffsetDifference: number = store.state.horizontalViewportOffset - this.lastViewportOffset;
@@ -1655,7 +2309,6 @@ export class BlockManager {
         while (hasCollision && attemptCount < maxAttempts) {
             hasCollision = false;
             attemptCount++;
-
             for (let trackId: number = 0; trackId < Math.min(this.unselectedBorders.length, this.selectedBorders.length); trackId++) {
                 // calculate correct trackId
                 let adjustedTrack: number = trackId + trackOffset;
@@ -1669,8 +2322,8 @@ export class BlockManager {
                 for (let i = 0; i < this.selectedBorders[trackId].length; i += 2) {
                     let start2: number = this.selectedBorders[trackId][i] + validOffset;
                     let end2: number = this.selectedBorders[trackId][i + 1] + validOffset;
-                    if (start2 < config.leftPadding) {
-                        validOffset = this.lastValidOffset;
+                    if ((start2 + store.state.horizontalViewportOffset) < config.leftPadding) {
+                        validOffset = this.getValidStickyOffset(offset, trackOffset, horizontalOffsetDifference);
                         isSticking = true;
                         break;
                     }
@@ -1705,22 +2358,27 @@ export class BlockManager {
                     }
 
                     // snapping if no collision was detected
-                    if (!isSticking) {
+                    if (!isSticking && store.state.isSnappingActive) {
                         for (const lineX of store.state.gridLines) {
                             // left
                             if (Math.abs(start2 - lineX) <= config.moveSnappingRadius) {
-                                validOffset = lineX - this.selectedBorders[trackId][i];
-                                break;
+                                possibleSnaps.push({x: lineX - this.selectedBorders[trackId][i], dist: start2 - lineX});
                             }
                             // right
                             if (Math.abs(end2 - lineX) <= config.moveSnappingRadius) {
-                                validOffset = lineX - this.selectedBorders[trackId][i + 1];
-                                break;
+                                possibleSnaps.push({x: lineX - this.selectedBorders[trackId][i + 1], dist: end2 - lineX});
                             }
                         }
                     }
                 }
             }
+        }
+        
+        // no collision, choose gridLine for snapping
+        if (!isSticking && possibleSnaps.length >= 1) {
+            validOffset = possibleSnaps.reduce((prev, curr) =>
+                curr.dist < prev.dist ? curr : prev
+            ).x;            
         }
 
         if (attemptCount >= maxAttempts) {
@@ -1818,6 +2476,7 @@ export class BlockManager {
                     const track = trackId + trackOffset;
                     if (possibleOffsetPerTrackOffset[trackOffset] == undefined) {
                         possibleOffsetPerTrackOffset[trackOffset] = [];
+                        possibleOffsetPerTrackOffset[trackOffset].push(48 - this.selectedBorders[trackId][0]);
                     }
                     // loop over every unselected border block in this track
                     for (let k = 0; k < this.unselectedBorders[track].length; k += 2 ) {
@@ -1878,7 +2537,7 @@ export class BlockManager {
         if (box) box.remove();
     }
     private selectRectanglesWithin(): void {
-        this.selectedBlocks.length = 0;
+        const selectedBlocks: BlockSelection[] = [];
         let { x, y, width, height } = this.getBoundingBox();
 
         // need to adjust coordinates, to be in canvas
@@ -1895,11 +2554,11 @@ export class BlockManager {
             blocks.forEach((block: BlockDTO, index: number) => {
                 if ((block.rect.x + block.rect.width) >= x && block.rect.x <= (x + width) && block.rect.y <= (y + height) && block.rect.y + block.rect.height >= y) {
                     const selection: BlockSelection = {trackId: trackId, index: index, uid: block.rect.uid};
-                    this.selectedBlocks.push(selection);
+                    selectedBlocks.push(selection);
                 }
             });
         }
-        store.dispatch('onSelectBlocks', this.selectedBlocks);
+        this.handleSelection(selectedBlocks);
     }
     private getBoundingBox() {
         const x = Math.min(this.selectionStart.x, this.selectionEnd.x);
@@ -1907,5 +2566,33 @@ export class BlockManager {
         const width = Math.abs(this.selectionStart.x - this.selectionEnd.x);
         const height = Math.abs(this.selectionStart.y - this.selectionEnd.y);
         return { x, y, width, height };
+    }
+
+    //******* edit-mode *******
+    private handleEditMode(isEditable: boolean): void {
+        if (!store.state.isEditable) {
+            // disable handles, if selected, remove selection
+            this.forEachBlock((block: BlockDTO): void => {
+                this.updateHandleInteractivity(block, false);
+                if (this.isBlockSelected(block)) {
+                    this.updateIndicatorVisibility(block, false);
+                    block.strokedRect.visible = false;
+                }
+                block.rect.interactive = false;
+            });
+
+            this.renderedGroupBorders.forEach((borderData: GroupBorderData, groupId: number): void => {
+                this.clearGroupBorder(groupId);
+            });
+            this.clearSelectionBorder();
+            store.dispatch('clearSelection');
+            this.strgDown = false;
+        } else {
+            // enable handles
+            this.forEachBlock((block: BlockDTO): void => {
+                this.updateHandleInteractivity(block, true);
+                block.rect.interactive = true;
+            });
+        }
     }
 }

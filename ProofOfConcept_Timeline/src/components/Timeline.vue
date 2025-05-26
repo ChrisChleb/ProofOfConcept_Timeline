@@ -1,8 +1,8 @@
 <script lang="ts">
-import {defineComponent, ref} from 'vue'
+import {defineComponent, ref, watch} from 'vue'
 import * as Pixi from "pixi.js";
 import {useStore} from "vuex";
-import pixiApp, {dynamicContainer} from "@/pixi/pixiApp";
+import pixiApp from "@/pixi/pixiApp";
 import {InstructionParser, type BlockData, Instruction} from "@/parser/instructionParser";
 import Track from "@/components/Track.vue";
 import Grid from "@/components/Grid.vue";
@@ -12,9 +12,9 @@ import config from "@/config";
 import JsonData from '../json/2024-06-20_Team1_session1.json';
 import PlaybackVisualization from "@/components/PlaybackVisualization.vue";
 import Slider from "@/components/Slider.vue";
-import store, {type BlockSelection} from "@/store";
+import store from "@/store";
 import ScrollBar from "@/components/ScrollBar.vue";
-import {type BlockDTO, BlockManager} from "@/helper/blockManager";
+import {BlockManager} from "@/helper/blockManager";
 import PositionIndicator from "@/components/PositionIndicator.vue";
 
 const storageKey = "storedSequences";
@@ -37,7 +37,9 @@ export default defineComponent({
       store: useStore(),
       dialog: ref(false),
       instructionParser: new InstructionParser(),
-      lastHorizontalViewportOffset: 0
+      lastHorizontalViewportOffset: 0,
+      isSnappingActive: false,
+      isEditable: false
     };
   },
   created() {    
@@ -64,6 +66,10 @@ export default defineComponent({
     const visibleHeight = window.innerHeight - pixiApp.canvas.getBoundingClientRect().top - config.sliderHeight - config.componentPadding;
     store.dispatch('setVisibleHeight', visibleHeight);
     store.dispatch('calculateScrollableHeight');
+    
+    watch(() => store.state.isSnappingActive, () => {
+      this.isSnappingActive = store.state.isSnappingActive;
+    });
   },
   methods: {
     loadJson() {
@@ -97,6 +103,9 @@ export default defineComponent({
       console.debug("totalDuration: ", this.totalDuration, " ms");
       console.debug("trackCount: ", this.trackCount);
       console.debug("blocks: ", this.blocks);
+      
+      this.isEditable = false;
+      this.toggleEditState();
     },
     exportJson() {
       const instructions: Instruction[] = this.instructionParser.parseBlocksToInstructions();
@@ -200,7 +209,12 @@ export default defineComponent({
       store.dispatch('calculateScrollableHeight');
       // init tracks
       store.dispatch('initTracks');
-      // TODO for future, calculate new trackLength
+    },
+    changeSnappingMode() {
+      store.dispatch('toggleSnappingState');
+    },
+    toggleEditState() {
+      store.dispatch('toggleEditState', this.isEditable);
     }
   },
   components: {
@@ -227,6 +241,12 @@ export default defineComponent({
     <v-btn @click="changeTrackCount(-1)">Remove Track</v-btn>
     <v-btn @click="dialog = true">Open Visualization</v-btn>
     <v-btn @click="exportJson">Save Sequence</v-btn>
+    <v-layout class="flex-0-1">
+      <v-checkbox-btn v-model="isSnappingActive" label="Snapping" @click="changeSnappingMode"></v-checkbox-btn>
+    </v-layout>
+    <v-layout class="flex-0-1">
+      <v-checkbox-btn v-model="isEditable" label="Edit" @change="toggleEditState"></v-checkbox-btn>
+    </v-layout>
   </div>
   <Slider :is-playback-active="isPlaying"></Slider>
   <ScrollBar></ScrollBar>
@@ -261,7 +281,7 @@ export default defineComponent({
      padding: 12px;
      display: flex;
      justify-content: center;
-     align-content: center;
+     align-items: center;
      gap: 12px;
      user-select: none;
    }
@@ -306,6 +326,7 @@ export default defineComponent({
    
    .playbackContainer select {
      width: 164px;
+     height: 32px;
      font-weight: 600;
      font-size: 16px;
      letter-spacing: 0.1rem;

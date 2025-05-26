@@ -29,6 +29,7 @@ const store = createStore({
         visibleHeight: 0,
         sorted: {} as Record<number, boolean>,
         blocks: {} as Record<number, BlockDTO[]>,
+        groups: new Map<number, BlockSelection[]>(),
         lastBlockPositionX: 0,
         selectedBlocks: [] as BlockSelection[],
         initialVirtualViewportWidth: 0,
@@ -36,7 +37,9 @@ const store = createStore({
         isInteracting: false,
         isPressingShift: false,
         blockManager: null as BlockManager | null,
-        currentCursorPosition: {x: 0, y: 0}
+        currentCursorPosition: {x: 0, y: 0},
+        isSnappingActive: false,
+        isEditable: false
     },
     mutations: {
         setBlockManager(state: any, manager: BlockManager): void {
@@ -113,9 +116,27 @@ const store = createStore({
                 }
             });
             
+            // fix groupData            
+            state.groups.forEach((group: BlockSelection[]): void => {
+               group.forEach((selection: BlockSelection): void => {
+                  const block: BlockDTO | undefined = sortedTactons[selection.trackId][selection.index];
+                   if (block == undefined || block.rect.uid != selection.uid) {
+                       selection.index = sortedTactons[selection.trackId].findIndex((b: BlockDTO): boolean => {
+                           return b.rect.uid == selection.uid;
+                       });
+                   }
+               }); 
+            });            
             state.blocks = sortedTactons;
         },
         deleteSelectedBlocks(state: any): void {
+            state.selectedBlocks.sort((a: BlockSelection, b: BlockSelection): number => {
+                if (a.trackId !== b.trackId) {
+                    return a.trackId - b.trackId;
+                }
+                return b.index - a.index; 
+            });
+            
             state.selectedBlocks.forEach((blockSelection: BlockSelection) => {
                 const block = state.blocks[blockSelection.trackId][blockSelection.index];
                 dynamicContainer.removeChild(block.container);
@@ -152,32 +173,13 @@ const store = createStore({
         },
         selectBlock(state: any, block: BlockSelection): void {
             state.selectedBlocks.push(block);
-            state.blocks[block.trackId][block.index].strokedRect.visible = true;
-            state.blocks[block.trackId][block.index].leftIndicator.visible = true;
-            state.blocks[block.trackId][block.index].rightIndicator.visible = true;
-            state.blocks[block.trackId][block.index].topIndicator.visible = true;
-            state.blocks[block.trackId][block.index].bottomIndicator.visible = true;
         },
-        unselectBlock(state: any, block: BlockSelection): void {
-          const index: number = state.selectedBlocks.findIndex((selectedBlock: BlockSelection) => selectedBlock.trackId == block.trackId && selectedBlock.index == block.index);
-          if (index != -1) {
-              state.selectedBlocks.splice(index, 1);
-              state.blocks[block.trackId][block.index].strokedRect.visible = false;
-              state.blocks[block.trackId][block.index].leftIndicator.visible = false;
-              state.blocks[block.trackId][block.index].rightIndicator.visible = false;
-              state.blocks[block.trackId][block.index].topIndicator.visible = false;
-              state.blocks[block.trackId][block.index].bottomIndicator.visible = false;
-          }
+        unselectBlock(state: any, selectionIndex: number): void {
+            state.selectedBlocks.splice(selectionIndex, 1);
         },
         clearSelection(state: any): void {
-          state.selectedBlocks.forEach((block: BlockSelection): void => {
-              state.blocks[block.trackId][block.index].strokedRect.visible = false;
-              state.blocks[block.trackId][block.index].leftIndicator.visible = false;
-              state.blocks[block.trackId][block.index].rightIndicator.visible = false;
-              state.blocks[block.trackId][block.index].topIndicator.visible = false;
-              state.blocks[block.trackId][block.index].bottomIndicator.visible = false;
-          });
-          state.selectedBlocks = [];
+            state.selectedBlocks = [];
+            return;
         },
         setInitialVirtualViewportWidth(state: any, newWidth: number): void {
             state.initialVirtualViewportWidth = newWidth;
@@ -190,7 +192,6 @@ const store = createStore({
         },
         changeBlockTrack(state: any, {sourceTrack, targetTrack, blockIndex}: {sourceTrack: number, targetTrack: number, blockIndex: number}): void {
             if (targetTrack == sourceTrack) {
-                console.log("Source- and TargetTrack are identical");
                 return;
             }
             
@@ -257,6 +258,18 @@ const store = createStore({
         },
         setCurrentCursorPosition(state: any, newPosition: {x: number, y: number}): void {
             state.currentCursorPosition = newPosition;
+        },
+        ungroupSelectedBlocks(state: any, groupId: number): void {
+            state.groups.delete(groupId);
+        },
+        addGroup(state: any, groupData: {groupId: number, selection: BlockSelection[]}): void {
+            state.groups.set(groupData.groupId, groupData.selection);
+        },
+        toggleSnappingState(state: any): void {
+            state.isSnappingActive = !state.isSnappingActive;
+        },
+        toggleEditState(state: any, isEditable: boolean): void {
+            state.isEditable = isEditable;
         }
     },
     actions: {
@@ -301,9 +314,7 @@ const store = createStore({
         },
         deleteAllBlocks({ state, commit }: any): void {
           if (state.blocks) {
-              console.log("deleting all blocks");
               Object.keys(state.blocks).forEach((trackIdAsString: string, trackId: number) => {
-                  console.log("deleting blocks of track ", trackId);
                   commit('deleteBlocksOfTrack', trackId);
               });
           }  
@@ -317,38 +328,15 @@ const store = createStore({
         updateCurrentVirtualViewportWidth({ commit }: any, newWidth: number): void {
             commit('setCurrentVirtualViewportWidth', newWidth);
         },
-        onSelectBlocks({ state, commit }: any, selectedBlocks: BlockSelection[]): void {
-            if (!state.isPressingShift) {
-                commit('clearSelection');
-            }          
-            selectedBlocks.forEach((block: BlockSelection): void => {                
-                commit('selectBlock', block);
-            });
-        },
         setInteractionState({ commit }: any, newState: boolean): void {
             commit('setInteractionState', newState);
         },
-        selectBlock({ state, commit }: any, blockToSelect: BlockDTO): void {            
-            const index: number = state.blocks[blockToSelect.trackId].findIndex((block: BlockDTO): boolean => block.rect.uid === blockToSelect.rect.uid);
-            if (index !== -1) {
-                const selectionIndex = state.selectedBlocks.findIndex((block: BlockSelection) => block.trackId === blockToSelect.trackId && block.index === index);
-                const block: BlockSelection = {trackId: blockToSelect.trackId, index: index, uid: blockToSelect.rect.uid};
-                if (selectionIndex == -1) {
-                    // block is not selected
-                    if (!state.isPressingShift) {
-                        // clear selection
-                        commit('clearSelection');
-                    }
-                    // add block to selection
-                    commit('selectBlock', block);
-                } else {
-                    // block already selected
-                    if (state.isPressingShift) {
-                        // remove block from selection
-                        commit('unselectBlock', block);
-                    }
-                }
-            }      
+        selectBlock({ commit }: any, selection: BlockSelection): void {
+            // add block to selection
+            commit('selectBlock', selection);
+        },
+        unselectBlock({ commit }: any, selectionIndex: number): void {
+            commit('unselectBlock', selectionIndex);
         },
         clearSelection({ commit }: any): void {
           commit('clearSelection');
@@ -369,6 +357,15 @@ const store = createStore({
         updateCurrentCursorPosition({ commit }: any, newPosition: {x: number, y: number}): void {
             commit('setCurrentCursorPosition', newPosition);
         },
+        addGroup({ commit }: any, groupData: {groupId: number, selection: BlockSelection[]}): void {
+            commit('addGroup', groupData);
+        },
+        toggleSnappingState({ commit }: any): void {
+            commit('toggleSnappingState');
+        },
+        toggleEditState({ commit }: any, isEditable: boolean): void {
+            commit('toggleEditState', isEditable);
+        }
     },
     getters: {
         blockManager: (state: any) => state.blockManager,
@@ -386,7 +383,9 @@ const store = createStore({
         selectedBlocks: (state: any) => state.selectedBlocks,
         isInteracting: (state: any) => state.isInteracting,
         isPressingShift: (state: any) => state.isPressingShift,
-        currentCursorPosition: (state: any) => state.currentCursorPosition
+        currentCursorPosition: (state: any) => state.currentCursorPosition,
+        isSnappingActive: (state: any) => state.isSnappingActive,
+        isEditable: (state: any) => state.isEditable
     }
 });
 export default store;
